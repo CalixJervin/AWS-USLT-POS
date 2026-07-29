@@ -109,16 +109,91 @@ export function useTransactions() {
     }
   };
 
+  const deleteTransaction = async (id: string) => {
+    try {
+      const { error } = await supabase.from('orders').delete().eq('id', id);
+      if (error) throw error;
+      await fetchTransactions();
+      await refreshData();
+      toast.success("Transaction deleted");
+    } catch (error: any) {
+      console.error("Error deleting transaction:", error);
+      toast.error("Failed to delete transaction: " + (error.message || "Unknown error"));
+    }
+  };
+
+  const deleteSelectedTransactions = async (ids: string[]) => {
+    if (!ids || ids.length === 0) return;
+    try {
+      const { error } = await supabase.from('orders').delete().in('id', ids);
+      if (error) throw error;
+      await fetchTransactions();
+      await refreshData();
+      toast.success(`${ids.length} transaction(s) deleted`);
+    } catch (error: any) {
+      console.error("Error deleting transactions:", error);
+      toast.error("Failed to delete selected transactions: " + (error.message || "Unknown error"));
+    }
+  };
+
   const clearTransactions = async () => {
-    // This might be dangerous in production, but following original logic
-    const { error } = await supabase.from('orders').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-    if (error) {
-      toast.error("Failed to clear transactions");
-    } else {
+    try {
+      const { error } = await supabase.from('orders').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      if (error) throw error;
       setTransactions([]);
       setTransactionItems([]);
-      toast.success("Transactions cleared");
+      await refreshData();
+      toast.success("All transactions deleted");
+    } catch (error: any) {
+      console.error("Error clearing transactions:", error);
+      toast.error("Failed to clear transactions");
     }
+  };
+
+  const exportToExcel = (selectedIds?: string[]) => {
+    const txsToExport = selectedIds && selectedIds.length > 0
+      ? transactions.filter(t => selectedIds.includes(t.id))
+      : transactions;
+
+    if (txsToExport.length === 0) {
+      toast.error("No transactions to export");
+      return;
+    }
+
+    const headers = ["Order ID", "Date", "Time", "Items Count", "Items Summary", "Total Amount (PHP)", "Payment Status"];
+    
+    const rows = txsToExport.map(t => {
+      const items = transactionItems.filter(i => i.transaction_id === t.id);
+      const itemsSummary = items.map(i => `${i.quantity}x ${i.product_name}`).join("; ");
+      const itemsCount = items.reduce((sum, i) => sum + i.quantity, 0);
+      const dateObj = new Date(t.timestamp);
+      const dateStr = dateObj.toLocaleDateString();
+      const timeStr = dateObj.toLocaleTimeString();
+
+      return [
+        t.order_id,
+        dateStr,
+        timeStr,
+        itemsCount,
+        `"${itemsSummary.replace(/"/g, '""')}"`,
+        t.total_amount.toFixed(2),
+        t.payment_method ? t.payment_method.toUpperCase() : "COMPLETED"
+      ];
+    });
+
+    const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(r => r.join(","))].join("\r\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const filename = `Transactions_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.setAttribute("href", url);
+    link.setAttribute("download", filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    toast.success(`Exported ${txsToExport.length} transaction(s) to Excel!`);
   };
 
   const totalSales = transactions.reduce((sum, t) => sum + t.total_amount, 0);
@@ -130,7 +205,11 @@ export function useTransactions() {
     transactions,
     transactionItems,
     saveTransaction,
+    deleteTransaction,
+    deleteSelectedTransactions,
     clearTransactions,
+    exportToExcel,
+    refetchTransactions: fetchTransactions,
     isLoading,
     metrics: {
       totalSales,

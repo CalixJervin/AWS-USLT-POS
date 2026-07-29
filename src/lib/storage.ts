@@ -154,6 +154,81 @@ export const storage = {
     return publicUrl;
   },
 
+  // Categories
+  getCategories: async (): Promise<string[]> => {
+    const defaultCategories = ["Hot Coffee", "Iced Coffee", "Milk Tea", "Fruit Tea", "Pastries"];
+    let catNames: string[] = [];
+
+    // 1. Fetch custom categories from Supabase categories table
+    try {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('name')
+        .order('created_at', { ascending: true });
+      
+      if (!error && data) {
+        catNames = data.map((c: any) => c.name);
+      }
+    } catch (e) {
+      console.warn("Could not fetch categories table, falling back to products/defaults", e);
+    }
+
+    // 2. Fetch distinct categories used in products table
+    try {
+      const { data: prodData } = await supabase.from('products').select('category');
+      if (prodData) {
+        prodData.forEach((p: any) => {
+          if (p.category && !catNames.includes(p.category)) {
+            catNames.push(p.category);
+          }
+        });
+      }
+    } catch (e) {
+      console.warn("Could not fetch product categories", e);
+    }
+
+    // If no categories were loaded at all, fallback to defaults
+    if (catNames.length === 0) {
+      catNames = [...defaultCategories];
+    }
+
+    return Array.from(new Set(catNames));
+  },
+
+  addCategory: async (name: string): Promise<void> => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+
+    try {
+      const { error } = await supabase.from('categories').insert([{ name: trimmed }]);
+      if (error && error.code !== '23505') {
+        console.error("Error inserting category to DB:", error);
+      }
+    } catch (e) {
+      console.error("Database addCategory error:", e);
+    }
+  },
+
+  deleteCategory: async (name: string): Promise<void> => {
+    try {
+      await supabase.from('categories').delete().eq('name', name);
+    } catch (e) {
+      console.error("Database deleteCategory error:", e);
+    }
+  },
+
+  renameCategory: async (oldName: string, newName: string): Promise<void> => {
+    try {
+      const { error } = await supabase.from('categories').update({ name: newName }).eq('name', oldName);
+      if (error) {
+        await supabase.from('categories').insert([{ name: newName }]);
+      }
+      await supabase.from('products').update({ category: newName }).eq('category', oldName);
+    } catch (e) {
+      console.error("Database renameCategory error:", e);
+    }
+  },
+
   // Compatibility helpers (can be removed once all components are updated)
   getItem: <T>(key: string, defaultValue: T): T => {
     const item = sessionStorage.getItem(key);
@@ -174,3 +249,4 @@ export const storage = {
     sessionStorage.clear();
   }
 };
+

@@ -86,13 +86,13 @@ export default function Page() {
     }
   }, [deleteProduct]);
 
-  const handleAddCategory = useCallback((newCategoryName: string, selectedProductIds: string[]) => {
-    addCategory(newCategoryName)
+  const handleAddCategory = useCallback(async (newCategoryName: string, selectedProductIds: string[]) => {
+    await addCategory(newCategoryName)
 
     if (selectedProductIds.length > 0) {
-      selectedProductIds.forEach(id => {
-        updateProduct(id, { category: newCategoryName as any });
-      });
+      await Promise.all(selectedProductIds.map(id => 
+        updateProduct(id, { category: newCategoryName as any })
+      ));
     }
   }, [addCategory, updateProduct])
 

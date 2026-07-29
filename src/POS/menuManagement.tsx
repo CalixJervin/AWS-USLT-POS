@@ -28,7 +28,8 @@ export default function ManageMenuPage() {
     deleteProduct,
     categories,
     addCategory,
-    deleteCategory
+    deleteCategory,
+    renameCategory
   } = useInventory()
   const [searchQuery, setSearchQuery] = useState("")
 
@@ -87,7 +88,7 @@ export default function ManageMenuPage() {
 
         await Promise.all(updates);
 
-        selectedCategoryNames.forEach(name => deleteCategory(name));
+        await Promise.all(selectedCategoryNames.map(name => deleteCategory(name)));
         
         setSelectedCategoryNames([]);
         toast.success(`${selectedCategoryNames.length} categories deleted.`);
@@ -133,11 +134,10 @@ export default function ManageMenuPage() {
   }
 
   const handleAddCategory = async (newCategory: string, selectedIds: any[]) => {
-    addCategory(newCategory)
+    await addCategory(newCategory)
     if (selectedIds.length > 0) {
       await Promise.all(selectedIds.map(id => updateProduct(id, { category: newCategory as any })))
     }
-    toast.success(`${newCategory} created!`)
   }
   
   const handleSaveCategoryEdit = async () => {
@@ -146,15 +146,7 @@ export default function ManageMenuPage() {
       return;
     }
     
-    // Rename logic
-    deleteCategory(selectedCategory);
-    addCategory(newCategoryName);
-    
-    const updates = inventoryProducts
-      .filter(p => p.category === selectedCategory)
-      .map(p => updateProduct(p.id, { category: newCategoryName as any }));
-    
-    await Promise.all(updates);
+    await renameCategory(selectedCategory, newCategoryName);
     
     setIsEditCategoryOpen(false)
     setSelectedCategoryNames([]);
@@ -168,7 +160,7 @@ export default function ManageMenuPage() {
     
     await Promise.all(updates);
     
-    deleteCategory(selectedCategory);
+    await deleteCategory(selectedCategory);
     setIsDeleteCategoryOpen(false)
     toast.success("Category deleted.")
   }

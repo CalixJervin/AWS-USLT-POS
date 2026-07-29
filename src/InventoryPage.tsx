@@ -115,8 +115,8 @@ export default function InventoryPage() {
         </SiteHeader>
       </div>
 
-      <div className="flex-1 overflow-auto">
-        <div className="max-w-6xl mx-auto p-4 md:p-8">
+      <div className="flex-1 overflow-y-auto p-4 md:p-8">
+        <div className="max-w-6xl mx-auto space-y-6">
           <InventorySystem 
             externalSearchQuery={searchQuery} 
             onAddClick={() => setIsAddOpen(true)}

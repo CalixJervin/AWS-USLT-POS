@@ -61,6 +61,7 @@ createRoot(document.getElementById("root")!).render(
                   <Route element={<ProtectedRoute />}>
                     <Route element={<MainLayout />}>
                       <Route path="/" element={<POS />} />
+                      <Route path="/kiosk" element={<POS isKiosk={true} />} />
                       <Route path="/dashboard" element={<Dashboard />} />
                       <Route path="/inventory" element={<InventoryPage />} />
                       <Route path="/menuManagement" element={<ManageMenuPage />} />

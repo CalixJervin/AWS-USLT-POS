@@ -95,14 +95,14 @@ export function EditProductModal({ isOpen, onOpenChange, product, categories, on
     onOpenChange(false);
   };
 
-  const labelClass = "text-[11px] font-bold uppercase text-[#6B5B4E] tracking-[0.08em] mb-1.5 block";
-  const inputClass = "h-[48px] rounded-[10px] border-[1.5px] border-[#C4B5A5] bg-[#EDE5DA] text-[#1C1412] text-base focus-visible:ring-[#C4B5A5]";
+  const labelClass = "text-[11px] font-bold uppercase text-[#94A3B8] tracking-[0.08em] mb-1.5 block";
+  const inputClass = "h-[48px] rounded-[10px] border border-[#2D3448] bg-[#131824] text-[#E2E8F0] text-base focus-visible:ring-[#00F2FE]";
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[480px] w-[calc(100%-32px)] p-0 overflow-hidden bg-[#FAF6F0] border-none rounded-[16px] shadow-[0_20px_60px_rgba(0,0,0,0.15)] max-h-[90vh] flex flex-col">
-        <DialogHeader className="p-5 pb-0 flex flex-row items-center justify-between">
-          <DialogTitle className="text-[#1C1412] text-lg font-bold">Edit Product</DialogTitle>
+      <DialogContent className="max-w-[480px] w-[calc(100%-32px)] p-0 overflow-hidden bg-[#1E2333] border border-[#2D3448] rounded-[16px] shadow-2xl max-h-[90vh] flex flex-col text-[#E2E8F0]">
+        <DialogHeader className="p-5 pb-0 flex flex-row items-center justify-between border-b border-[#232A3B] bg-[#131824]">
+          <DialogTitle className="text-[#E2E8F0] text-lg font-bold">Edit Product</DialogTitle>
         </DialogHeader>
         
         <div className="flex-1 overflow-y-auto px-5 py-5 space-y-4">
@@ -125,7 +125,7 @@ export function EditProductModal({ isOpen, onOpenChange, product, categories, on
                 "relative w-full min-h-[160px] rounded-[12px] border-2 border-dashed flex flex-col items-center justify-center transition-all cursor-pointer overflow-hidden",
                 editedItem.image 
                   ? "border-transparent bg-black" 
-                  : "border-[#C4B5A5] bg-[#F5EFE6] hover:bg-[#EDE5DA] hover:border-[#A89080]"
+                  : "border-[#2D3448] bg-[#131824] hover:border-[#00F2FE]"
               )}
               onClick={() => !editedItem.image && fileInputRef.current?.click()}
             >
@@ -136,10 +136,10 @@ export function EditProductModal({ isOpen, onOpenChange, product, categories, on
                     alt="Preview" 
                     className="absolute inset-0 w-full h-full object-cover rounded-[12px]"
                   />
-                  <div className="absolute inset-x-0 bottom-0 p-3 flex justify-between items-center bg-gradient-to-t from-black/60 to-transparent">
+                  <div className="absolute inset-x-0 bottom-0 p-3 flex justify-between items-center bg-gradient-to-t from-black/80 to-transparent">
                     <Button 
                       size="sm" 
-                      className="h-8 bg-black/55 hover:bg-black/70 text-white text-[12px] rounded-[6px] px-3 border-none"
+                      className="h-8 bg-black/60 hover:bg-black/80 text-white text-[12px] rounded-[6px] px-3 border-none"
                       onClick={(e) => {
                         e.stopPropagation();
                         fileInputRef.current?.click();
@@ -149,7 +149,7 @@ export function EditProductModal({ isOpen, onOpenChange, product, categories, on
                     </Button>
                     <Button 
                       size="sm" 
-                      className="h-8 bg-[#C0392B]/75 hover:bg-[#C0392B]/90 text-white text-[12px] rounded-[6px] px-3 border-none"
+                      className="h-8 bg-[#FF3366] hover:bg-[#FF1A96] text-white text-[12px] rounded-[6px] px-3 border-none"
                       onClick={(e) => {
                         e.stopPropagation();
                         setEditedItem({ ...editedItem, image: "" });
@@ -161,9 +161,9 @@ export function EditProductModal({ isOpen, onOpenChange, product, categories, on
                 </>
               ) : (
                 <>
-                  <Camera className="h-[32px] w-[32px] text-[#C4B5A5] mb-2" />
-                  <span className="text-[14px] font-semibold text-[#6B5B4E]">Tap to upload product image</span>
-                  <span className="text-[12px] text-[#9E8E7E]">JPG, PNG or WEBP · Max 5MB</span>
+                  <Camera className="h-[32px] w-[32px] text-[#00F2FE] mb-2" />
+                  <span className="text-[14px] font-semibold text-[#E2E8F0]">Tap to upload product image</span>
+                  <span className="text-[12px] text-[#94A3B8]">JPG, PNG or WEBP · Max 5MB</span>
                 </>
               )}
             </div>
@@ -176,7 +176,7 @@ export function EditProductModal({ isOpen, onOpenChange, product, categories, on
               onChange={handleImageUpload} 
             />
             {imageError && (
-              <p className="text-[12px] text-[#C0392B] mt-1.5">{imageError}</p>
+              <p className="text-[12px] text-[#FF3366] mt-1.5">{imageError}</p>
             )}
           </div>
 
@@ -191,7 +191,7 @@ export function EditProductModal({ isOpen, onOpenChange, product, categories, on
                 <SelectTrigger className={inputClass}>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-[#1E2333] border-[#2D3448] text-[#E2E8F0]">
                   {categories.filter(c => c !== "All").map(cat => (
                     <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                   ))}
@@ -202,7 +202,7 @@ export function EditProductModal({ isOpen, onOpenChange, product, categories, on
             <div>
               <label className={labelClass}>Price (₱)</label>
               <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#1C1412] font-semibold">₱</span>
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#E6007E] font-black">₱</span>
                 <Input 
                   type="number" 
                   min="0"
@@ -210,7 +210,7 @@ export function EditProductModal({ isOpen, onOpenChange, product, categories, on
                   placeholder="0.00" 
                   value={editedItem.price} 
                   onChange={(e) => setEditedItem({ ...editedItem, price: e.target.value })} 
-                  className={cn(inputClass, "pl-8")}
+                  className={cn(inputClass, "pl-8 font-bold text-[#E6007E]")}
                 />
               </div>
             </div>
@@ -222,10 +222,10 @@ export function EditProductModal({ isOpen, onOpenChange, product, categories, on
             <button
               onClick={() => setEditedItem({ ...editedItem, inStock: !editedItem.inStock })}
               className={cn(
-                "w-full h-[48px] rounded-[10px] border-[1.5px] font-bold text-sm transition-all flex items-center justify-center gap-2",
+                "w-full h-[48px] rounded-[10px] border font-bold text-sm transition-all flex items-center justify-center gap-2 cursor-pointer",
                 editedItem.inStock 
-                  ? "bg-[#3D2B1F]/5 border-[#3D2B1F] text-[#3D2B1F]" 
-                  : "bg-[#C0392B]/5 border-[#C0392B] text-[#C0392B]"
+                  ? "bg-[#00F2FE]/15 border-[#00F2FE] text-[#00F2FE]" 
+                  : "bg-[#FF3366]/15 border-[#FF3366] text-[#FF3366]"
               )}
             >
               {editedItem.inStock ? (
@@ -243,10 +243,10 @@ export function EditProductModal({ isOpen, onOpenChange, product, categories, on
               <button
                 onClick={() => setEditedItem({ ...editedItem, type: "made-to-order" })}
                 className={cn(
-                  "flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all gap-2 min-h-[80px]",
+                  "flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all gap-2 min-h-[80px] cursor-pointer",
                   editedItem.type === "made-to-order" 
-                    ? "border-[#3D2B1F] bg-[#3D2B1F]/5 text-[#3D2B1F]" 
-                    : "border-[#C4B5A5] text-[#9E8E7E] hover:bg-[#EDE5DA]"
+                    ? "border-[#00F2FE] bg-[#00F2FE]/15 text-[#00F2FE]" 
+                    : "border-[#2D3448] text-[#94A3B8] hover:bg-[#131824]"
                 )}
               >
                 <FlaskConical className="h-6 w-6" />
@@ -256,10 +256,10 @@ export function EditProductModal({ isOpen, onOpenChange, product, categories, on
               <button
                 onClick={() => setEditedItem({ ...editedItem, type: "ready-made" })}
                 className={cn(
-                  "flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all gap-2 min-h-[80px]",
+                  "flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all gap-2 min-h-[80px] cursor-pointer",
                   editedItem.type === "ready-made" 
-                    ? "border-[#3D2B1F] bg-[#3D2B1F]/5 text-[#3D2B1F]" 
-                    : "border-[#C4B5A5] text-[#9E8E7E] hover:bg-[#EDE5DA]"
+                    ? "border-[#00F2FE] bg-[#00F2FE]/15 text-[#00F2FE]" 
+                    : "border-[#2D3448] text-[#94A3B8] hover:bg-[#131824]"
                 )}
               >
                 <Package className="h-6 w-6" />
@@ -279,7 +279,7 @@ export function EditProductModal({ isOpen, onOpenChange, product, categories, on
                 <SelectTrigger className={inputClass}>
                   <SelectValue placeholder="Select existing recipe" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-[#1E2333] border-[#2D3448] text-[#E2E8F0]">
                   <SelectItem value="none">Manual Stock Management</SelectItem>
                   {recipes.map(r => (
                     <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
@@ -287,8 +287,8 @@ export function EditProductModal({ isOpen, onOpenChange, product, categories, on
                 </SelectContent>
               </Select>
               {(!editedItem.recipeId || editedItem.recipeId === "none") && (
-                <p className="text-[11px] text-[#9E8E7E] mt-1.5 flex items-start gap-1">
-                  <Info className="h-3 w-3 mt-0.5 shrink-0" />
+                <p className="text-[11px] text-[#94A3B8] mt-1.5 flex items-start gap-1">
+                  <Info className="h-3 w-3 mt-0.5 shrink-0 text-[#00F2FE]" />
                   This product will be tracked by quantity only — no ingredients will be deducted.
                 </p>
               )}
@@ -318,20 +318,20 @@ export function EditProductModal({ isOpen, onOpenChange, product, categories, on
         </div>
 
         {/* Sticky Bottom Bar */}
-        <div className="p-5 bg-[#FAF6F0] border-t border-[#E8DFD3] flex items-center justify-end gap-4">
+        <div className="p-5 bg-[#131824] border-t border-[#232A3B] flex items-center justify-end gap-4">
           <Button 
             variant="ghost" 
             onClick={() => onOpenChange(false)} 
-            className="h-[48px] px-4 text-[#6B5B4E] hover:bg-transparent hover:text-[#3D2B1F] font-semibold text-[14px]"
+            className="h-[48px] px-4 text-[#94A3B8] hover:bg-transparent hover:text-[#E2E8F0] font-semibold text-[14px]"
           >
             Cancel
           </Button>
           <Button 
             onClick={handleSave} 
             disabled={!editedItem.name || !editedItem.price}
-            className="h-[48px] px-8 bg-[#3D2B1F] hover:bg-[#2C1F17] text-white rounded-[10px] font-semibold text-[14px] shadow-sm flex items-center gap-2"
+            className="h-[48px] px-8 bg-[#00F2FE] hover:bg-[#38F9FF] text-[#0B0E14] rounded-[10px] font-black text-[14px] shadow-lg flex items-center gap-2 cursor-pointer"
           >
-            <Check className="h-4 w-4" />
+            <Check className="h-4 w-4 text-[#0B0E14]" />
             Save Changes
           </Button>
         </div>
@@ -339,4 +339,3 @@ export function EditProductModal({ isOpen, onOpenChange, product, categories, on
     </Dialog>
   );
 }
-

@@ -20,7 +20,8 @@ import {
   LayoutDashboard, 
   ShoppingCart, 
   Package, 
-  CommandIcon
+  CommandIcon,
+  Store
 } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 
@@ -31,30 +32,48 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const location = useLocation()
 
   return (
-    <Sidebar {...props} className="border-r-[rgba(255,255,255,0.06)]">
-      <SidebarHeader className="flex h-16 flex-row items-center gap-3 border-b border-[rgba(255,255,255,0.06)] px-4 bg-[#140F0D]">
-        <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-white/10 text-white shadow-sm">
+    <Sidebar {...props} className="border-r border-[#232A3B]">
+      <SidebarHeader className="flex h-16 flex-row items-center gap-3 border-b border-[#232A3B] px-4 bg-[#131824]">
+        <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-[#E6007E] text-white shadow-md font-bold">
           <CommandIcon className="size-4" />
         </div>
-        <span className="text-base font-bold tracking-tight text-white">Timpla Cafe</span>
+        <span className="text-base font-bold tracking-tight text-[#E2E8F0]">Timpla Cafe</span>
       </SidebarHeader>
 
-      <SidebarContent className="bg-[#1C1412]">
+      <SidebarContent className="bg-[#1E2333]">
         <SidebarGroup>
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton 
                 asChild 
                 isActive={location.pathname === "/"}
-                className={`text-[13px] font-medium transition-all ${
+                className={`text-[13px] font-semibold transition-all ${
                   location.pathname === "/" 
-                    ? "bg-white/8 text-white border-l-[3px] border-[#D4A574] rounded-none!" 
-                    : "text-[#C4A882] hover:text-white hover:bg-white/5"
+                    ? "bg-[#E6007E]/15 text-[#E6007E] border-l-[3px] border-[#E6007E] rounded-none!" 
+                    : "text-[#94A3B8] hover:text-[#E2E8F0] hover:bg-[#282E42]"
                 }`}
               >
                 <Link to="/" onClick={() => setOpenMobile(false)}>
-                  <ShoppingCart className={`size-4 ${location.pathname === "/" ? "text-white" : "text-[#C4A882]"}`} />
+                  <ShoppingCart className={`size-4 ${location.pathname === "/" ? "text-[#E6007E]" : "text-[#94A3B8]"}`} />
                   <span>POS</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+
+            <SidebarMenuItem>
+              <SidebarMenuButton 
+                asChild 
+                isActive={location.pathname === "/kiosk"}
+                tooltip="Kiosk Mode"
+                className={`text-[13px] font-semibold transition-all ${
+                  location.pathname === "/kiosk" 
+                    ? "bg-[#E6007E]/15 text-[#E6007E] border-l-[3px] border-[#E6007E] rounded-none!" 
+                    : "text-[#94A3B8] hover:text-[#E2E8F0] hover:bg-[#282E42]"
+                }`}
+              >
+                <Link to="/kiosk" onClick={() => setOpenMobile(false)}>
+                  <Store className={`size-4 ${location.pathname === "/kiosk" ? "text-[#E6007E]" : "text-[#94A3B8]"}`} />
+                  <span>Kiosk Mode</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -65,14 +84,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   asChild 
                   isActive={location.pathname === "/dashboard"}
                   tooltip="Dashboard"
-                  className={`text-[13px] font-medium transition-all ${
+                  className={`text-[13px] font-semibold transition-all ${
                     location.pathname === "/dashboard" 
-                      ? "bg-white/8 text-white border-l-[3px] border-[#D4A574] rounded-none!" 
-                      : "text-[#C4A882] hover:text-white hover:bg-white/5"
+                      ? "bg-[#E6007E]/15 text-[#E6007E] border-l-[3px] border-[#E6007E] rounded-none!" 
+                      : "text-[#94A3B8] hover:text-[#E2E8F0] hover:bg-[#282E42]"
                   }`}
                 >
                   <Link to="/dashboard" onClick={() => setOpenMobile(false)}>
-                    <LayoutDashboard className={`size-4 ${location.pathname === "/dashboard" ? "text-white" : "text-[#C4A882]"}`} />
+                    <LayoutDashboard className={`size-4 ${location.pathname === "/dashboard" ? "text-[#E6007E]" : "text-[#94A3B8]"}`} />
                     <span>Dashboard</span>
                   </Link>
                 </SidebarMenuButton>
@@ -85,14 +104,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   asChild 
                   isActive={location.pathname === "/inventory"}
                   tooltip="Inventory"
-                  className={`text-[13px] font-medium transition-all ${
+                  className={`text-[13px] font-semibold transition-all ${
                     location.pathname === "/inventory" 
-                      ? "bg-white/8 text-white border-l-[3px] border-[#D4A574] rounded-none!" 
-                      : "text-[#C4A882] hover:text-white hover:bg-white/5"
+                      ? "bg-[#E6007E]/15 text-[#E6007E] border-l-[3px] border-[#E6007E] rounded-none!" 
+                      : "text-[#94A3B8] hover:text-[#E2E8F0] hover:bg-[#282E42]"
                   }`}
                 >
                   <Link to="/inventory" onClick={() => setOpenMobile(false)}>
-                    <Package className={`size-4 ${location.pathname === "/inventory" ? "text-white" : "text-[#C4A882]"}`} />
+                    <Package className={`size-4 ${location.pathname === "/inventory" ? "text-[#E6007E]" : "text-[#94A3B8]"}`} />
                     <span>Inventory</span>
                   </Link>
                 </SidebarMenuButton>
@@ -105,14 +124,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   asChild 
                   isActive={location.pathname === "/menuManagement"}
                   tooltip="Edit Menu"
-                  className={`text-[13px] font-medium transition-all ${
+                  className={`text-[13px] font-semibold transition-all ${
                     location.pathname === "/menuManagement" 
-                      ? "bg-white/8 text-white border-l-[3px] border-[#D4A574] rounded-none!" 
-                      : "text-[#C4A882] hover:text-white hover:bg-white/5"
+                      ? "bg-[#E6007E]/15 text-[#E6007E] border-l-[3px] border-[#E6007E] rounded-none!" 
+                      : "text-[#94A3B8] hover:text-[#E2E8F0] hover:bg-[#282E42]"
                   }`}
                 >
                   <Link to="/menuManagement" onClick={() => setOpenMobile(false)}>
-                    <Settings className={`size-4 ${location.pathname === "/menuManagement" ? "text-white" : "text-[#C4A882]"}`} />
+                    <Settings className={`size-4 ${location.pathname === "/menuManagement" ? "text-[#E6007E]" : "text-[#94A3B8]"}`} />
                     <span>Edit Menu</span>
                   </Link>
                 </SidebarMenuButton>
@@ -122,7 +141,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-[rgba(255,255,255,0.07)] p-2 bg-[#1C1412]">
+      <SidebarFooter className="border-t border-[#232A3B] p-2 bg-[#1E2333]">
         <NavUser onAccountClick={() => setIsAccountOpen(true)} />
       </SidebarFooter>
       

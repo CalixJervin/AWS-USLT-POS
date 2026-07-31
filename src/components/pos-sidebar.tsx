@@ -43,95 +43,81 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarContent className="bg-[#1E2333]">
         <SidebarGroup>
           <SidebarMenu>
+            {/* POS HOME */}
             <SidebarMenuItem>
               <SidebarMenuButton 
                 asChild 
-                isActive={location.pathname === "/"}
+                isActive={location.pathname === "/admin"}
                 className={`text-[13px] font-semibold transition-all ${
-                  location.pathname === "/" 
+                  location.pathname === "/admin" 
                     ? "bg-[#E6007E]/15 text-[#E6007E] border-l-[3px] border-[#E6007E] rounded-none!" 
                     : "text-[#94A3B8] hover:text-[#E2E8F0] hover:bg-[#282E42]"
                 }`}
               >
-                <Link to="/" onClick={() => setOpenMobile(false)}>
-                  <ShoppingCart className={`size-4 ${location.pathname === "/" ? "text-[#E6007E]" : "text-[#94A3B8]"}`} />
+                <Link to="/admin" onClick={() => setOpenMobile(false)}>
+                  <ShoppingCart className={`size-4 ${location.pathname === "/admin" ? "text-[#E6007E]" : "text-[#94A3B8]"}`} />
                   <span>POS</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
 
-            <SidebarMenuItem>
-              <SidebarMenuButton 
-                asChild 
-                isActive={location.pathname === "/kiosk"}
-                tooltip="Kiosk Mode"
-                className={`text-[13px] font-semibold transition-all ${
-                  location.pathname === "/kiosk" 
-                    ? "bg-[#E6007E]/15 text-[#E6007E] border-l-[3px] border-[#E6007E] rounded-none!" 
-                    : "text-[#94A3B8] hover:text-[#E2E8F0] hover:bg-[#282E42]"
-                }`}
-              >
-                <Link to="/kiosk" onClick={() => setOpenMobile(false)}>
-                  <Store className={`size-4 ${location.pathname === "/kiosk" ? "text-[#E6007E]" : "text-[#94A3B8]"}`} />
-                  <span>Kiosk Mode</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-
+            {/* DASHBOARD */}
             {user?.role === "admin" && (
               <SidebarMenuItem>
                 <SidebarMenuButton 
                   asChild 
-                  isActive={location.pathname === "/dashboard"}
+                  isActive={location.pathname === "/admin/dashboard"}
                   tooltip="Dashboard"
                   className={`text-[13px] font-semibold transition-all ${
-                    location.pathname === "/dashboard" 
+                    location.pathname === "/admin/dashboard" 
                       ? "bg-[#E6007E]/15 text-[#E6007E] border-l-[3px] border-[#E6007E] rounded-none!" 
                       : "text-[#94A3B8] hover:text-[#E2E8F0] hover:bg-[#282E42]"
                   }`}
                 >
-                  <Link to="/dashboard" onClick={() => setOpenMobile(false)}>
-                    <LayoutDashboard className={`size-4 ${location.pathname === "/dashboard" ? "text-[#E6007E]" : "text-[#94A3B8]"}`} />
+                  <Link to="/admin/dashboard" onClick={() => setOpenMobile(false)}>
+                    <LayoutDashboard className={`size-4 ${location.pathname === "/admin/dashboard" ? "text-[#E6007E]" : "text-[#94A3B8]"}`} />
                     <span>Dashboard</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             )}
 
+            {/* INVENTORY */}
             {(user?.role === "admin" || user?.canManageInventory) && (
               <SidebarMenuItem>
                 <SidebarMenuButton 
                   asChild 
-                  isActive={location.pathname === "/inventory"}
+                  isActive={location.pathname === "/admin/inventory"}
                   tooltip="Inventory"
                   className={`text-[13px] font-semibold transition-all ${
-                    location.pathname === "/inventory" 
+                    location.pathname === "/admin/inventory" 
                       ? "bg-[#E6007E]/15 text-[#E6007E] border-l-[3px] border-[#E6007E] rounded-none!" 
                       : "text-[#94A3B8] hover:text-[#E2E8F0] hover:bg-[#282E42]"
                   }`}
                 >
-                  <Link to="/inventory" onClick={() => setOpenMobile(false)}>
-                    <Package className={`size-4 ${location.pathname === "/inventory" ? "text-[#E6007E]" : "text-[#94A3B8]"}`} />
+                  <Link to="/admin/inventory" onClick={() => setOpenMobile(false)}>
+                    <Package className={`size-4 ${location.pathname === "/admin/inventory" ? "text-[#E6007E]" : "text-[#94A3B8]"}`} />
                     <span>Inventory</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             )}
 
+            {/* EDIT MENU */}
             {(user?.role === "admin" || user?.canManageMenu) && (
               <SidebarMenuItem>
                 <SidebarMenuButton 
                   asChild 
-                  isActive={location.pathname === "/menuManagement"}
+                  isActive={location.pathname === "/admin/menuManagement"}
                   tooltip="Edit Menu"
                   className={`text-[13px] font-semibold transition-all ${
-                    location.pathname === "/menuManagement" 
+                    location.pathname === "/admin/menuManagement" 
                       ? "bg-[#E6007E]/15 text-[#E6007E] border-l-[3px] border-[#E6007E] rounded-none!" 
                       : "text-[#94A3B8] hover:text-[#E2E8F0] hover:bg-[#282E42]"
                   }`}
                 >
-                  <Link to="/menuManagement" onClick={() => setOpenMobile(false)}>
-                    <Settings className={`size-4 ${location.pathname === "/menuManagement" ? "text-[#E6007E]" : "text-[#94A3B8]"}`} />
+                  <Link to="/admin/menuManagement" onClick={() => setOpenMobile(false)}>
+                    <Settings className={`size-4 ${location.pathname === "/admin/menuManagement" ? "text-[#E6007E]" : "text-[#94A3B8]"}`} />
                     <span>Edit Menu</span>
                   </Link>
                 </SidebarMenuButton>
@@ -142,6 +128,17 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarContent>
 
       <SidebarFooter className="border-t border-[#232A3B] p-2 bg-[#1E2333]">
+        <SidebarMenuButton 
+                asChild 
+                isActive={false}
+                tooltip="Open Customer Kiosk"
+                className="text-[13px] font-semibold transition-all text-[#94A3B8] hover:text-[#E2E8F0] hover:bg-[#282E42]"
+              >
+                <Link to="/" target="_blank" onClick={() => setOpenMobile(false)}>
+                  <Store className="size-4 text-[#00F2FE]" />
+                  <span>Customer Kiosk</span>
+                </Link>
+              </SidebarMenuButton>
         <NavUser onAccountClick={() => setIsAccountOpen(true)} />
       </SidebarFooter>
       

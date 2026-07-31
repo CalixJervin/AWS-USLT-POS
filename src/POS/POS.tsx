@@ -159,7 +159,7 @@ export default function Page({ isKiosk = false }: { isKiosk?: boolean }) {
         
         {/* SiteHeader is now constrained inside the Left panel */}
         <div className="bg-[#131824] border-b border-[#232A3B]">
-          <SiteHeader>
+          <SiteHeader isKiosk={isKiosk}>
             <div className={`flex items-center gap-2 ${isMobileSearchOpen ? "hidden md:flex" : "flex"}`}>
               <h1 className="text-sm font-bold text-[#E2E8F0] hidden lg:block">
                 {isKiosk ? "Kiosk" : "POS"}

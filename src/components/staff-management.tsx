@@ -136,7 +136,7 @@ export function StaffManagement() {
         </div>
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="bg-[#00F2FE] text-[#0B0E14] hover:bg-[#38F9FF] font-black rounded-full px-4 shadow-md">
+            <Button className="bg-[#E6007E] text-[#0B0E14] hover:bg-[#38F9FF] font-black rounded-full px-4 shadow-md">
               <UserPlus className="mr-2 h-4 w-4 text-[#0B0E14]" />
               Add Account
             </Button>

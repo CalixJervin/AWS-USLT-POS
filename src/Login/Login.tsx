@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
-import { Delete, ArrowLeft, ShieldAlert, Coffee, Clock } from "lucide-react"
+import { Delete, ArrowLeft, ShieldAlert, Coffee, Clock, CommandIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
@@ -48,9 +48,9 @@ export default function LoginPage() {
       setView("onboarding")
     } else if (user && !isLocked) {
       if (user.role === "admin") {
-        navigate("/dashboard")
+        navigate("/admin/dashboard")
       } else {
-        navigate("/")
+        navigate("/admin")
       }
     } else if (isLocked && user) {
       setSelectedStaff(user)
@@ -84,9 +84,9 @@ export default function LoginPage() {
         toast.success(result.message)
         setPin("")
         if (selectedStaff.role === "admin") {
-          navigate("/dashboard")
+          navigate("/admin/dashboard")
         } else {
-          navigate("/")
+          navigate("/admin")
         }
       } else {
         toast.error(result.message)
@@ -112,7 +112,7 @@ export default function LoginPage() {
       else if (e.key === "Backspace") {
         handleDelete()
       }
-      // Handle enter (manual submit if needed, though auto-submit is active)
+      // Handle enter
       else if (e.key === "Enter") {
         if (pin.length >= 4) {
           handleLogin()
@@ -164,41 +164,56 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-muted/30 flex items-center justify-center p-4 selection:bg-transparent">
-      <div className="w-full max-w-2xl bg-background rounded-3xl shadow-2xl overflow-hidden border">
+    <div className="min-h-screen bg-[#0B0E14] flex items-center justify-center p-4 selection:bg-[#E6007E] selection:text-white relative overflow-hidden">
+
+      {/* MAIN CONTAINER */}
+      <div className="w-full max-w-2xl bg-[#131824] rounded-3xl shadow-[0_0_50px_rgba(230,0,126,0.15)] overflow-hidden border-2 border-[#E6007E]/30 relative z-10">
         
-        <div className="bg-primary/5 p-6 flex items-center justify-between border-b">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Timpla Cafe</h1>
-            <p className="text-sm text-muted-foreground">Point of Sale System</p>
+        {/* HEADER WITH VIVID PINK BRANDING & NEON BLUE TOUCHES */}
+        <div className="bg-[#1E2333] p-6 flex items-center justify-between border-b border-[#232A3B]">
+          <div className="flex items-center gap-3">
+            <div className="flex aspect-square size-10 items-center justify-center rounded-xl bg-[#E6007E] text-white shadow-[0_0_15px_#E6007E] font-bold">
+              <CommandIcon className="size-5" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-black tracking-tight text-[#E2E8F0]">
+                Timpla <span className="text-[#E6007E]">Cafe</span>
+              </h1>
+              <p className="text-xs font-semibold text-[#00F2FE] tracking-wide uppercase">
+                Staff & Admin Portal
+              </p>
+            </div>
           </div>
-          <Clock className="h-6 w-6 text-muted-foreground opacity-50" />
+          <div className="flex items-center gap-2 bg-[#131824] px-3.5 py-1.5 rounded-full border border-[#00F2FE]/30 text-[#00F2FE] text-xs font-bold shadow-inner">
+            <Clock className="h-4 w-4 text-[#E6007E]" />
+            <span>POS SYSTEM</span>
+          </div>
         </div>
 
-        <div className="p-8 relative min-h-[520px] flex flex-col">
+        <div className="p-8 relative min-h-[520px] flex flex-col bg-[#0B0E14]/50">
           <AnimatePresence mode="wait">
             
             {/* ONBOARDING */}
             {view === "onboarding" && (
               <motion.div key="onboarding" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="flex flex-col h-full flex-1 max-w-sm mx-auto w-full">
                 <div className="text-center mb-8">
-                  <h2 className="text-2xl font-bold">Welcome!</h2>
-                  <p className="text-muted-foreground">Let's set up your first Admin account.</p>
+                  <h2 className="text-2xl font-black text-[#E2E8F0]">Welcome!</h2>
+                  <p className="text-xs text-[#94A3B8] mt-1">Let's set up your first Admin account.</p>
                 </div>
 
                 <div className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Admin Name</label>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold uppercase text-[#94A3B8]">Admin Name</label>
                     <Input 
                       placeholder="e.g. Maria" 
                       value={adminName} 
                       onChange={(e) => setAdminName(e.target.value)}
-                      className="h-12"
+                      className="h-12 bg-[#1E2333] border-[#2D3448] text-[#E2E8F0] focus-visible:ring-[#E6007E]"
                       disabled={isOnboarding}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Create PIN (4-6 digits)</label>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold uppercase text-[#94A3B8]">Create PIN (4-6 digits)</label>
                     <Input 
                       type="password" 
                       inputMode="numeric"
@@ -206,12 +221,12 @@ export default function LoginPage() {
                       placeholder="••••" 
                       value={adminPin} 
                       onChange={(e) => setAdminPin(e.target.value.replace(/[^0-9]/g, ''))}
-                      className="h-12 text-center tracking-widest"
+                      className="h-12 text-center tracking-widest bg-[#1E2333] border-[#2D3448] text-[#E2E8F0] focus-visible:ring-[#00F2FE]"
                       disabled={isOnboarding}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Confirm PIN</label>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold uppercase text-[#94A3B8]">Confirm PIN</label>
                     <Input 
                       type="password" 
                       inputMode="numeric"
@@ -219,12 +234,12 @@ export default function LoginPage() {
                       placeholder="••••" 
                       value={confirmPin} 
                       onChange={(e) => setConfirmPin(e.target.value.replace(/[^0-9]/g, ''))}
-                      className="h-12 text-center tracking-widest"
+                      className="h-12 text-center tracking-widest bg-[#1E2333] border-[#2D3448] text-[#E2E8F0] focus-visible:ring-[#00F2FE]"
                       disabled={isOnboarding}
                     />
                   </div>
                   <Button 
-                    className="w-full h-14 text-lg mt-6" 
+                    className="w-full h-14 text-base font-black mt-6 bg-[#E6007E] hover:bg-[#FF1A96] text-white shadow-[0_0_20px_rgba(230,0,126,0.4)] border border-[#00F2FE]/40 cursor-pointer" 
                     onClick={handleOnboarding}
                     disabled={isOnboarding}
                   >
@@ -237,22 +252,24 @@ export default function LoginPage() {
             {/* STAFF SELECTION */}
             {view === "select" && (
               <motion.div key="select" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="flex flex-col h-full flex-1">
-                <h2 className="text-xl font-semibold mb-6">Who is working right now?</h2>
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-lg font-black text-[#E2E8F0] tracking-wide">Who is working right now?</h2>
+                </div>
                 
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 auto-rows-fr">
                   {staffList.map((staff) => (
                     <button 
                       key={staff.id}
                       onClick={() => { setSelectedStaff(staff); setView("pin"); }}
-                      className="w-full flex flex-col items-center justify-center gap-4 p-6 rounded-2xl border-2 border-transparent bg-muted/50 hover:bg-muted hover:border-primary/20 shadow-sm transition-all active:scale-95"
+                      className="w-full flex flex-col items-center justify-center gap-3 p-6 rounded-2xl border-2 border-[#2D3448] bg-[#1E2333] hover:bg-[#282E42] hover:border-[#E6007E] shadow-lg hover:shadow-[0_0_20px_rgba(230,0,126,0.25)] transition-all active:scale-95 cursor-pointer group"
                     >
-                      <div className={`h-16 w-16 rounded-full flex items-center justify-center text-xl font-bold shadow-sm bg-primary/10 text-primary`}>
+                      <div className="h-16 w-16 rounded-2xl flex items-center justify-center text-xl font-black shadow-md bg-[#E6007E]/20 text-[#E6007E] border border-[#E6007E]/40 group-hover:border-[#00F2FE] group-hover:text-[#00F2FE] group-hover:bg-[#00F2FE]/20 transition-all">
                         {staff.avatarInitials}
                       </div>
                       <div className="text-center">
-                        <p className="font-semibold text-lg">{staff.name}</p>
-                        <p className="text-xs text-muted-foreground capitalize flex items-center justify-center gap-1 mt-1">
-                          {staff.role === 'admin' ? <ShieldAlert className="h-3 w-3" /> : <Coffee className="h-3 w-3" />}
+                        <p className="font-bold text-base text-[#E2E8F0] group-hover:text-[#00F2FE] transition-colors">{staff.name}</p>
+                        <p className="text-xs text-[#94A3B8] capitalize flex items-center justify-center gap-1.5 mt-1 font-semibold">
+                          {staff.role === 'admin' ? <ShieldAlert className="h-3.5 w-3.5 text-[#00F2FE]" /> : <Coffee className="h-3.5 w-3.5 text-[#E6007E]" />}
                           {staff.role}
                         </p>
                       </div>
@@ -265,34 +282,61 @@ export default function LoginPage() {
             {/* PIN PAD */}
             {view === "pin" && selectedStaff && (
               <motion.div key="pin-pad" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="flex flex-col items-center flex-1 max-w-sm mx-auto w-full">
-                <div className="w-full flex items-center justify-between mb-8">
-                  <Button variant="ghost" size="icon" className="rounded-full" onClick={() => { logout(); setView("select"); setPin(""); }}>
+                <div className="w-full flex items-center justify-between mb-6">
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="rounded-full text-[#94A3B8] hover:text-[#00F2FE] hover:bg-[#1E2333] cursor-pointer" 
+                    onClick={() => { logout(); setView("select"); setPin(""); }}
+                  >
                     <ArrowLeft className="h-5 w-5" />
                   </Button>
                   <div className="text-center">
-                    <span className="font-semibold text-xl">Hi, {selectedStaff.name} 👋</span>
-                    <p className="text-sm text-muted-foreground">Enter your PIN</p>
+                    <span className="font-black text-xl text-[#E2E8F0]">Hi, {selectedStaff.name} 👋</span>
+                    <p className="text-xs text-[#94A3B8] mt-0.5">Enter your PIN to sign in</p>
                   </div>
                   <div className="w-10" />
                 </div>
 
+                {/* PIN DOTS WITH VIVID PINK GLOW */}
                 <div className="flex gap-4 mb-8">
                   {[...Array(pin.length || 4)].map((_, i) => (
-                    <div key={i} className={`h-4 w-4 rounded-full transition-all duration-200 ${i < pin.length ? "bg-primary scale-110 shadow-sm" : "bg-muted-foreground/20"}`} />
+                    <div 
+                      key={i} 
+                      className={`h-4 w-4 rounded-full transition-all duration-200 ${
+                        i < pin.length 
+                          ? "bg-[#E6007E] scale-110 shadow-[0_0_12px_#E6007E]" 
+                          : "bg-[#2D3448] border border-[#1E2333]"
+                      }`} 
+                    />
                   ))}
                 </div>
 
-                <div className="grid grid-cols-3 gap-4 w-full">
+                {/* NUMERIC KEYPAD WITH NEON BLUE BORDER HOVER */}
+                <div className="grid grid-cols-3 gap-3.5 w-full">
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
-                    <Button key={num} variant="outline" onClick={() => handleKeyPress(num.toString())} className="h-16 text-2xl font-medium rounded-2xl">
+                    <Button 
+                      key={num} 
+                      variant="outline" 
+                      onClick={() => handleKeyPress(num.toString())} 
+                      className="h-14 text-2xl font-black rounded-xl bg-[#1E2333] border-[#2D3448] text-[#E2E8F0] hover:border-[#00F2FE] hover:text-[#00F2FE] hover:bg-[#282E42] hover:shadow-[0_0_15px_rgba(0,242,254,0.3)] transition-all cursor-pointer"
+                    >
                       {num}
                     </Button>
                   ))}
                   <div />
-                  <Button variant="outline" onClick={() => handleKeyPress("0")} className="h-16 text-2xl font-medium rounded-2xl">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => handleKeyPress("0")} 
+                    className="h-14 text-2xl font-black rounded-xl bg-[#1E2333] border-[#2D3448] text-[#E2E8F0] hover:border-[#00F2FE] hover:text-[#00F2FE] hover:bg-[#282E42] hover:shadow-[0_0_15px_rgba(0,242,254,0.3)] transition-all cursor-pointer"
+                  >
                     0
                   </Button>
-                  <Button variant="ghost" onClick={handleDelete} className="h-16 rounded-2xl">
+                  <Button 
+                    variant="ghost" 
+                    onClick={handleDelete} 
+                    className="h-14 rounded-xl text-[#FF3366] hover:bg-[#FF3366]/15 cursor-pointer"
+                  >
                     <Delete className="h-6 w-6" />
                   </Button>
                 </div>

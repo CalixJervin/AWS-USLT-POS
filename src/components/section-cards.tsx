@@ -22,7 +22,7 @@ export function SectionCards() {
             <DollarSign className="size-3.5 text-[#E6007E]" />
             Total Sales
           </CardDescription>
-          <CardTitle className="text-2xl font-black tabular-nums text-[#E6007E] @[250px]/card:text-3xl">
+          <CardTitle className="text-2xl font-black tabular-nums  @[250px]/card:text-3xl">
             ₱{metrics.totalSales.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </CardTitle>
           <CardAction>
@@ -76,7 +76,7 @@ export function SectionCards() {
             <BarChart3 className="size-3.5 text-[#E6007E]" />
             Average Order Value
           </CardDescription>
-          <CardTitle className="text-2xl font-black tabular-nums text-[#E6007E] @[250px]/card:text-3xl">
+          <CardTitle className="text-2xl font-black tabular-nums @[250px]/card:text-3xl">
             ₱{metrics.averageOrderValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </CardTitle>
           <CardAction>

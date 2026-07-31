@@ -416,10 +416,10 @@ export function DataTable() {
           <Button 
             variant="outline" 
             size="sm" 
-            className="bg-[#00F2FE] text-[#0B0E14] hover:bg-[#38F9FF] border-none font-black gap-1.5 shadow-md rounded-full px-4"
+            className="bg-[#00F2FE] text-[#217346] hover:bg-[#38F9FF] border-none font-black gap-1.5 shadow-md rounded-full px-4"
             onClick={() => exportToExcel(selectedIds.length > 0 ? selectedIds : undefined)}
           >
-            <FileSpreadsheet className="size-4 text-[#0B0E14]" />
+            <FileSpreadsheet className="size-4 text-[#217346]" />
             {selectedIds.length > 0 ? `Export Selected (${selectedIds.length})` : "Export to Excel"}
           </Button>
 

@@ -275,10 +275,10 @@ export default function AdminPOSView() {
           </SiteHeader>
         </div>
 
-        {/* Scrollable Categories & Products Area */}
-        <div ref={mainScrollRef} className="flex-1 flex flex-col gap-4 p-4 pb-[25vh] overflow-y-auto bg-[#0B0E14] relative overscroll-contain touch-pan-y">
+               {/* Scrollable Categories & Products Area */}
+        <div ref={mainScrollRef} className="flex-1 flex flex-col gap-4 px-4 pt-0 pb-[25vh] overflow-y-auto bg-[#0B0E14] relative overscroll-contain touch-pan-y">
           {/* STICKY CATEGORY NAVIGATION BAR */}
-          <div className="sticky -top-4 z-40 bg-[#0B0E14] -mx-4 px-4 py-2 border-b border-[#232A3B] shadow-md shrink-0">
+          <div className="sticky top-0 z-40 bg-[#0B0E14] -mx-4 px-4 py-2 border-b border-[#232A3B] shadow-md shrink-0">
             <div className="relative shrink-0">
               <div ref={pillsBarRef} className="flex w-full overflow-x-auto pb-2 gap-2 scrollbar-hide bg-[#131824] p-3 rounded-xl border border-[#232A3B] relative">
                 {allCategories.map((cat) => (
@@ -304,7 +304,7 @@ export default function AdminPOSView() {
                   Add Category
                 </button>
               </div>
-              
+              <div className="absolute right-0 top-0 bottom-2 w-12 bg-gradient-to-l from-[#131824] to-transparent pointer-events-none rounded-r-xl" />
             </div>
           </div>
 

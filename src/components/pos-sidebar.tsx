@@ -35,9 +35,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     <Sidebar {...props} className="border-r border-[#232A3B]">
       <SidebarHeader className="flex h-16 flex-row items-center gap-3 border-b border-[#232A3B] px-4 bg-[#131824]">
         <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-[#E6007E] text-white shadow-md font-bold">
-          <CommandIcon className="size-4" />
+          <img 
+            src="/takopi.jpg" 
+            alt="AWS Logo" 
+            className="w-7 h-7 sm:w-8 sm:h-8 object-cover rounded-full border border-[#00F2FE]/40 shadow-[0_0_10px_rgba(0,242,254,0.3)] shrink-0" 
+          />
         </div>
-        <span className="text-base font-bold tracking-tight text-[#E2E8F0]">Timpla Cafe</span>
+        <span className="text-base font-bold tracking-tight text-[#E2E8F0]">AWS</span>
       </SidebarHeader>
 
       <SidebarContent className="bg-[#1E2333]">

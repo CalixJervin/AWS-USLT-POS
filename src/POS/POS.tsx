@@ -6,7 +6,7 @@ import DeleteProductModal from "@/POS/deleteProduct"
 import { AddCategoryModal } from "@/POS/addCategory"
 import { ProductGrid } from "@/POS/items"
 import { Input } from "@/components/ui/input"
-import { Plus, Search, X, ShoppingBag, Clock, Store } from "lucide-react"
+import { Plus, Search, ShoppingBag, Clock, Store } from "lucide-react"
 import { Button } from "@/components/ui/button" 
 import type { Product } from "@/hooks/useCart"
 import { SiteHeader } from "@/components/site-header"
@@ -25,8 +25,8 @@ function LiveClock() {
   }, [])
 
   return (
-    <div className="flex items-center gap-1.5 text-[#E6007E] text-[13px] font-semibold mr-2">
-      <Clock className="h-3.5 w-3.5 text-[#E6007E]" />
+    <div className="flex items-center gap-1.5 text-[#38F9FF] text-[13px] font-semibold mr-2">
+      <Clock className="h-3.5 w-3.5" />
       {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
     </div>
   )
@@ -65,8 +65,6 @@ export default function Page({ isKiosk = false }: { isKiosk?: boolean }) {
   const [activeCategory, setActiveCategory] = useState("All")
   const [isAddCategoryOpen, setIsAddCategoryOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
-  
-  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false)
 
   // Kiosk Confirmation state & Staff Pending Orders modal state
   const [submittedKioskOrder, setSubmittedKioskOrder] = useState<PendingKioskOrder | null>(null)
@@ -160,42 +158,31 @@ export default function Page({ isKiosk = false }: { isKiosk?: boolean }) {
         {/* SiteHeader is now constrained inside the Left panel */}
         <div className="bg-[#131824] border-b border-[#232A3B]">
           <SiteHeader isKiosk={isKiosk}>
-            <div className={`flex items-center gap-2 ${isMobileSearchOpen ? "hidden md:flex" : "flex"}`}>
-              <h1 className="text-sm font-bold text-[#E2E8F0] hidden lg:block">
-                {isKiosk ? "Kiosk" : "POS"}
-              </h1>
+            {/* LEFT SIDE: LOGO PICTURE & AWS/POS TITLE - VISIBLE ON ALL SCREEN SIZES */}
+            <div className="flex items-center gap-2">
               {isKiosk && (
-                <span className="bg-[#E6007E]/20 text-[#E6007E] text-[10px] font-bold px-2 py-0.5 rounded border border-[#E6007E]/30 hidden lg:inline-block">
-                  KIOSK MODE
-                </span>
+                <img 
+                  src="/takopi.jpg" 
+                  alt="AWS Logo" 
+                  className="w-7 h-7 sm:w-8 sm:h-8 object-cover rounded-full border border-[#00F2FE]/40 shadow-[0_0_10px_rgba(0,242,254,0.3)] shrink-0" 
+                />
               )}
-              
-              <Button 
-                variant="secondary"
-                size="sm"
-                className="flex lg:hidden items-center gap-2 rounded-full border border-[#2D3448] bg-[#1E2333] text-[#E2E8F0] shadow-sm px-4 h-11 cursor-pointer active:scale-95 touch-manipulation"
-                onClick={() => setIsMobileTicketOpen(true)}
-              >
-                <ShoppingBag className="h-4 w-4 text-[#E6007E]" />
-                <span className="font-bold text-sm">Ticket</span>
-                {totalCartItems > 0 && (
-                  <span className="bg-[#E6007E] text-white text-xs font-black h-5 w-5 flex items-center justify-center rounded-full ml-1">
-                    {totalCartItems}
-                  </span>
-                )}
-              </Button>
+              <span className="text-sm sm:text-base font-black text-[#E2E8F0] tracking-tight">
+                {isKiosk ? "AWS" : "POS"}
+              </span>
             </div>
 
-            <div className={`flex items-center gap-4 ${isMobileSearchOpen ? "w-full md:w-auto" : "ml-auto"}`}>
+            {/* RIGHT SIDE: SEARCH & TICKET BUTTON SIDE-BY-SIDE */}
+            <div className="flex items-center gap-2 sm:gap-3 ml-auto">
               {!isKiosk && (
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setIsPendingModalOpen(true)}
-                  className="relative flex items-center gap-2 rounded-full border border-[#E6007E]/40 bg-[#1E2333] text-[#E6007E] hover:bg-[#E6007E]/10 px-3.5 h-9 cursor-pointer font-bold text-xs shadow-sm"
+                  className="relative flex items-center gap-1.5 rounded-full border border-[#E6007E]/40 bg-[#1E2333] text-[#E6007E] hover:bg-[#E6007E]/10 px-2.5 sm:px-3.5 h-9 cursor-pointer font-bold text-xs shadow-sm shrink-0"
                 >
                   <Store className="h-3.5 w-3.5 text-[#E6007E]" />
-                  <span>Pending Kiosk</span>
+                  <span className="hidden sm:inline">Pending Kiosk</span>
                   {pendingOrders.length > 0 && (
                     <span className="bg-[#E6007E] text-white text-[10px] font-black h-4 w-4 flex items-center justify-center rounded-full ml-0.5 animate-pulse">
                       {pendingOrders.length}
@@ -208,44 +195,35 @@ export default function Page({ isKiosk = false }: { isKiosk?: boolean }) {
                 <LiveClock />
               </div>
 
-              {!isMobileSearchOpen && (
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="md:hidden h-8 w-8 cursor-pointer text-[#E2E8F0]"
-                  onClick={() => setIsMobileSearchOpen(true)}
-                >
-                  <Search className="h-4 w-4 text-[#94A3B8]" />
-                </Button>
-              )}
-
-              <div className={`${isMobileSearchOpen ? "flex w-full animate-in fade-in slide-in-from-right-4" : "hidden md:flex"} items-center gap-2`}>
-                <div className="relative flex-1">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-[#94A3B8] pointer-events-none" />
-                  <Input 
-                    type="search" 
-                    placeholder="Search items..." 
-                    className="h-11 bg-[#1E2333] w-full md:w-[200px] lg:w-[250px] pl-9 rounded-full border-[#2D3448] text-[#E2E8F0] placeholder:text-[#64748B] focus-visible:ring-1 focus-visible:ring-[#E6007E] touch-manipulation" 
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    autoFocus={isMobileSearchOpen}
-                  />
-                </div>
-                
-                {isMobileSearchOpen && (
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="md:hidden shrink-0 cursor-pointer text-[#E2E8F0]"
-                    onClick={() => {
-                      setIsMobileSearchOpen(false);
-                      setSearchQuery("");
-                    }}
-                  >
-                    <X className="h-5 w-5 text-[#94A3B8]" />
-                  </Button>
+              {/* TICKET BUTTON - PLACED RIGHT NEXT TO SEARCH ON MOBILE VIEW */}
+              <Button 
+                variant="secondary"
+                size="sm"
+                className="flex lg:hidden items-center gap-1.5 rounded-full border border-[#E6007E]/40 bg-[#1E2333] text-[#E2E8F0] shadow-md px-3 h-9 sm:h-11 cursor-pointer active:scale-95 touch-manipulation shrink-0"
+                onClick={() => setIsMobileTicketOpen(true)}
+              >
+                <ShoppingBag className="h-4 w-4 text-[#E6007E]" />
+                <span className="font-bold text-xs sm:text-sm">Ticket</span>
+                {totalCartItems > 0 && (
+                  <span className="bg-[#E6007E] text-white text-[10px] sm:text-xs font-black h-4 w-4 sm:h-5 sm:w-5 flex items-center justify-center rounded-full ml-0.5">
+                    {totalCartItems}
+                  </span>
                 )}
+              </Button>
+
+              {/* SEARCH INPUT */}
+              <div className="relative flex-1 min-w-[110px] max-w-[180px] sm:max-w-[240px]">
+                <Search className="absolute left-2.5 top-2.5 sm:top-3 h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#94A3B8] pointer-events-none" />
+                <Input 
+                  type="search" 
+                  placeholder="Search items..." 
+                  className="h-9 sm:h-11 bg-[#1E2333] w-full pl-8 sm:pl-9 rounded-full border-[#2D3448] text-[#E2E8F0] text-xs sm:text-sm placeholder:text-[#64748B] focus-visible:ring-1 focus-visible:ring-[#E6007E] touch-manipulation" 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
               </div>
+
+              
             </div>
           </SiteHeader>
         </div>

@@ -79,7 +79,11 @@ import {
   CircleCheckIcon, 
   Package,
   CreditCard,
-  History
+  History,
+  FileSpreadsheet,
+  Trash2,
+  Trash,
+  AlertTriangle
 } from "lucide-react"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { format } from "date-fns"
@@ -124,7 +128,7 @@ function DraggableRow({ row }: { row: Row<TransactionRow> }) {
       data-state={row.getIsSelected() && "selected"}
       data-dragging={isDragging}
       ref={setNodeRef}
-      className="relative z-0 data-[dragging=true]:z-10 data-[dragging=true]:opacity-80 transition-colors hover:bg-[#E2D9CC]/30 border-b border-[#DDD5C8]/50 last:border-0"
+      className={`relative z-0 data-[dragging=true]:z-10 data-[dragging=true]:opacity-80 transition-colors border-b border-[#232A3B] last:border-0 ${row.getIsSelected() ? "bg-[#282E42]" : "hover:bg-[#282E42]"}`}
       style={{
         transform: CSS.Transform.toString(transform),
         transition: transition,
@@ -140,9 +144,25 @@ function DraggableRow({ row }: { row: Row<TransactionRow> }) {
 }
 
 export function DataTable() {
-  const { transactions, transactionItems } = useTransactions()
+  const { 
+    transactions, 
+    transactionItems, 
+    deleteTransaction, 
+    deleteSelectedTransactions, 
+    clearTransactions, 
+    exportToExcel 
+  } = useTransactions()
+
   const isMobile = useIsMobile()
   const [selectedTransactionId, setSelectedTransactionId] = React.useState<string | null>(null)
+  
+  // Modal states for delete options
+  const [singleDeleteId, setSingleDeleteId] = React.useState<string | null>(null)
+  const [isSingleDeleteOpen, setIsSingleDeleteOpen] = React.useState(false)
+  const [isBulkDeleteOpen, setIsBulkDeleteOpen] = React.useState(false)
+  const [isClearAllOpen, setIsClearAllOpen] = React.useState(false)
+
+  const [rowSelection, setRowSelection] = React.useState({})
   
   const data = React.useMemo(() => {
     return transactions.map(t => {
@@ -170,7 +190,35 @@ export function DataTable() {
     transactionItems.filter(i => i.transaction_id === selectedTransactionId),
   [transactionItems, selectedTransactionId])
 
+  const targetSingleTx = React.useMemo(() => 
+    transactions.find(t => t.id === singleDeleteId),
+  [transactions, singleDeleteId])
+
   const columns: ColumnDef<TransactionRow>[] = React.useMemo(() => [
+    {
+      id: "select",
+      header: ({ table }) => (
+        <input
+          type="checkbox"
+          className="accent-[#00F2FE] h-4 w-4 rounded cursor-pointer"
+          checked={table.getIsAllPageRowsSelected()}
+          onChange={(e) => table.toggleAllPageRowsSelected(!!e.target.checked)}
+        />
+      ),
+      cell: ({ row }) => (
+        <input
+          type="checkbox"
+          className="accent-[#00F2FE] h-4 w-4 rounded cursor-pointer"
+          checked={row.getIsSelected()}
+          onChange={(e) => {
+            e.stopPropagation();
+            row.toggleSelected(!!e.target.checked);
+          }}
+        />
+      ),
+      enableSorting: false,
+      enableHiding: false,
+    },
     {
       id: "drag",
       header: () => null,
@@ -180,7 +228,7 @@ export function DataTable() {
       accessorKey: "order_id",
       header: "Order ID",
       cell: ({ row }) => (
-        <span className="font-bold text-[#1C1412] text-sm">{row.original.order_id}</span>
+        <span className="font-bold text-[#E2E8F0] text-sm">{row.original.order_id}</span>
       ),
       enableHiding: true,
     },
@@ -191,7 +239,7 @@ export function DataTable() {
         const date = new Date(row.original.timestamp)
         const timeStr = format(date, "hh:mm a")
         return (
-          <span className="text-[#6B5B4E] font-medium text-xs">
+          <span className="text-[#94A3B8] font-medium text-xs">
             {timeStr}
           </span>
         )
@@ -204,7 +252,7 @@ export function DataTable() {
         const method = row.original.payment_method || 'Unknown'
         const label = `Paid (${method.toUpperCase()})`
         return (
-          <Badge variant="outline" className="px-1.5 font-black text-[10px] uppercase border-[#D4C9BB] bg-[#E8DFD3]/50 text-[#5C4A38]">
+          <Badge variant="outline" className="px-1.5 font-black text-[10px] uppercase border-[#E6007E]/30 bg-[#131824] text-[#E6007E]">
             <CircleCheckIcon className="size-3 fill-current mr-1" />
             {label}
           </Badge>
@@ -216,8 +264,8 @@ export function DataTable() {
       header: "Items",
       cell: ({ row }) => (
         <div className="flex flex-col py-1 max-w-[150px] sm:max-w-none">
-          <span className="font-bold text-[#1C1412] text-sm">{row.original.items_count} items</span>
-          <span className="text-[11px] text-[#6B5B4E] truncate">
+          <span className="font-bold text-[#E2E8F0] text-sm">{row.original.items_count} items</span>
+          <span className="text-[11px] text-[#94A3B8] truncate">
             {row.original.items_summary}
           </span>
         </div>
@@ -227,7 +275,7 @@ export function DataTable() {
       accessorKey: "total_amount",
       header: () => <div className="w-full text-right">Total Amount</div>,
       cell: ({ row }) => (
-        <div className="w-full text-right font-black text-lg text-[#1C1412]">
+        <div className="w-full text-right font-black text-lg text-[#E6007E]">
           ₱{row.original.total_amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
         </div>
       ),
@@ -239,16 +287,29 @@ export function DataTable() {
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
-              className="flex size-8 text-muted-foreground data-[state=open]:bg-muted"
+              className="flex size-8 text-[#94A3B8] hover:text-[#E2E8F0] data-[state=open]:bg-[#131824]"
               size="icon"
             >
               <EllipsisVerticalIcon className="size-4" />
               <span className="sr-only">Open menu</span>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-32">
-            <DropdownMenuItem onClick={() => setSelectedTransactionId(row.original.id)}>
+          <DropdownMenuContent align="end" className="w-40 bg-[#1E2333] border-[#2D3448]">
+            <DropdownMenuItem 
+              className="cursor-pointer text-[#E2E8F0] focus:bg-[#131824]"
+              onClick={() => setSelectedTransactionId(row.original.id)}
+            >
               View Details
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              className="cursor-pointer text-[#FF3366] focus:bg-[#FF3366]/10 font-medium"
+              onClick={() => {
+                setSingleDeleteId(row.original.id);
+                setIsSingleDeleteOpen(true);
+              }}
+            >
+              <Trash2 className="size-4 mr-2" />
+              Delete Record
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -309,7 +370,10 @@ export function DataTable() {
       columnVisibility,
       columnFilters,
       pagination,
+      rowSelection,
     },
+    onRowSelectionChange: setRowSelection,
+    enableRowSelection: true,
     getRowId: (row) => row.id,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
@@ -322,6 +386,9 @@ export function DataTable() {
     getFacetedRowModel: getCoreRowModel(),
     getFacetedUniqueValues: getFacetedUniqueValues(),
   })
+
+  const selectedRows = table.getFilteredSelectedRowModel().rows
+  const selectedIds = React.useMemo(() => selectedRows.map(r => r.original.id), [selectedRows])
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
@@ -336,18 +403,61 @@ export function DataTable() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between px-4 lg:px-6">
-        <h2 className="text-xl font-black text-[#1C1412]">Recent Transactions</h2>
-        <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-4 lg:px-6">
+        <div>
+          <h2 className="text-xl font-black text-[#E2E8F0]">Recent Transactions</h2>
+          {selectedIds.length > 0 && (
+            <p className="text-xs text-[#E6007E] font-semibold">{selectedIds.length} record(s) selected</p>
+          )}
+        </div>
+        
+        <div className="flex items-center flex-wrap gap-2">
+          {/* Export Button */}
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="bg-[#00F2FE] text-[#217346] hover:bg-[#38F9FF] border-none font-black gap-1.5 shadow-md rounded-full px-4"
+            onClick={() => exportToExcel(selectedIds.length > 0 ? selectedIds : undefined)}
+          >
+            <FileSpreadsheet className="size-4 text-[#217346]" />
+            {selectedIds.length > 0 ? `Export Selected (${selectedIds.length})` : "Export to Excel"}
+          </Button>
+
+          {/* Delete Selected (when rows checked) */}
+          {selectedIds.length > 0 && (
+            <Button 
+              variant="destructive" 
+              size="sm" 
+              className="bg-[#FF3366] text-white hover:bg-[#FF1A96] font-bold gap-1.5 rounded-full shadow-sm px-4"
+              onClick={() => setIsBulkDeleteOpen(true)}
+            >
+              <Trash2 className="size-4" />
+              Delete Selected ({selectedIds.length})
+            </Button>
+          )}
+
+          {/* Clear All Option */}
+          {tableData.length > 0 && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="border-[#FF3366]/40 text-[#FF3366] hover:bg-[#FF3366]/10 font-bold gap-1.5 rounded-full px-4"
+              onClick={() => setIsClearAllOpen(true)}
+            >
+              <Trash className="size-4 text-[#FF3366]" />
+              Delete All
+            </Button>
+          )}
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="bg-[#E8DFD3] border-[#D4C9BB] text-[#6B5B4E] font-bold">
+              <Button variant="outline" size="sm" className="bg-[#131824] border-[#232A3B] text-[#94A3B8] hover:text-[#E2E8F0] font-bold rounded-full">
                 <Columns3Icon data-icon="inline-start" />
                 Columns
                 <ChevronDownIcon data-icon="inline-end" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-32 bg-[#F5EFE6] border-[#DDD5C8]">
+            <DropdownMenuContent align="end" className="w-32 bg-[#1E2333] border-[#2D3448]">
               {table
                 .getAllColumns()
                 .filter(
@@ -359,7 +469,7 @@ export function DataTable() {
                   return (
                     <DropdownMenuCheckboxItem
                       key={column.id}
-                      className="capitalize text-[#6B5B4E] focus:bg-[#E8DFD3]"
+                      className="capitalize text-[#94A3B8] focus:bg-[#131824] focus:text-[#E2E8F0]"
                       checked={column.getIsVisible()}
                       onCheckedChange={(value) =>
                         column.toggleVisibility(!!value)
@@ -375,7 +485,7 @@ export function DataTable() {
       </div>
 
       <div className="px-4 lg:px-6">
-        <div className="overflow-hidden rounded-xl border border-[#DDD5C8] bg-[#F5EFE6] shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
+        <div className="overflow-hidden rounded-xl border border-[#2D3448] bg-[#1E2333] shadow-[0_4px_16px_rgba(0,0,0,0.2)]">
           <DndContext
             collisionDetection={closestCenter}
             modifiers={[restrictToVerticalAxis]}
@@ -384,12 +494,12 @@ export function DataTable() {
             id={sortableId}
           >
             <Table>
-              <TableHeader className="bg-[#E8DFD3]">
+              <TableHeader className="bg-[#131824]">
                 {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id} className="border-b border-[#D4C9BB] hover:bg-transparent">
+                  <TableRow key={headerGroup.id} className="border-b border-[#232A3B] hover:bg-transparent">
                     {headerGroup.headers.map((header) => {
                       return (
-                        <TableHead key={header.id} colSpan={header.colSpan} className="text-[11px] font-bold uppercase text-[#9E8E7E]">
+                        <TableHead key={header.id} colSpan={header.colSpan} className="text-[11px] font-bold uppercase text-[#94A3B8]">
                           {header.isPlaceholder
                             ? null
                             : flexRender(
@@ -416,7 +526,7 @@ export function DataTable() {
                   <TableRow>
                     <TableCell
                       colSpan={columns.length}
-                      className="h-24 text-center text-[#9E8E7E] font-medium"
+                      className="h-24 text-center text-[#94A3B8] font-medium"
                     >
                       No transactions recorded yet.
                     </TableCell>
@@ -506,13 +616,13 @@ export function DataTable() {
 
       {/* Transaction Detail Dialog */}
       <Dialog open={!!selectedTransactionId} onOpenChange={(open) => !open && setSelectedTransactionId(null)}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md bg-[#FAF6F0]">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <History className="size-5 text-primary" />
+            <DialogTitle className="flex items-center gap-2 text-[#1C1412]">
+              <History className="size-5 text-[#6B5B4E]" />
               Order Details {selectedTransaction?.order_id}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-[#6B5B4E]">
               Transaction processed on {selectedTransaction && format(new Date(selectedTransaction.timestamp), "MMM d, yyyy · hh:mm a")}
             </DialogDescription>
           </DialogHeader>
@@ -520,16 +630,16 @@ export function DataTable() {
           <div className="space-y-6 py-4">
             {/* Status & Method */}
             <div className="grid grid-cols-2 gap-4">
-              <div className="p-3 bg-muted/50 rounded-lg space-y-1">
-                <p className="text-[10px] font-bold uppercase text-muted-foreground">Payment Method</p>
+              <div className="p-3 bg-[#E8DFD3]/50 rounded-lg space-y-1 border border-[#D4C9BB]">
+                <p className="text-[10px] font-bold uppercase text-[#9E8E7E]">Payment Method</p>
                 <div className="flex items-center gap-2">
-                  <CreditCard className="size-4 text-muted-foreground" />
-                  <span className="font-bold capitalize">{selectedTransaction?.payment_method}</span>
+                  <CreditCard className="size-4 text-[#6B5B4E]" />
+                  <span className="font-bold capitalize text-[#1C1412]">{selectedTransaction?.payment_method}</span>
                 </div>
               </div>
-              <div className="p-3 bg-muted/50 rounded-lg space-y-1">
-                <p className="text-[10px] font-bold uppercase text-muted-foreground">Status</p>
-                <div className="flex items-center gap-1 text-green-600">
+              <div className="p-3 bg-[#E8DFD3]/50 rounded-lg space-y-1 border border-[#D4C9BB]">
+                <p className="text-[10px] font-bold uppercase text-[#9E8E7E]">Status</p>
+                <div className="flex items-center gap-1 text-green-700">
                   <CircleCheckIcon className="size-4 fill-current" />
                   <span className="font-bold">Completed</span>
                 </div>
@@ -538,27 +648,27 @@ export function DataTable() {
 
             {/* Items List */}
             <div className="space-y-3">
-              <div className="flex items-center gap-2 text-sm font-bold uppercase text-muted-foreground tracking-wider">
+              <div className="flex items-center gap-2 text-xs font-bold uppercase text-[#9E8E7E] tracking-wider">
                 <Package className="size-4" />
                 Items Summary
               </div>
-              <div className="border rounded-xl divide-y bg-card overflow-hidden">
+              <div className="border border-[#DDD5C8] rounded-xl divide-y divide-[#DDD5C8] bg-white overflow-hidden">
                 {selectedItems.map((item) => (
-                  <div key={item.id} className="p-3 flex justify-between items-center hover:bg-muted/30 transition-colors">
+                  <div key={item.id} className="p-3 flex justify-between items-center hover:bg-[#FAF6F0]">
                     <div className="flex flex-col">
-                      <span className="font-bold text-sm">{item.product_name}</span>
-                      <span className="text-xs text-muted-foreground">₱{item.price.toFixed(2)} × {item.quantity}</span>
+                      <span className="font-bold text-sm text-[#1C1412]">{item.product_name}</span>
+                      <span className="text-xs text-[#6B5B4E]">₱{item.price.toFixed(2)} × {item.quantity}</span>
                     </div>
-                    <span className="font-black">₱{(item.price * item.quantity).toFixed(2)}</span>
+                    <span className="font-black text-[#1C1412]">₱{(item.price * item.quantity).toFixed(2)}</span>
                   </div>
                 ))}
               </div>
             </div>
 
             {/* Total */}
-            <div className="p-4 bg-primary/5 border border-primary/20 rounded-xl flex justify-between items-center">
-              <span className="text-lg font-bold">Total Amount</span>
-              <span className="text-2xl font-black text-primary">
+            <div className="p-4 bg-[#1C1412]/5 border border-[#1C1412]/20 rounded-xl flex justify-between items-center">
+              <span className="text-base font-bold text-[#1C1412]">Total Amount</span>
+              <span className="text-2xl font-black text-[#1C1412]">
                 ₱{selectedTransaction?.total_amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </span>
             </div>
@@ -571,6 +681,93 @@ export function DataTable() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* SINGLE DELETE CONFIRMATION DIALOG */}
+      <Dialog open={isSingleDeleteOpen} onOpenChange={setIsSingleDeleteOpen}>
+        <DialogContent className="sm:max-w-md bg-[#FAF6F0]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600 font-bold">
+              <AlertTriangle className="size-5 text-red-600" />
+              Delete Transaction Record
+            </DialogTitle>
+            <DialogDescription className="py-2 text-[#6B5B4E]">
+              Are you sure you want to delete transaction <strong>{targetSingleTx?.order_id}</strong> (₱{targetSingleTx?.total_amount.toFixed(2)})? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2">
+            <Button variant="outline" onClick={() => setIsSingleDeleteOpen(false)}>Cancel</Button>
+            <Button 
+              variant="destructive"
+              onClick={async () => {
+                if (singleDeleteId) {
+                  await deleteTransaction(singleDeleteId);
+                  setSingleDeleteId(null);
+                  setIsSingleDeleteOpen(false);
+                }
+              }}
+            >
+              Delete Record
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* BULK DELETE CONFIRMATION DIALOG */}
+      <Dialog open={isBulkDeleteOpen} onOpenChange={setIsBulkDeleteOpen}>
+        <DialogContent className="sm:max-w-md bg-[#FAF6F0]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600 font-bold">
+              <AlertTriangle className="size-5 text-red-600" />
+              Delete Selected Transactions
+            </DialogTitle>
+            <DialogDescription className="py-2 text-[#6B5B4E]">
+              Are you sure you want to delete <strong>{selectedIds.length} selected transaction record(s)</strong>? This action will permanently remove these records and cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2">
+            <Button variant="outline" onClick={() => setIsBulkDeleteOpen(false)}>Cancel</Button>
+            <Button 
+              variant="destructive"
+              onClick={async () => {
+                await deleteSelectedTransactions(selectedIds);
+                setRowSelection({});
+                setIsBulkDeleteOpen(false);
+              }}
+            >
+              Delete Selected ({selectedIds.length})
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* CLEAR ALL CONFIRMATION DIALOG */}
+      <Dialog open={isClearAllOpen} onOpenChange={setIsClearAllOpen}>
+        <DialogContent className="sm:max-w-md bg-[#FAF6F0]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600 font-bold">
+              <AlertTriangle className="size-5 text-red-600" />
+              Delete All Transaction History
+            </DialogTitle>
+            <DialogDescription className="py-2 text-[#6B5B4E]">
+              Are you sure you want to delete <strong>ALL transaction history</strong>? This will permanently wipe all order records from the database.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2">
+            <Button variant="outline" onClick={() => setIsClearAllOpen(false)}>Cancel</Button>
+            <Button 
+              variant="destructive"
+              onClick={async () => {
+                await clearTransactions();
+                setRowSelection({});
+                setIsClearAllOpen(false);
+              }}
+            >
+              Delete Everything
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </div>
   )
 }

@@ -80,7 +80,7 @@ export function NavUser({ onAccountClick }: NavUserProps) {
             <DropdownMenuGroup>
               <DropdownMenuItem onClick={onAccountClick}>
                 <UserCircleIcon />
-                Account Settings
+                Settings
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => switchUser()}>
                 <UsersIcon />

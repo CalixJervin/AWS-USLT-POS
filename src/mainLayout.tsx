@@ -5,7 +5,11 @@ import { useAuth } from "@/hooks/use-auth"
 import { Toaster } from "@/components/ui/sonner"
 import { useState, useEffect } from "react"
 
-export default function MainLayout() {
+/**
+ * Dedicated Layout for Admin & Staff POS System.
+ * Contains the AppSidebar, staff navigation, and system notifications.
+ */
+export default function AdminLayout() {
   const { user } = useAuth()
   const isAdmin = user?.role === "admin"
   const [isMobile, setIsMobile] = useState(false)

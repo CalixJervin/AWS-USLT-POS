@@ -27,37 +27,31 @@ interface InventoryContextType {
   deleteProduct: (id: string) => Promise<void>;
   toggleProductStock: (id: string) => Promise<void>;
   processSale: (productId: string, variantIndex: number, quantity: number, orderItems?: any[]) => Promise<void>;
-  addCategory: (name: string) => void;
-  deleteCategory: (name: string) => void;
+  addCategory: (name: string) => Promise<void>;
+  deleteCategory: (name: string) => Promise<void>;
+  renameCategory: (oldName: string, newName: string) => Promise<void>;
   refreshData: () => Promise<void>;
 }
 
 const InventoryContext = createContext<InventoryContextType | undefined>(undefined);
 
-const DEFAULT_CATEGORIES = ["Hot Coffee", "Iced Coffee", "Milk Tea", "Fruit Tea", "Pastries"];
-
 export const InventoryProvider = ({ children }: { children: ReactNode }) => {
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<string[]>(() => {
-    return storage.getItem('categories', DEFAULT_CATEGORIES);
-  });
+  const [categories, setCategories] = useState<string[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    storage.setItem('categories', categories);
-  }, [categories]);
 
   const fetchAll = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [ings, recs, prods, sals] = await Promise.all([
+      const [ings, recs, prods, sals, cats] = await Promise.all([
         storage.getIngredients(),
         storage.getRecipes(),
         storage.getProducts(),
-        storage.getSales()
+        storage.getSales(),
+        storage.getCategories()
       ]);
 
       // Calculate availability for products based on current stocks
@@ -95,6 +89,7 @@ export const InventoryProvider = ({ children }: { children: ReactNode }) => {
       setRecipes(recs);
       setProducts(updatedProducts);
       setSales(sals);
+      setCategories(cats);
     } catch (error) {
       console.error("Error fetching inventory data:", error);
       toast.error("Failed to load inventory data");
@@ -122,6 +117,11 @@ export const InventoryProvider = ({ children }: { children: ReactNode }) => {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'product_variants' },
+        () => fetchAll()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'categories' },
         () => fetchAll()
       )
       .subscribe();
@@ -409,29 +409,33 @@ export const InventoryProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [products, fetchAll]);
 
-  const addCategory = useCallback((name: string) => {
-    setCategories(prev => {
-      if (prev.includes(name)) return prev;
-      return [...prev, name];
-    });
-  }, []);
+  const addCategory = useCallback(async (name: string) => {
+    await storage.addCategory(name);
+    await fetchAll();
+  }, [fetchAll]);
 
-  const deleteCategory = useCallback((name: string) => {
-    setCategories(prev => prev.filter(c => c !== name));
-  }, []);
+  const deleteCategory = useCallback(async (name: string) => {
+    await storage.deleteCategory(name);
+    await fetchAll();
+  }, [fetchAll]);
+
+  const renameCategory = useCallback(async (oldName: string, newName: string) => {
+    await storage.renameCategory(oldName, newName);
+    await fetchAll();
+  }, [fetchAll]);
 
   const contextValue = useMemo(() => ({
     ingredients, recipes, products, categories, sales, isLoading,
     addIngredient, updateIngredient, restockIngredient, deleteIngredient,
     addRecipe, updateRecipe, deleteRecipe,
     addProduct, updateProduct, restockProduct, deleteProduct, toggleProductStock,
-    processSale, addCategory, deleteCategory, refreshData: fetchAll
+    processSale, addCategory, deleteCategory, renameCategory, refreshData: fetchAll
   }), [
     ingredients, recipes, products, categories, sales, isLoading,
     addIngredient, updateIngredient, restockIngredient, deleteIngredient,
     addRecipe, updateRecipe, deleteRecipe,
     addProduct, updateProduct, restockProduct, deleteProduct, toggleProductStock,
-    processSale, addCategory, deleteCategory, fetchAll
+    processSale, addCategory, deleteCategory, renameCategory, fetchAll
   ]);
 
   return (

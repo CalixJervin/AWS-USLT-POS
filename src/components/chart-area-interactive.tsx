@@ -36,7 +36,7 @@ export const description = "An interactive area chart showing sales"
 const chartConfig = {
   sales: {
     label: "Total Sales",
-    color: "var(--primary)",
+    color: "#E6007E",
   }
 } satisfies ChartConfig
 
@@ -86,14 +86,14 @@ export function ChartAreaInteractive() {
   const totalSalesInRange = filteredData.reduce((acc, curr) => acc + curr.sales, 0)
 
   return (
-    <Card className="@container/card">
+    <Card className="@container/card bg-[#1E2333] border-[#2D3448] shadow-[0_4px_16px_rgba(0,0,0,0.2)]">
       <CardHeader>
-        <CardTitle>Sales Performance</CardTitle>
-        <CardDescription>
+        <CardTitle className="text-[#E2E8F0] font-bold text-lg">Sales Performance</CardTitle>
+        <CardDescription className="text-[#94A3B8]">
           <span className="hidden @[540px]/card:block">
-            Showing total sales of ₱{totalSalesInRange.toLocaleString(undefined, { minimumFractionDigits: 2 })} for the selected period
+            Showing total sales of <strong className="text-[#E6007E]">₱{totalSalesInRange.toLocaleString(undefined, { minimumFractionDigits: 2 })}</strong> for the selected period
           </span>
-          <span className="@[540px]/card:hidden">Total: ₱{totalSalesInRange.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+          <span className="@[540px]/card:hidden">Total: <strong className="text-[#E6007E]">₱{totalSalesInRange.toLocaleString(undefined, { minimumFractionDigits: 2 })}</strong></span>
         </CardDescription>
         <CardAction>
           <ToggleGroup
@@ -101,21 +101,21 @@ export function ChartAreaInteractive() {
             value={timeRange}
             onValueChange={setTimeRange}
             variant="outline"
-            className="hidden *:data-[slot=toggle-group-item]:px-4! @[767px]/card:flex"
+            className="hidden *:data-[slot=toggle-group-item]:px-4! @[767px]/card:flex bg-[#131824] border-[#232A3B] p-1 rounded-xl"
           >
-            <ToggleGroupItem value="90d">Last 3 months</ToggleGroupItem>
-            <ToggleGroupItem value="30d">Last 30 days</ToggleGroupItem>
-            <ToggleGroupItem value="7d">Last 7 days</ToggleGroupItem>
+            <ToggleGroupItem value="90d" className="data-[state=on]:bg-[#00F2FE] data-[state=on]:text-[#0B0E14] text-[#94A3B8] font-black text-xs">Last 3 months</ToggleGroupItem>
+            <ToggleGroupItem value="30d" className="data-[state=on]:bg-[#00F2FE] data-[state=on]:text-[#0B0E14] text-[#94A3B8] font-black text-xs">Last 30 days</ToggleGroupItem>
+            <ToggleGroupItem value="7d" className="data-[state=on]:bg-[#00F2FE] data-[state=on]:text-[#0B0E14] text-[#94A3B8] font-black text-xs">Last 7 days</ToggleGroupItem>
           </ToggleGroup>
           <Select value={timeRange} onValueChange={setTimeRange}>
             <SelectTrigger
-              className="flex w-40 **:data-[slot=select-value]:block **:data-[slot=select-value]:truncate @[767px]/card:hidden"
+              className="flex w-40 **:data-[slot=select-value]:block **:data-[slot=select-value]:truncate @[767px]/card:hidden bg-[#131824] border-[#232A3B] text-[#E2E8F0]"
               size="sm"
               aria-label="Select a value"
             >
               <SelectValue placeholder="Last 3 months" />
             </SelectTrigger>
-            <SelectContent className="rounded-xl">
+            <SelectContent className="rounded-xl bg-[#1E2333] border-[#2D3448] text-[#E2E8F0]">
               <SelectItem value="90d" className="rounded-lg">
                 Last 3 months
               </SelectItem>
@@ -139,23 +139,24 @@ export function ChartAreaInteractive() {
               <linearGradient id="fillSales" x1="0" y1="0" x2="0" y2="1">
                 <stop
                   offset="5%"
-                  stopColor="var(--primary)"
-                  stopOpacity={0.3}
+                  stopColor="#E6007E"
+                  stopOpacity={0.35}
                 />
                 <stop
                   offset="95%"
-                  stopColor="var(--primary)"
-                  stopOpacity={0.05}
+                  stopColor="#E6007E"
+                  stopOpacity={0.0}
                 />
               </linearGradient>
             </defs>
-            <CartesianGrid vertical={false} />
+            <CartesianGrid vertical={false} stroke="#232A3B" />
             <XAxis
               dataKey="date"
               tickLine={false}
               axisLine={false}
               tickMargin={8}
               minTickGap={32}
+              stroke="#94A3B8"
               tickFormatter={(value) => {
                 const date = new Date(value)
                 return date.toLocaleDateString("en-US", {
@@ -183,8 +184,8 @@ export function ChartAreaInteractive() {
               dataKey="sales"
               type="natural"
               fill="url(#fillSales)"
-              stroke="var(--primary)"
-              strokeWidth={2}
+              stroke="#E6007E"
+              strokeWidth={2.5}
             />
           </AreaChart>
         </ChartContainer>

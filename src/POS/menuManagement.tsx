@@ -28,7 +28,8 @@ export default function ManageMenuPage() {
     deleteProduct,
     categories,
     addCategory,
-    deleteCategory
+    deleteCategory,
+    renameCategory
   } = useInventory()
   const [searchQuery, setSearchQuery] = useState("")
 
@@ -87,7 +88,7 @@ export default function ManageMenuPage() {
 
         await Promise.all(updates);
 
-        selectedCategoryNames.forEach(name => deleteCategory(name));
+        await Promise.all(selectedCategoryNames.map(name => deleteCategory(name)));
         
         setSelectedCategoryNames([]);
         toast.success(`${selectedCategoryNames.length} categories deleted.`);
@@ -133,11 +134,10 @@ export default function ManageMenuPage() {
   }
 
   const handleAddCategory = async (newCategory: string, selectedIds: any[]) => {
-    addCategory(newCategory)
+    await addCategory(newCategory)
     if (selectedIds.length > 0) {
       await Promise.all(selectedIds.map(id => updateProduct(id, { category: newCategory as any })))
     }
-    toast.success(`${newCategory} created!`)
   }
   
   const handleSaveCategoryEdit = async () => {
@@ -146,15 +146,7 @@ export default function ManageMenuPage() {
       return;
     }
     
-    // Rename logic
-    deleteCategory(selectedCategory);
-    addCategory(newCategoryName);
-    
-    const updates = inventoryProducts
-      .filter(p => p.category === selectedCategory)
-      .map(p => updateProduct(p.id, { category: newCategoryName as any }));
-    
-    await Promise.all(updates);
+    await renameCategory(selectedCategory, newCategoryName);
     
     setIsEditCategoryOpen(false)
     setSelectedCategoryNames([]);
@@ -168,7 +160,7 @@ export default function ManageMenuPage() {
     
     await Promise.all(updates);
     
-    deleteCategory(selectedCategory);
+    await deleteCategory(selectedCategory);
     setIsDeleteCategoryOpen(false)
     toast.success("Category deleted.")
   }
@@ -177,48 +169,48 @@ export default function ManageMenuPage() {
                         (activeTab === "categories" && selectedCategoryNames.length > 0);
 
   return (
-    <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#EDE5DA] relative">
+    <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#0B0E14] relative">
       
-      <div className="bg-[#E8DFD3] border-b border-[#D4C9BB]">
+      <div className="bg-[#131824] border-b border-[#232A3B]">
         <SiteHeader>
           {/* --- LEFT SIDE: Breadcrumbs --- */}
-          <div className={`flex items-center gap-2 ${isMobileSearchOpen ? "hidden md:flex" : "flex"}`}>
+          <div className={`flex items-center gap-2 ${isMobileSearchOpen ? "hidden xl:flex" : "flex"}`}>
             <Breadcrumb>
               <BreadcrumbList>
                 <BreadcrumbItem>
-                  <BreadcrumbLink asChild><Link to="/" className="text-[#6B5B4E]">POS</Link></BreadcrumbLink>
+                  <BreadcrumbLink asChild><Link to="/admin" className="text-[#94A3B8] hover:text-[#E2E8F0]">POS</Link></BreadcrumbLink>
                 </BreadcrumbItem>
-                <BreadcrumbSeparator className="text-[#1C1412]" />
+                <BreadcrumbSeparator className="text-[#2D3448]" />
                 <BreadcrumbItem>
-                  <BreadcrumbPage className="text-sm font-bold text-[#1C1412]">Menu Management</BreadcrumbPage>
+                  <BreadcrumbPage className="text-sm font-bold text-[#E2E8F0]">Menu Management</BreadcrumbPage>
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>
           </div>
 
           {/* --- RIGHT SIDE: Search Bar --- */}
-          <div className={`flex items-center ${isMobileSearchOpen ? "w-full md:w-auto" : "ml-auto"}`}>
+          <div className={`flex items-center ${isMobileSearchOpen ? "w-full xl:w-auto" : "ml-auto"}`}>
             {!isMobileSearchOpen && (
-              <Button variant="ghost" size="icon" className="md:hidden h-8 w-8 cursor-pointer" onClick={() => setIsMobileSearchOpen(true)}>
-                <Search className="h-4 w-4 text-muted-foreground" />
+              <Button variant="ghost" size="icon" className="xl:hidden h-8 w-8 cursor-pointer text-[#E2E8F0]" onClick={() => setIsMobileSearchOpen(true)}>
+                <Search className="h-4 w-4 text-[#94A3B8]" />
               </Button>
             )}
 
-            <div className={`${isMobileSearchOpen ? "flex w-full animate-in fade-in slide-in-from-right-4" : "hidden md:flex"} items-center gap-2`}>
+            <div className={`${isMobileSearchOpen ? "flex w-full animate-in fade-in slide-in-from-right-4" : "hidden xl:flex"} items-center gap-2`}>
               <div className="relative">
-                <Search className="absolute left-2.5 top-3.5 h-4 w-4 text-[#9E8E7E] pointer-events-none" />
+                <Search className="absolute left-2.5 top-3.5 h-4 w-4 text-[#94A3B8] pointer-events-none" />
                 <Input 
                   type="search" 
                   placeholder="Search items..." 
-                  className="h-11 bg-[#DDD5C8] w-full md:w-[200px] lg:w-[250px] pl-9 rounded-full border-[#C4B5A5] text-[#2C1F17] placeholder:text-[#9E8E7E] focus-visible:ring-1 focus-visible:ring-[#C4B5A5] touch-manipulation" 
+                  className="h-11 bg-[#1E2333] w-full xl:w-[250px] pl-9 rounded-full border-[#2D3448] text-[#E2E8F0] placeholder:text-[#64748B] focus-visible:ring-1 focus-visible:ring-[#00F2FE] touch-manipulation" 
                   value={searchQuery} 
                   onChange={(e) => setSearchQuery(e.target.value)} 
                   autoFocus={isMobileSearchOpen}
                 />
               </div>
               {isMobileSearchOpen && (
-                <Button variant="ghost" size="icon" className="md:hidden shrink-0 cursor-pointer" onClick={() => { setIsMobileSearchOpen(false); setSearchQuery(""); }}>
-                  <X className="h-5 w-5 text-muted-foreground" />
+                <Button variant="ghost" size="icon" className="xl:hidden shrink-0 cursor-pointer text-[#E2E8F0]" onClick={() => { setIsMobileSearchOpen(false); setSearchQuery(""); }}>
+                  <X className="h-5 w-5 text-[#94A3B8]" />
                 </Button>
               )}
             </div>
@@ -226,52 +218,52 @@ export default function ManageMenuPage() {
         </SiteHeader>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 md:p-8 pb-24"> 
+      <div className="flex-1 overflow-y-auto p-4 xl:p-8 pb-24"> 
         <div className="max-w-6xl mx-auto space-y-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Edit className="h-5 w-5 text-[#6B5B4E]" />
-              <h2 className="text-lg font-bold text-[#1C1412]">
+              <Edit className="h-5 w-5 text-[#E6007E]" />
+              <h2 className="text-lg font-bold text-[#E2E8F0]">
                 {activeTab === "products" ? "Product Management" : "Category Management"}
               </h2>
             </div>
             
             <Button 
               onClick={() => activeTab === "products" ? setIsAddProductOpen(true) : setIsAddCategoryOpen(true)}
-              className="bg-[#1C1412] text-white hover:bg-[#2C2018] gap-2 h-10 px-5 rounded-full shadow-md font-semibold text-sm transition-all hover:scale-105 active:scale-95"
+              className="bg-[#00F2FE] text-[#0B0E14] hover:bg-[#38F9FF] gap-2 h-10 px-5 rounded-full shadow-md font-black text-sm transition-all hover:scale-105 active:scale-95"
             >
-              <Plus className="h-4 w-4" />
+              <Plus className="h-4 w-4 text-[#0B0E14]" />
               {activeTab === "products" ? "Add Product" : "Add Category"}
             </Button>
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="w-full flex h-14 bg-[#E8DFD3] p-1.5 rounded-xl mb-6 shadow-inner border border-[#D4C9BB]">
-              <TabsTrigger value="products" className="flex-1 rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-md font-bold text-[#6B5B4E] data-[state=active]:text-[#1C1412] text-sm">Products</TabsTrigger>
-              <TabsTrigger value="categories" className="flex-1 rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-md font-bold text-[#6B5B4E] data-[state=active]:text-[#1C1412] text-sm">Categories</TabsTrigger>
+            <TabsList className="w-full flex h-14 bg-[#131824] p-1.5 rounded-xl mb-6 shadow-inner border border-[#232A3B]">
+              <TabsTrigger value="products" className="flex-1 rounded-lg data-[state=active]:bg-[#00F2FE] data-[state=active]:text-[#0B0E14] font-black text-[#94A3B8] text-sm transition-all">Products</TabsTrigger>
+              <TabsTrigger value="categories" className="flex-1 rounded-lg data-[state=active]:bg-[#00F2FE] data-[state=active]:text-[#0B0E14] font-black text-[#94A3B8] text-sm transition-all">Categories</TabsTrigger>
             </TabsList>
 
             {/* PRODUCTS TAB CONTENT */}
             <TabsContent value="products" className="space-y-4 mt-0 animate-in fade-in slide-in-from-bottom-2 duration-300">
-              <div className="bg-[#F5EFE6] rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.06)] overflow-hidden border border-[#DDD5C8]">
+              <div className="bg-[#1E2333] rounded-xl shadow-[0_4px_16px_rgba(0,0,0,0.2)] overflow-hidden border border-[#2D3448]">
                 <div className="overflow-x-auto">
                   <Table>
-                    <TableHeader className="bg-[#E8DFD3]">
-                      <TableRow className="hover:bg-transparent border-b border-[#D4C9BB]">
-                        {/* Always visible on mobile (md:hidden) */}
-                        <TableHead className="w-[40px] text-center md:hidden">
+                    <TableHeader className="bg-[#131824]">
+                      <TableRow className="hover:bg-transparent border-b border-[#232A3B]">
+                        {/* Always visible on mobile (xl:hidden) */}
+                        <TableHead className="w-[40px] text-center xl:hidden">
                           <input 
                             type="checkbox" 
-                            className="accent-primary h-4 w-4 rounded cursor-pointer"
+                            className="accent-[#00F2FE] h-4 w-4 rounded cursor-pointer"
                             checked={selectedProductIds.length === filteredProducts.length && filteredProducts.length > 0}
                             onChange={(e) => toggleAllProducts(e.target.checked)}
                           />
                         </TableHead>
-                        <TableHead className="w-12 text-[10px] font-bold uppercase text-[#9E8E7E] text-center">Image</TableHead>
-                        <TableHead className="text-[10px] font-bold uppercase text-[#9E8E7E]">Product Name</TableHead>
-                        <TableHead className="text-[10px] font-bold uppercase text-[#9E8E7E]">Category</TableHead>
-                        <TableHead className="text-right text-[10px] font-bold uppercase text-[#9E8E7E]">Price Range</TableHead>
-                        <TableHead className="text-right text-[10px] font-bold uppercase text-[#9E8E7E] pr-6">Actions</TableHead>
+                        <TableHead className="w-12 text-[10px] font-bold uppercase text-[#94A3B8] text-center">Image</TableHead>
+                        <TableHead className="text-[10px] font-bold uppercase text-[#94A3B8]">Product Name</TableHead>
+                        <TableHead className="text-[10px] font-bold uppercase text-[#94A3B8]">Category</TableHead>
+                        <TableHead className="text-right text-[10px] font-bold uppercase text-[#94A3B8]">Price Range</TableHead>
+                        <TableHead className="text-right text-[10px] font-bold uppercase text-[#94A3B8] pr-6">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -284,23 +276,23 @@ export default function ManageMenuPage() {
                         return (
                           <TableRow 
                             key={product.id} 
-                            className={`group transition-colors border-b border-[#DDD5C8]/50 last:border-0 cursor-pointer md:cursor-default hover:bg-[#E2D9CC]/30 ${selectedProductIds.includes(product.id) ? "bg-[#E2D9CC]/50" : ""}`}
+                            className={`group transition-colors border-b border-[#232A3B] last:border-0 cursor-pointer xl:cursor-default hover:bg-[#282E42] ${selectedProductIds.includes(product.id) ? "bg-[#282E42]" : ""}`}
                             onClick={() => {
                               if (selectedProductIds.length > 0) toggleProduct(product.id)
                             }}
                           >
-                            {/* Always visible on mobile (md:hidden) */}
-                            <TableCell className="text-center md:hidden">
+                            {/* Always visible on mobile (xl:hidden) */}
+                            <TableCell className="text-center xl:hidden">
                               <input 
                                 type="checkbox" 
-                                className="accent-primary h-4 w-4 rounded cursor-pointer"
+                                className="accent-[#00F2FE] h-4 w-4 rounded cursor-pointer"
                                 checked={selectedProductIds.includes(product.id)}
                                 onChange={() => toggleProduct(product.id)}
                                 onClick={(e) => e.stopPropagation()} 
                               />
                             </TableCell>
                             <TableCell className="text-center">
-                              <div className="h-10 w-10 mx-auto rounded-lg overflow-hidden bg-white/50 border border-[#DDD5C8] relative">
+                              <div className="h-10 w-10 mx-auto rounded-lg overflow-hidden bg-[#131824] border border-[#2D3448] relative">
                                 <img 
                                   src={product.image || ""} 
                                   alt={product.name} 
@@ -310,19 +302,19 @@ export default function ManageMenuPage() {
                                 />
                               </div>
                             </TableCell>
-                            <TableCell className="font-bold text-[#1C1412] text-sm">{product.name}</TableCell>
+                            <TableCell className="font-bold text-[#E2E8F0] text-sm">{product.name}</TableCell>
                             <TableCell>
-                              <span className="bg-[#E8DFD3] text-[#6B5B4E] px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider">
+                              <span className="bg-[#131824] text-[#E6007E] border border-[#E6007E]/30 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider">
                                 {product.category}
                               </span>
                             </TableCell>
-                            <TableCell className="text-right font-black text-[#1C1412] text-sm">{priceDisplay}</TableCell>
+                            <TableCell className="text-right font-black text-[#E6007E] text-sm">{priceDisplay}</TableCell>
                             <TableCell className="text-right pr-6">
                               <div className="flex justify-end gap-1">
                                 <Button 
                                   variant="ghost" 
                                   size="icon" 
-                                  className="h-9 w-9 text-[#9E8E7E] hover:text-[#1C1412] hover:bg-[#1C1412]/5 cursor-pointer active:scale-95 touch-manipulation" 
+                                  className="h-9 w-9 text-[#94A3B8] hover:text-[#E2E8F0] hover:bg-[#131824] cursor-pointer active:scale-95 touch-manipulation" 
                                   onClick={(e) => { e.stopPropagation(); setSelectedProduct(product); setIsEditProductOpen(true); }}
                                 >
                                   <Edit className="h-4 w-4" />
@@ -330,7 +322,7 @@ export default function ManageMenuPage() {
                                 <Button 
                                   variant="ghost" 
                                   size="icon" 
-                                  className="h-9 w-9 text-[#9E8E7E] hover:text-[#C0392B] hover:bg-[#C0392B]/5 cursor-pointer active:scale-95 touch-manipulation" 
+                                  className="h-9 w-9 text-[#94A3B8] hover:text-[#FF3366] hover:bg-[#FF3366]/10 cursor-pointer active:scale-95 touch-manipulation" 
                                   onClick={(e) => { e.stopPropagation(); setSelectedProduct(product); setIsDeleteProductOpen(true); }}
                                 >
                                   <Trash2 className="h-4 w-4" />
@@ -348,23 +340,23 @@ export default function ManageMenuPage() {
 
             {/* CATEGORIES TAB CONTENT */}
             <TabsContent value="categories" className="space-y-4 mt-0 animate-in fade-in slide-in-from-bottom-2 duration-300">
-              <div className="bg-[#F5EFE6] rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.06)] overflow-hidden border border-[#DDD5C8]">
+              <div className="bg-[#1E2333] rounded-xl shadow-[0_4px_16px_rgba(0,0,0,0.2)] overflow-hidden border border-[#2D3448]">
                 <div className="overflow-x-auto">
                   <Table>
-                    <TableHeader className="bg-[#E8DFD3]">
-                      <TableRow className="hover:bg-transparent border-b border-[#D4C9BB]">
-                        {/* Always visible on mobile (md:hidden) */}
-                        <TableHead className="w-[40px] text-center md:hidden">
+                    <TableHeader className="bg-[#131824]">
+                      <TableRow className="hover:bg-transparent border-b border-[#232A3B]">
+                        {/* Always visible on mobile (xl:hidden) */}
+                        <TableHead className="w-[40px] text-center xl:hidden">
                           <input 
                             type="checkbox" 
-                            className="accent-primary h-4 w-4 rounded cursor-pointer"
+                            className="accent-[#00F2FE] h-4 w-4 rounded cursor-pointer"
                             checked={selectedCategoryNames.length === categories.length && categories.length > 0}
                             onChange={(e) => toggleAllCategories(e.target.checked)}
                           />
                         </TableHead>
-                        <TableHead className="text-[10px] font-bold uppercase text-[#9E8E7E]">Category Name</TableHead>
-                        <TableHead className="text-right text-[10px] font-bold uppercase text-[#9E8E7E]">Total Items</TableHead>
-                        <TableHead className="text-right text-[10px] font-bold uppercase text-[#9E8E7E] pr-6">Actions</TableHead>
+                        <TableHead className="text-[10px] font-bold uppercase text-[#94A3B8]">Category Name</TableHead>
+                        <TableHead className="text-right text-[10px] font-bold uppercase text-[#94A3B8]">Total Items</TableHead>
+                        <TableHead className="text-right text-[10px] font-bold uppercase text-[#94A3B8] pr-6">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -373,29 +365,29 @@ export default function ManageMenuPage() {
                         return (
                           <TableRow 
                             key={category} 
-                            className={`group transition-colors border-b border-[#DDD5C8]/50 last:border-0 cursor-pointer md:cursor-default hover:bg-[#E2D9CC]/30 ${selectedCategoryNames.includes(category) ? "bg-[#E2D9CC]/50" : ""}`}
+                            className={`group transition-colors border-b border-[#232A3B] last:border-0 cursor-pointer xl:cursor-default hover:bg-[#282E42] ${selectedCategoryNames.includes(category) ? "bg-[#282E42]" : ""}`}
                             onClick={() => {
                               if (selectedCategoryNames.length > 0) toggleCategory(category)
                             }}
                           >
-                            {/* Always visible on mobile (md:hidden) */}
-                            <TableCell className="text-center md:hidden">
+                            {/* Always visible on mobile (xl:hidden) */}
+                            <TableCell className="text-center xl:hidden">
                               <input 
                                 type="checkbox" 
-                                className="accent-primary h-4 w-4 rounded cursor-pointer"
+                                className="accent-[#00F2FE] h-4 w-4 rounded cursor-pointer"
                                 checked={selectedCategoryNames.includes(category)}
                                 onChange={() => toggleCategory(category)}
                                 onClick={(e) => e.stopPropagation()}
                               />
                             </TableCell>
-                            <TableCell className="font-bold text-[#1C1412] text-sm">{category}</TableCell>
-                            <TableCell className="text-right font-medium text-[#6B5B4E] text-xs">{itemCount} items</TableCell>
+                            <TableCell className="font-bold text-[#E2E8F0] text-sm">{category}</TableCell>
+                            <TableCell className="text-right font-black text-[#E6007E] text-xs">{itemCount} items</TableCell>
                             <TableCell className="text-right pr-6">
                               <div className="flex justify-end gap-1">
                                 <Button 
                                   variant="ghost" 
                                   size="icon" 
-                                  className="h-9 w-9 text-[#9E8E7E] hover:text-[#1C1412] hover:bg-[#1C1412]/5 cursor-pointer active:scale-95 touch-manipulation" 
+                                  className="h-9 w-9 text-[#94A3B8] hover:text-[#E2E8F0] hover:bg-[#131824] cursor-pointer active:scale-95 touch-manipulation" 
                                   onClick={(e) => { e.stopPropagation(); setSelectedCategory(category); setNewCategoryName(category); setIsEditCategoryOpen(true); }}
                                 >
                                   <Edit className="h-4 w-4" />
@@ -403,7 +395,7 @@ export default function ManageMenuPage() {
                                 <Button 
                                   variant="ghost" 
                                   size="icon" 
-                                  className="h-9 w-9 text-[#9E8E7E] hover:text-[#C0392B] hover:bg-[#C0392B]/5 cursor-pointer active:scale-95 touch-manipulation" 
+                                  className="h-9 w-9 text-[#94A3B8] hover:text-[#FF3366] hover:bg-[#FF3366]/10 cursor-pointer active:scale-95 touch-manipulation" 
                                   onClick={(e) => { e.stopPropagation(); setSelectedCategory(category); setIsDeleteCategoryOpen(true); }}
                                 >
                                   <Trash2 className="h-4 w-4" />
@@ -430,7 +422,7 @@ export default function ManageMenuPage() {
             animate={{ y: 0 }} 
             exit={{ y: 100 }} 
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="fixed bottom-0 left-0 right-0 p-4 bg-background border-t shadow-[0_-10px_20px_rgba(0,0,0,0.1)] z-50 flex justify-between items-center md:hidden"
+            className="fixed bottom-0 left-0 right-0 p-4 bg-background border-t shadow-[0_-10px_20px_rgba(0,0,0,0.1)] z-50 flex justify-between items-center xl:hidden"
           >
             <div className="flex flex-col">
               <span className="font-bold text-sm">

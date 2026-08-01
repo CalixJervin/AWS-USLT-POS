@@ -10,9 +10,10 @@ import KioskLayout from "@/KioskLayout"
 import { AuthProvider, useAuth } from "@/hooks/use-auth"
 import { InventoryProvider } from "@/context/InventoryContext"
 
+const KioskView = lazy(() => import("./kiosk/KioskView"))
+const AdminPOSView = lazy(() => import("./POS/AdminPOSView"))
 const Dashboard = lazy(() => import("./Admin-Dashboard"))
 const Login = lazy(() => import("./Login/Login"))
-const POS = lazy(() => import("./POS/POS"))
 const InventoryPage = lazy(() => import("./InventoryPage"))
 const ManageMenuPage = lazy(() => import("./POS/menuManagement"))
 
@@ -54,7 +55,7 @@ createRoot(document.getElementById("root")!).render(
                   
                   {/* DEFAULT KIOSK ROUTE (/) - PUBLIC CUSTOMER INTERFACE */}
                   <Route element={<KioskLayout />}>
-                    <Route path="/" element={<POS isKiosk={true} />} />
+                    <Route path="/" element={<KioskView />} />
                   </Route>
 
                   {/* STAFF LOGIN ROUTE */}
@@ -63,7 +64,7 @@ createRoot(document.getElementById("root")!).render(
                   {/* PROTECTED ADMIN POS SYSTEM (/admin) */}
                   <Route element={<ProtectedRoute />}>
                     <Route element={<AdminLayout />}>
-                      <Route path="/admin" element={<POS isKiosk={false} />} />
+                      <Route path="/admin" element={<AdminPOSView />} />
                       <Route path="/admin/dashboard" element={<Dashboard />} />
                       <Route path="/admin/inventory" element={<InventoryPage />} />
                       <Route path="/admin/menuManagement" element={<ManageMenuPage />} />

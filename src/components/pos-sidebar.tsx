@@ -20,7 +20,6 @@ import {
   LayoutDashboard, 
   ShoppingCart, 
   Package, 
-  CommandIcon,
   Store
 } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"

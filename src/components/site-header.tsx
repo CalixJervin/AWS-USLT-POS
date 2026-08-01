@@ -8,7 +8,7 @@ interface SiteHeaderProps {
 
 export function SiteHeader({ children, isKiosk = false }: SiteHeaderProps) {
   return (
-    <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-16 sticky top-0 z-20 bg-[#131824] border-b border-[#232A3B]">
+    <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-16 sticky top-0 z-50 bg-[#131824] border-b border-[#232A3B] shadow-md">
       <div className="flex w-full items-center gap-1 px-4 xl:gap-2 xl:px-6">
         {!isKiosk && (
           <>

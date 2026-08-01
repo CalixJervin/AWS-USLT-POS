@@ -136,21 +136,25 @@ export default function AdminPOSView() {
     setActiveCategory(cat)
     isManualClickRef.current = true
 
-    if (cat === "All") {
-      if (mainScrollRef.current) {
-        mainScrollRef.current.scrollTo({ top: 0, behavior: "smooth" })
-      }
-    } else {
-      const sectionId = `category-section-${encodeURIComponent(cat.toLowerCase().replace(/\s+/g, '-'))}`
-      const sectionEl = document.getElementById(sectionId)
-      if (sectionEl) {
-        sectionEl.scrollIntoView({ behavior: "smooth", block: "start" })
+    const container = mainScrollRef.current
+    if (container) {
+      if (cat === "All") {
+        container.scrollTo({ top: 0, behavior: "smooth" })
+      } else {
+        const sectionId = `category-section-${encodeURIComponent(cat.toLowerCase().replace(/\s+/g, '-'))}`
+        const sectionEl = document.getElementById(sectionId)
+        if (sectionEl) {
+          const containerRect = container.getBoundingClientRect()
+          const sectionRect = sectionEl.getBoundingClientRect()
+          const targetTop = sectionRect.top - containerRect.top + container.scrollTop - 68
+          container.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" })
+        }
       }
     }
 
     setTimeout(() => {
       isManualClickRef.current = false
-    }, 1000)
+    }, 800)
   }, [])
 
   // Scroll Spy Observer effect
@@ -166,7 +170,19 @@ export default function AdminPOSView() {
         return
       }
 
+      // If user has scrolled near the bottom of the container, auto-select the last section
+      const isAtBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 50
       const sections = container.querySelectorAll<HTMLElement>("section[data-category-name]")
+
+      if (isAtBottom && sections.length > 0) {
+        const lastSec = sections[sections.length - 1]
+        const lastCat = lastSec.getAttribute("data-category-name") || ""
+        if (lastCat && lastCat !== activeCategory) {
+          setActiveCategory(lastCat)
+          return
+        }
+      }
+
       const containerTop = container.getBoundingClientRect().top
 
       let currentCat = ""
@@ -174,10 +190,13 @@ export default function AdminPOSView() {
 
       sections.forEach((sec) => {
         const rect = sec.getBoundingClientRect()
-        const offset = rect.top - containerTop
+        const topOffset = rect.top - containerTop
 
-        if (offset <= 140 && offset > -rect.height + 40) {
-          const dist = Math.abs(offset)
+        // Robust threshold for sections of any height (including empty/unavailable categories)
+        const isVisibleInThreshold = topOffset <= 160 && (rect.bottom - containerTop) >= 30
+
+        if (isVisibleInThreshold) {
+          const dist = Math.abs(topOffset - 80)
           if (dist < minDistance) {
             minDistance = dist
             currentCat = sec.getAttribute("data-category-name") || ""
@@ -211,7 +230,7 @@ export default function AdminPOSView() {
     <div className="flex flex-row h-full overflow-hidden w-full bg-[#0B0E14]">
       {/* LEFT SIDE: Header + Main Content */}
       <div className="flex-1 flex flex-col h-full overflow-hidden relative">
-        <div className="bg-[#131824] border-b border-[#232A3B]">
+        <div className="sticky top-0 z-50 bg-[#131824] border-b border-[#232A3B] shrink-0 select-none">
           <SiteHeader isKiosk={false}>
             {/* TITLE */}
             <div className="flex items-center gap-2">
@@ -257,7 +276,7 @@ export default function AdminPOSView() {
         </div>
 
         {/* Scrollable Categories & Products Area */}
-        <div ref={mainScrollRef} className="flex-1 flex flex-col gap-4 p-4 pb-24 xl:pb-4 overflow-y-auto bg-[#0B0E14] relative">
+        <div ref={mainScrollRef} className="flex-1 flex flex-col gap-4 p-4 pb-[25vh] overflow-y-auto bg-[#0B0E14] relative overscroll-contain touch-pan-y">
           {/* STICKY CATEGORY NAVIGATION BAR */}
           <div className="sticky -top-4 z-40 bg-[#0B0E14] -mx-4 px-4 py-2 border-b border-[#232A3B] shadow-md shrink-0">
             <div className="relative shrink-0">
@@ -285,7 +304,7 @@ export default function AdminPOSView() {
                   Add Category
                 </button>
               </div>
-              <div className="absolute right-0 top-0 bottom-2 w-12 bg-gradient-to-l from-[#131824] to-transparent pointer-events-none rounded-r-xl" />
+              
             </div>
           </div>
 

@@ -157,8 +157,8 @@ export function AddProductWizard({
   const inputClass = "h-[48px] rounded-[10px] border border-[#2D3448] bg-[#131824] text-[#E2E8F0] text-base focus-visible:ring-[#00F2FE]";
 
   return (
-    <div className="flex flex-col h-full bg-[#1E2333] text-[#E2E8F0]">
-      <div className="flex-1 overflow-y-auto px-5 py-5 space-y-4">
+    <div className="flex flex-col h-full overflow-hidden bg-[#1E2333] text-[#E2E8F0]">
+      <div className="flex-1 overflow-y-auto px-5 py-5 space-y-4 overscroll-contain touch-pan-y">
         {step === 1 ? (
           <div className="space-y-4 animate-in fade-in duration-200">
             <div className="space-y-4">

@@ -116,12 +116,21 @@
   * {
     @apply border-border outline-ring/50;
     -webkit-tap-highlight-color: transparent;
-    }
+  }
+  html, body, #root {
+    height: 100%;
+    height: 100dvh;
+    width: 100%;
+    overflow: hidden;
+    margin: 0;
+    padding: 0;
+  }
   body {
     @apply bg-[#0B0E14] text-[#E2E8F0];
     -webkit-overflow-scrolling: touch;
-    }
+    overscroll-behavior: none;
+  }
   html {
     @apply font-sans;
-    }
+  }
 }

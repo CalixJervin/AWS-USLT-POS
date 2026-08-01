@@ -14,7 +14,7 @@ const ProductItemGrid = memo(({ product, onAddToCart, isSelected }: ProductItemP
   return (
     <div
       onClick={() => product.inStock !== false && onAddToCart(product)}
-      className={`group relative flex flex-col w-full rounded-[12px] overflow-hidden cursor-pointer bg-[#1E2333] border border-[#2D3448] shadow-[0_4px_12px_rgba(0,0,0,0.25)] transition-colors hover:border-[#E6007E] ${
+      className={`group relative flex flex-col w-full rounded-2xl overflow-hidden cursor-pointer bg-[#1E2333] border border-[#2D3448] shadow-[0_4px_14px_rgba(0,0,0,0.25)] transition-colors hover:border-[#E6007E] ${
         isSelected 
           ? "ring-2 ring-[#E6007E]" 
           : ""
@@ -30,7 +30,7 @@ const ProductItemGrid = memo(({ product, onAddToCart, isSelected }: ProductItemP
         />
         
         {product.inStock === false && (
-          <div className="absolute top-2 left-2 z-20">
+          <div className="absolute top-2.5 left-2.5 z-20">
             <span className="bg-[#FF3366] text-white text-[10px] font-bold uppercase px-2 py-0.5 rounded shadow-sm">
               Out of Stock
             </span>
@@ -38,11 +38,11 @@ const ProductItemGrid = memo(({ product, onAddToCart, isSelected }: ProductItemP
         )}
       </div>
 
-      <div className="p-3 flex flex-col gap-1 shrink-0">
-        <span className="font-semibold text-[13px] text-[#E2E8F0] leading-tight truncate">{product.name}</span>
+      <div className="p-3.5 flex flex-col gap-1 shrink-0">
+        <span className="font-semibold text-sm text-[#E2E8F0] leading-tight truncate">{product.name}</span>
         <div className="flex flex-col">
-          <span className="text-[14px] font-black text-[#E6007E] tracking-tight">₱{product.price.toFixed(2)}</span>
-          <span className="text-[9px] text-[#94A3B8] font-medium uppercase tracking-wider">{product.category}</span>
+          <span className="text-base font-black text-[#E6007E] tracking-tight">₱{product.price.toFixed(2)}</span>
+          <span className="text-[10px] text-[#94A3B8] font-medium uppercase tracking-wider">{product.category}</span>
         </div>
       </div>
     </div>
@@ -56,7 +56,7 @@ const ProductItemList = memo(({ product, onAddToCart, isSelected }: ProductItemP
   return (
     <div
       onClick={() => product.inStock !== false && onAddToCart(product)}
-      className={`group relative flex flex-row items-center justify-between p-3.5 sm:p-4 rounded-[12px] overflow-hidden cursor-pointer bg-[#1E2333] border border-[#2D3448] shadow-[0_4px_12px_rgba(0,0,0,0.25)] transition-colors hover:border-[#E6007E] ${
+      className={`group relative flex flex-row items-center justify-between p-4 sm:p-4.5 rounded-2xl overflow-hidden cursor-pointer bg-[#1E2333] border border-[#2D3448] shadow-[0_4px_14px_rgba(0,0,0,0.25)] transition-colors hover:border-[#E6007E] ${
         isSelected 
           ? "ring-2 ring-[#E6007E]" 
           : ""
@@ -64,7 +64,7 @@ const ProductItemList = memo(({ product, onAddToCart, isSelected }: ProductItemP
     >
       <div className="flex flex-col gap-1 pr-3 min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span className="font-semibold text-[14px] sm:text-[15px] text-[#E2E8F0] leading-tight truncate">
+          <span className="font-semibold text-[15px] sm:text-[16px] text-[#E2E8F0] leading-tight truncate">
             {product.name}
           </span>
           {product.inStock === false && (
@@ -73,7 +73,7 @@ const ProductItemList = memo(({ product, onAddToCart, isSelected }: ProductItemP
             </span>
           )}
         </div>
-        <span className="text-[15px] sm:text-[16px] font-black text-[#E6007E] tracking-tight">
+        <span className="text-[16px] sm:text-[17px] font-black text-[#E6007E] tracking-tight">
           ₱{product.price.toFixed(2)}
         </span>
         <span className="text-[10px] text-[#94A3B8] font-medium uppercase tracking-wider">
@@ -81,7 +81,7 @@ const ProductItemList = memo(({ product, onAddToCart, isSelected }: ProductItemP
         </span>
       </div>
 
-      <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-lg overflow-hidden bg-[#131824] shrink-0 border border-[#232A3B]">
+      <div className="relative w-18 h-18 sm:w-22 sm:h-22 rounded-xl overflow-hidden bg-[#131824] shrink-0 border border-[#232A3B]">
         <img
           src={product.image || "https://placehold.co/600x600/e2e8f0/64748b?text=No+Image"}
           alt={product.name}
@@ -183,7 +183,7 @@ export const ProductGrid = memo(({
             {hasItems ? (
               useGrid ? (
                 /* Grid Layout with set product card dimensions */
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,180px))] gap-4">
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(130px,160px))] gap-4">
                   {categoryItems.map((product) => (
                     <ProductItemGrid 
                       key={product.id}

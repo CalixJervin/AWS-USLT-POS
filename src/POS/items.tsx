@@ -14,19 +14,19 @@ const ProductItemGrid = memo(({ product, onAddToCart, isSelected }: ProductItemP
   return (
     <div
       onClick={() => product.inStock !== false && onAddToCart(product)}
-      className={`group relative flex flex-col rounded-[12px] overflow-hidden cursor-pointer bg-[#1E2333] border border-[#2D3448] shadow-[0_4px_12px_rgba(0,0,0,0.25)] transition-all duration-150 hover:shadow-[0_6px_20px_rgba(230,0,126,0.2)] hover:border-[#E6007E] hover:-translate-y-0.5 ${
+      className={`group relative flex flex-col w-full rounded-[12px] overflow-hidden cursor-pointer bg-[#1E2333] border border-[#2D3448] shadow-[0_4px_12px_rgba(0,0,0,0.25)] transition-colors hover:border-[#E6007E] ${
         isSelected 
-          ? "ring-2 ring-[#E6007E] scale-[0.98]" 
+          ? "ring-2 ring-[#E6007E]" 
           : ""
       } ${product.inStock === false ? "opacity-45 pointer-events-none" : ""}`}
     >
-      <div className="relative aspect-square overflow-hidden bg-[#131824]">
+      <div className="relative aspect-square overflow-hidden bg-[#131824] shrink-0">
         <img
           src={product.image || "https://placehold.co/600x600/e2e8f0/64748b?text=No+Image"}
           alt={product.name}
           loading="lazy"
           decoding="async"
-          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+          className="h-full w-full object-cover"
         />
         
         {product.inStock === false && (
@@ -38,7 +38,7 @@ const ProductItemGrid = memo(({ product, onAddToCart, isSelected }: ProductItemP
         )}
       </div>
 
-      <div className="p-3 flex flex-col gap-1">
+      <div className="p-3 flex flex-col gap-1 shrink-0">
         <span className="font-semibold text-[13px] text-[#E2E8F0] leading-tight truncate">{product.name}</span>
         <div className="flex flex-col">
           <span className="text-[14px] font-black text-[#E6007E] tracking-tight">₱{product.price.toFixed(2)}</span>
@@ -56,9 +56,9 @@ const ProductItemList = memo(({ product, onAddToCart, isSelected }: ProductItemP
   return (
     <div
       onClick={() => product.inStock !== false && onAddToCart(product)}
-      className={`group relative flex flex-row items-center justify-between p-3.5 sm:p-4 rounded-[12px] overflow-hidden cursor-pointer bg-[#1E2333] border border-[#2D3448] shadow-[0_4px_12px_rgba(0,0,0,0.25)] transition-all duration-150 hover:shadow-[0_6px_20px_rgba(230,0,126,0.2)] hover:border-[#E6007E] hover:-translate-y-0.5 ${
+      className={`group relative flex flex-row items-center justify-between p-3.5 sm:p-4 rounded-[12px] overflow-hidden cursor-pointer bg-[#1E2333] border border-[#2D3448] shadow-[0_4px_12px_rgba(0,0,0,0.25)] transition-colors hover:border-[#E6007E] ${
         isSelected 
-          ? "ring-2 ring-[#E6007E] scale-[0.98]" 
+          ? "ring-2 ring-[#E6007E]" 
           : ""
       } ${product.inStock === false ? "opacity-45 pointer-events-none" : ""}`}
     >
@@ -87,7 +87,7 @@ const ProductItemList = memo(({ product, onAddToCart, isSelected }: ProductItemP
           alt={product.name}
           loading="lazy"
           decoding="async"
-          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+          className="h-full w-full object-cover"
         />
       </div>
     </div>
@@ -177,18 +177,13 @@ export const ProductGrid = memo(({
               <h2 className="text-lg sm:text-xl font-bold text-[#E2E8F0] tracking-tight">
                 {categoryName}
               </h2>
-              {hasItems && (
-                <span className="text-xs font-semibold text-[#94A3B8] bg-[#1E2333] px-2.5 py-1 rounded-full border border-[#2D3448]">
-                  {categoryItems.length} {categoryItems.length === 1 ? "item" : "items"}
-                </span>
-              )}
             </div>
 
             {/* Display Items or Empty/Unavailable State */}
             {hasItems ? (
               useGrid ? (
-                /* 2-Column Grid Layout for featured categories */
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                /* Grid Layout with set product card dimensions */
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,180px))] gap-4">
                   {categoryItems.map((product) => (
                     <ProductItemGrid 
                       key={product.id}

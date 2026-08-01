@@ -174,7 +174,7 @@ export default function ManageMenuPage() {
       <div className="bg-[#131824] border-b border-[#232A3B]">
         <SiteHeader>
           {/* --- LEFT SIDE: Breadcrumbs --- */}
-          <div className={`flex items-center gap-2 ${isMobileSearchOpen ? "hidden md:flex" : "flex"}`}>
+          <div className={`flex items-center gap-2 ${isMobileSearchOpen ? "hidden xl:flex" : "flex"}`}>
             <Breadcrumb>
               <BreadcrumbList>
                 <BreadcrumbItem>
@@ -189,27 +189,27 @@ export default function ManageMenuPage() {
           </div>
 
           {/* --- RIGHT SIDE: Search Bar --- */}
-          <div className={`flex items-center ${isMobileSearchOpen ? "w-full md:w-auto" : "ml-auto"}`}>
+          <div className={`flex items-center ${isMobileSearchOpen ? "w-full xl:w-auto" : "ml-auto"}`}>
             {!isMobileSearchOpen && (
-              <Button variant="ghost" size="icon" className="md:hidden h-8 w-8 cursor-pointer text-[#E2E8F0]" onClick={() => setIsMobileSearchOpen(true)}>
+              <Button variant="ghost" size="icon" className="xl:hidden h-8 w-8 cursor-pointer text-[#E2E8F0]" onClick={() => setIsMobileSearchOpen(true)}>
                 <Search className="h-4 w-4 text-[#94A3B8]" />
               </Button>
             )}
 
-            <div className={`${isMobileSearchOpen ? "flex w-full animate-in fade-in slide-in-from-right-4" : "hidden md:flex"} items-center gap-2`}>
+            <div className={`${isMobileSearchOpen ? "flex w-full animate-in fade-in slide-in-from-right-4" : "hidden xl:flex"} items-center gap-2`}>
               <div className="relative">
                 <Search className="absolute left-2.5 top-3.5 h-4 w-4 text-[#94A3B8] pointer-events-none" />
                 <Input 
                   type="search" 
                   placeholder="Search items..." 
-                  className="h-11 bg-[#1E2333] w-full md:w-[200px] lg:w-[250px] pl-9 rounded-full border-[#2D3448] text-[#E2E8F0] placeholder:text-[#64748B] focus-visible:ring-1 focus-visible:ring-[#00F2FE] touch-manipulation" 
+                  className="h-11 bg-[#1E2333] w-full xl:w-[250px] pl-9 rounded-full border-[#2D3448] text-[#E2E8F0] placeholder:text-[#64748B] focus-visible:ring-1 focus-visible:ring-[#00F2FE] touch-manipulation" 
                   value={searchQuery} 
                   onChange={(e) => setSearchQuery(e.target.value)} 
                   autoFocus={isMobileSearchOpen}
                 />
               </div>
               {isMobileSearchOpen && (
-                <Button variant="ghost" size="icon" className="md:hidden shrink-0 cursor-pointer text-[#E2E8F0]" onClick={() => { setIsMobileSearchOpen(false); setSearchQuery(""); }}>
+                <Button variant="ghost" size="icon" className="xl:hidden shrink-0 cursor-pointer text-[#E2E8F0]" onClick={() => { setIsMobileSearchOpen(false); setSearchQuery(""); }}>
                   <X className="h-5 w-5 text-[#94A3B8]" />
                 </Button>
               )}
@@ -218,7 +218,7 @@ export default function ManageMenuPage() {
         </SiteHeader>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 md:p-8 pb-24"> 
+      <div className="flex-1 overflow-y-auto p-4 xl:p-8 pb-24"> 
         <div className="max-w-6xl mx-auto space-y-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -250,8 +250,8 @@ export default function ManageMenuPage() {
                   <Table>
                     <TableHeader className="bg-[#131824]">
                       <TableRow className="hover:bg-transparent border-b border-[#232A3B]">
-                        {/* Always visible on mobile (md:hidden) */}
-                        <TableHead className="w-[40px] text-center md:hidden">
+                        {/* Always visible on mobile (xl:hidden) */}
+                        <TableHead className="w-[40px] text-center xl:hidden">
                           <input 
                             type="checkbox" 
                             className="accent-[#00F2FE] h-4 w-4 rounded cursor-pointer"
@@ -276,13 +276,13 @@ export default function ManageMenuPage() {
                         return (
                           <TableRow 
                             key={product.id} 
-                            className={`group transition-colors border-b border-[#232A3B] last:border-0 cursor-pointer md:cursor-default hover:bg-[#282E42] ${selectedProductIds.includes(product.id) ? "bg-[#282E42]" : ""}`}
+                            className={`group transition-colors border-b border-[#232A3B] last:border-0 cursor-pointer xl:cursor-default hover:bg-[#282E42] ${selectedProductIds.includes(product.id) ? "bg-[#282E42]" : ""}`}
                             onClick={() => {
                               if (selectedProductIds.length > 0) toggleProduct(product.id)
                             }}
                           >
-                            {/* Always visible on mobile (md:hidden) */}
-                            <TableCell className="text-center md:hidden">
+                            {/* Always visible on mobile (xl:hidden) */}
+                            <TableCell className="text-center xl:hidden">
                               <input 
                                 type="checkbox" 
                                 className="accent-[#00F2FE] h-4 w-4 rounded cursor-pointer"
@@ -345,8 +345,8 @@ export default function ManageMenuPage() {
                   <Table>
                     <TableHeader className="bg-[#131824]">
                       <TableRow className="hover:bg-transparent border-b border-[#232A3B]">
-                        {/* Always visible on mobile (md:hidden) */}
-                        <TableHead className="w-[40px] text-center md:hidden">
+                        {/* Always visible on mobile (xl:hidden) */}
+                        <TableHead className="w-[40px] text-center xl:hidden">
                           <input 
                             type="checkbox" 
                             className="accent-[#00F2FE] h-4 w-4 rounded cursor-pointer"
@@ -365,13 +365,13 @@ export default function ManageMenuPage() {
                         return (
                           <TableRow 
                             key={category} 
-                            className={`group transition-colors border-b border-[#232A3B] last:border-0 cursor-pointer md:cursor-default hover:bg-[#282E42] ${selectedCategoryNames.includes(category) ? "bg-[#282E42]" : ""}`}
+                            className={`group transition-colors border-b border-[#232A3B] last:border-0 cursor-pointer xl:cursor-default hover:bg-[#282E42] ${selectedCategoryNames.includes(category) ? "bg-[#282E42]" : ""}`}
                             onClick={() => {
                               if (selectedCategoryNames.length > 0) toggleCategory(category)
                             }}
                           >
-                            {/* Always visible on mobile (md:hidden) */}
-                            <TableCell className="text-center md:hidden">
+                            {/* Always visible on mobile (xl:hidden) */}
+                            <TableCell className="text-center xl:hidden">
                               <input 
                                 type="checkbox" 
                                 className="accent-[#00F2FE] h-4 w-4 rounded cursor-pointer"
@@ -422,7 +422,7 @@ export default function ManageMenuPage() {
             animate={{ y: 0 }} 
             exit={{ y: 100 }} 
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="fixed bottom-0 left-0 right-0 p-4 bg-background border-t shadow-[0_-10px_20px_rgba(0,0,0,0.1)] z-50 flex justify-between items-center md:hidden"
+            className="fixed bottom-0 left-0 right-0 p-4 bg-background border-t shadow-[0_-10px_20px_rgba(0,0,0,0.1)] z-50 flex justify-between items-center xl:hidden"
           >
             <div className="flex flex-col">
               <span className="font-bold text-sm">

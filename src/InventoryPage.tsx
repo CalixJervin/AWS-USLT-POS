@@ -54,7 +54,7 @@ export default function InventoryPage() {
     <div className="flex flex-1 flex-col overflow-auto h-screen bg-[#0B0E14] relative">
       <div className="bg-[#131824] border-b border-[#232A3B]">
         <SiteHeader>
-          <div className={`flex items-center gap-2 ${isMobileSearchOpen ? "hidden md:flex" : "flex"}`}>
+          <div className={`flex items-center gap-2 ${isMobileSearchOpen ? "hidden xl:flex" : "flex"}`}>
             <Breadcrumb>
               <BreadcrumbList>
                 <BreadcrumbItem>
@@ -73,24 +73,24 @@ export default function InventoryPage() {
           </div>
 
           {/* Search Bar matching POS style */}
-          <div className={`flex items-center ${isMobileSearchOpen ? "w-full md:w-auto" : "ml-auto"}`}>
+          <div className={`flex items-center ${isMobileSearchOpen ? "w-full xl:w-auto" : "ml-auto"}`}>
             {!isMobileSearchOpen && (
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="md:hidden h-8 w-8 cursor-pointer text-[#E2E8F0]"
+                className="xl:hidden h-8 w-8 cursor-pointer text-[#E2E8F0]"
                 onClick={() => setIsMobileSearchOpen(true)}
               >
                 <Search className="h-4 w-4 text-[#94A3B8]" />
               </Button>
             )}
 
-            <div className={`${isMobileSearchOpen ? "flex w-full animate-in fade-in slide-in-from-right-4" : "hidden md:flex"} items-center gap-2`}>
+            <div className={`${isMobileSearchOpen ? "flex w-full animate-in fade-in slide-in-from-right-4" : "hidden xl:flex"} items-center gap-2`}>
               <div className="relative">
                 <Search className="absolute left-2.5 top-3.5 h-4 w-4 text-[#94A3B8] pointer-events-none" />
                 <Input 
                   placeholder="Search inventory..." 
-                  className="h-11 bg-[#1E2333] w-full md:w-[200px] lg:w-[250px] pl-9 rounded-full border-[#2D3448] text-[#E2E8F0] placeholder:text-[#64748B] focus-visible:ring-1 focus-visible:ring-[#E6007E] touch-manipulation" 
+                  className="h-11 bg-[#1E2333] w-full xl:w-[250px] pl-9 rounded-full border-[#2D3448] text-[#E2E8F0] placeholder:text-[#64748B] focus-visible:ring-1 focus-visible:ring-[#E6007E] touch-manipulation" 
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   autoFocus={isMobileSearchOpen}
@@ -102,7 +102,7 @@ export default function InventoryPage() {
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="md:hidden shrink-0 cursor-pointer text-[#E2E8F0]"
+                className="xl:hidden shrink-0 cursor-pointer text-[#E2E8F0]"
                 onClick={() => {
                   setIsMobileSearchOpen(false);
                   setSearchQuery("");
@@ -115,7 +115,7 @@ export default function InventoryPage() {
         </SiteHeader>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 md:p-8">
+      <div className="flex-1 overflow-y-auto p-4 xl:p-8">
         <div className="max-w-6xl mx-auto space-y-6">
           <InventorySystem 
             externalSearchQuery={searchQuery} 

@@ -38,7 +38,7 @@ export function RecipesGrid({
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         {recipes.map((recipe) => {
           const usedIn = getProductsUsingRecipe(recipe.id);
           return (

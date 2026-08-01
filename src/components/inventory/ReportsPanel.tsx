@@ -60,7 +60,7 @@ export function ReportsPanel({
 
   return (
     <div className="space-y-6 pb-10">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         {/* Sales Chart */}
         <Card>
           <CardHeader>

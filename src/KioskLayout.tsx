@@ -12,7 +12,7 @@ export default function KioskLayout() {
 
   useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768)
+      setIsMobile(window.innerWidth < 1280)
     }
     checkMobile()
     window.addEventListener('resize', checkMobile)

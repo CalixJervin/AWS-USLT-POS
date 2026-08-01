@@ -85,7 +85,7 @@ export function TicketSidebar({
   };
 
   return (
-    <div className="w-full lg:w-[350px] lg:border-l border-[#232A3B] bg-[#131824] flex flex-col h-full shadow-xl z-10 shrink-0">
+    <div className="w-full xl:w-[350px] xl:border-l border-[#232A3B] bg-[#131824] flex flex-col h-full shadow-xl z-10 shrink-0">
       
       {/* HEADER */}
       <div className="flex items-center justify-between p-4 border-b border-[#232A3B] shrink-0 h-16 bg-[#131824]">
@@ -94,7 +94,7 @@ export function TicketSidebar({
             <Button 
               variant="ghost" 
               size="icon" 
-              className="lg:hidden h-11 w-11 -ml-2 text-[#94A3B8] hover:text-[#E2E8F0] active:scale-95 touch-manipulation" 
+              className="xl:hidden h-11 w-11 -ml-2 text-[#94A3B8] hover:text-[#E2E8F0] active:scale-95 touch-manipulation" 
               onClick={onClose}
             >
               <X className="h-6 w-6" />

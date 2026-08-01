@@ -32,13 +32,13 @@ export default function Page() {
       </div>
       <div className="flex flex-1 flex-col">
         <div className="@container/main flex flex-1 flex-col gap-2">
-          <div className="flex flex-col gap-8 py-4 md:gap-10 md:py-8">
+          <div className="flex flex-col gap-8 py-4 xl:gap-10 xl:py-8">
             
             <Suspense fallback={<div className="px-4"><Skeleton className="h-[400px] w-full bg-[#1E2333]" /></div>}>
               <SectionCards />
             </Suspense>
 
-            <div className="px-4 lg:px-6">
+            <div className="px-4 xl:px-6">
               <Suspense fallback={<Skeleton className="h-[350px] w-full bg-[#1E2333]" />}>
                 <ChartAreaInteractive />
               </Suspense>
@@ -49,7 +49,7 @@ export default function Page() {
             </Suspense>
 
             {user?.role === "admin" && (
-              <div className="px-4 lg:px-6">
+              <div className="px-4 xl:px-6">
                 <Suspense fallback={<Skeleton className="h-[400px] w-full bg-[#1E2333]" />}>
                   <StaffManagement />
                 </Suspense>

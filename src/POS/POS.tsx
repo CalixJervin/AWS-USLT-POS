@@ -257,7 +257,7 @@ export default function Page({ isKiosk = false }: { isKiosk?: boolean }) {
 
             {/* RIGHT SIDE: SEARCH & TICKET BUTTON SIDE-BY-SIDE */}
             <div className="flex items-center gap-2 sm:gap-3 ml-auto">
-              {!isKiosk && (
+              {!isKiosk ? (
                 <Button
                   variant="outline"
                   size="sm"
@@ -272,9 +272,24 @@ export default function Page({ isKiosk = false }: { isKiosk?: boolean }) {
                     </span>
                   )}
                 </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsMobileTicketOpen(true)}
+                  className="relative flex items-center gap-1.5 rounded-full border border-[#E6007E]/40 bg-[#1E2333] text-[#E6007E] hover:bg-[#E6007E]/10 px-3 h-9 cursor-pointer font-bold text-xs shadow-sm shrink-0"
+                >
+                  <ShoppingBag className="h-3.5 w-3.5 text-[#E6007E]" />
+                  <span>View Ticket</span>
+                  {totalCartItems > 0 && (
+                    <span className="bg-[#E6007E] text-white text-[10px] font-black h-4 w-4 flex items-center justify-center rounded-full ml-0.5 animate-pulse">
+                      {totalCartItems}
+                    </span>
+                  )}
+                </Button>
               )}
 
-              <div className="hidden md:block">
+              <div className="hidden xl:block">
                 <LiveClock />
               </div>
 
@@ -296,7 +311,7 @@ export default function Page({ isKiosk = false }: { isKiosk?: boolean }) {
         </div>
 
         {/* Scrollable Categories & Products Area */}
-        <div ref={mainScrollRef} className="flex-1 flex flex-col gap-4 p-4 pb-24 lg:pb-4 overflow-y-auto bg-[#0B0E14] relative">
+        <div ref={mainScrollRef} className="flex-1 flex flex-col gap-4 p-4 pb-24 xl:pb-4 overflow-y-auto bg-[#0B0E14] relative">
           {/* PERSISTENT ACTIVE KIOSK ORDER BANNER */}
           {isKiosk && activeKioskOrder && (
             <div className="bg-[#1E2333] border border-[#00F2FE]/40 rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-3 shadow-lg shrink-0 animate-in fade-in">
@@ -385,7 +400,7 @@ export default function Page({ isKiosk = false }: { isKiosk?: boolean }) {
       </div>
 
       {/* --- MOBILE FIXED BOTTOM TICKET BUTTON --- */}
-      <div className="fixed bottom-0 left-0 right-0 p-3 sm:p-4 bg-gradient-to-t from-[#0B0E14] via-[#0B0E14]/95 to-transparent z-30 lg:hidden pointer-events-none flex justify-center">
+      <div className={`fixed bottom-0 left-0 right-0 p-3 sm:p-4 bg-gradient-to-t from-[#0B0E14] via-[#0B0E14]/95 to-transparent z-30 ${isKiosk ? "flex" : "flex xl:hidden"} pointer-events-none justify-center`}>
         <Button 
           onClick={() => setIsMobileTicketOpen(true)}
           className="pointer-events-auto w-full max-w-md h-12 sm:h-14 rounded-2xl bg-[#E6007E] hover:bg-[#FF1A96] active:scale-[0.98] text-white font-bold shadow-[0_8px_25px_rgba(230,0,126,0.4)] border border-[#FF3366]/30 flex items-center justify-between px-4 sm:px-5 transition-all cursor-pointer touch-manipulation"
@@ -410,23 +425,25 @@ export default function Page({ isKiosk = false }: { isKiosk?: boolean }) {
         </Button>
       </div>
 
-      {/* --- RIGHT SIDE: Ticket Sidebar --- */}
-      <div className="hidden lg:block h-full border-l border-[#232A3B] shrink-0 z-10 bg-[#131824]">
-        <TicketSidebar 
-          cart={cart}
-          updateQty={updateQty}
-          removeFromCart={removeFromCart}
-          clearCart={clearCart}
-          subtotal={subtotal}
-          total={total}
-          isKiosk={isKiosk}
-          onPayAtCounter={handlePayAtCounter}
-        />
-      </div>
+      {/* --- RIGHT SIDE: Ticket Sidebar (Staff POS Desktop Mode Only) --- */}
+      {!isKiosk && (
+        <div className="hidden xl:block h-full border-l border-[#232A3B] shrink-0 z-10 bg-[#131824]">
+          <TicketSidebar 
+            cart={cart}
+            updateQty={updateQty}
+            removeFromCart={removeFromCart}
+            clearCart={clearCart}
+            subtotal={subtotal}
+            total={total}
+            isKiosk={isKiosk}
+            onPayAtCounter={handlePayAtCounter}
+          />
+        </div>
+      )}
 
       {/* --- MOBILE TICKET OVERLAY (BOTTOM-UP POPUP) --- */}
       {isMobileTicketOpen && (
-        <div className="fixed inset-0 z-50 flex flex-col justify-end lg:hidden">
+        <div className={`fixed inset-0 z-50 flex flex-col justify-end ${isKiosk ? "" : "xl:hidden"}`}>
           {/* Backdrop */}
           <div 
             className="fixed inset-0 bg-black/80 backdrop-blur-sm transition-opacity animate-in fade-in duration-200" 

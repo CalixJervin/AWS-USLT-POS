@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react"
+import { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { TicketSidebar } from "@/POS/Ticket"
 import { useCart } from "@/hooks/useCart"
 import { AddProductModal } from "@/POS/addProduct" 
@@ -66,18 +66,27 @@ export default function Page({ isKiosk = false }: { isKiosk?: boolean }) {
   const [isAddCategoryOpen, setIsAddCategoryOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
 
+  // Scroll spy & smooth scroll refs
+  const mainScrollRef = useRef<HTMLDivElement>(null)
+  const pillsBarRef = useRef<HTMLDivElement>(null)
+  const categoryPillRefs = useRef<Record<string, HTMLButtonElement | null>>({})
+  const isManualClickRef = useRef(false)
+
   // Kiosk Confirmation state & Staff Pending Orders modal state
   const [submittedKioskOrder, setSubmittedKioskOrder] = useState<PendingKioskOrder | null>(null)
   const [isPendingModalOpen, setIsPendingModalOpen] = useState(false)
 
   const displayOrder = submittedKioskOrder || activeKioskOrder;
 
-  // Auto-close kiosk confirmation modal if order is finalized/cleared by staff
+  // Auto-close kiosk confirmation modal only if order was explicitly finalized or cleared by staff
   useEffect(() => {
-    if (submittedKioskOrder && !activeKioskOrder) {
-      setSubmittedKioskOrder(null);
+    if (submittedKioskOrder && activeKioskOrder === null && pendingOrders.length > 0) {
+      const isStillPending = pendingOrders.some(o => o.orderNumber === submittedKioskOrder.orderNumber);
+      if (!isStillPending) {
+        setSubmittedKioskOrder(null);
+      }
     }
-  }, [activeKioskOrder, submittedKioskOrder]);
+  }, [activeKioskOrder, submittedKioskOrder, pendingOrders]);
 
   const handlePayAtCounter = useCallback(async (cartItems: any[], subTot: number, tot: number, paymentMethod: "counter" | "cash" | "gcash" = "counter") => {
     const created = await createPendingOrder(cartItems, subTot, tot, paymentMethod)
@@ -128,11 +137,9 @@ export default function Page({ isKiosk = false }: { isKiosk?: boolean }) {
   const allCategories = useMemo(() => ["All", ...categories], [categories]);
 
   const filteredProducts = useMemo(() => products.filter((product) => {
-    const matchesCategory = activeCategory === "All" || product.category === activeCategory;
     const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    return matchesCategory && matchesSearch;
-  }), [products, activeCategory, searchQuery]);
+    return matchesSearch;
+  }), [products, searchQuery]);
 
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
 
@@ -147,7 +154,83 @@ export default function Page({ isKiosk = false }: { isKiosk?: boolean }) {
     }, 150); 
     return () => clearTimeout(timer);
   }, [addToCart]);
-    
+
+  // Click-to-Scroll Anchor handler
+  const handleCategoryPillClick = useCallback((cat: string) => {
+    setActiveCategory(cat)
+    isManualClickRef.current = true
+
+    if (cat === "All") {
+      if (mainScrollRef.current) {
+        mainScrollRef.current.scrollTo({ top: 0, behavior: "smooth" })
+      }
+    } else {
+      const sectionId = `category-section-${encodeURIComponent(cat.toLowerCase().replace(/\s+/g, '-'))}`
+      const sectionEl = document.getElementById(sectionId)
+      if (sectionEl) {
+        sectionEl.scrollIntoView({ behavior: "smooth", block: "start" })
+      }
+    }
+
+    setTimeout(() => {
+      isManualClickRef.current = false
+    }, 1000)
+  }, [])
+
+  // Scroll Spy Observer effect
+  useEffect(() => {
+    const container = mainScrollRef.current
+    if (!container) return
+
+    const handleScroll = () => {
+      if (isManualClickRef.current) return
+
+      if (container.scrollTop < 60) {
+        setActiveCategory("All")
+        return
+      }
+
+      const sections = container.querySelectorAll<HTMLElement>("section[data-category-name]")
+      const containerTop = container.getBoundingClientRect().top
+
+      let currentCat = ""
+      let minDistance = Infinity
+
+      sections.forEach((sec) => {
+        const rect = sec.getBoundingClientRect()
+        const offset = rect.top - containerTop
+
+        if (offset <= 140 && offset > -rect.height + 40) {
+          const dist = Math.abs(offset)
+          if (dist < minDistance) {
+            minDistance = dist
+            currentCat = sec.getAttribute("data-category-name") || ""
+          }
+        }
+      })
+
+      if (currentCat && currentCat !== activeCategory) {
+        setActiveCategory(currentCat)
+      }
+    }
+
+    container.addEventListener("scroll", handleScroll, { passive: true })
+    return () => container.removeEventListener("scroll", handleScroll)
+  }, [activeCategory])
+
+  // Scroll active pill into view horizontally without affecting vertical page scroll
+  useEffect(() => {
+    const activeBtn = categoryPillRefs.current[activeCategory]
+    const pillsContainer = pillsBarRef.current
+    if (activeBtn && pillsContainer) {
+      const containerWidth = pillsContainer.clientWidth
+      const btnLeft = activeBtn.offsetLeft
+      const btnWidth = activeBtn.clientWidth
+      const targetLeft = btnLeft - (containerWidth / 2) + (btnWidth / 2)
+      pillsContainer.scrollTo({ left: Math.max(0, targetLeft), behavior: "smooth" })
+    }
+  }, [activeCategory])
+
   return (
     // 1. The main container is now a ROW first
     <div className="flex flex-row h-full overflow-hidden w-full bg-[#0B0E14]">
@@ -195,22 +278,6 @@ export default function Page({ isKiosk = false }: { isKiosk?: boolean }) {
                 <LiveClock />
               </div>
 
-              {/* TICKET BUTTON - PLACED RIGHT NEXT TO SEARCH ON MOBILE VIEW */}
-              <Button 
-                variant="secondary"
-                size="sm"
-                className="flex lg:hidden items-center gap-1.5 rounded-full border border-[#E6007E]/40 bg-[#1E2333] text-[#E2E8F0] shadow-md px-3 h-9 sm:h-11 cursor-pointer active:scale-95 touch-manipulation shrink-0"
-                onClick={() => setIsMobileTicketOpen(true)}
-              >
-                <ShoppingBag className="h-4 w-4 text-[#E6007E]" />
-                <span className="font-bold text-xs sm:text-sm">Ticket</span>
-                {totalCartItems > 0 && (
-                  <span className="bg-[#E6007E] text-white text-[10px] sm:text-xs font-black h-4 w-4 sm:h-5 sm:w-5 flex items-center justify-center rounded-full ml-0.5">
-                    {totalCartItems}
-                  </span>
-                )}
-              </Button>
-
               {/* SEARCH INPUT */}
               <div className="relative flex-1 min-w-[110px] max-w-[180px] sm:max-w-[240px]">
                 <Search className="absolute left-2.5 top-2.5 sm:top-3 h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#94A3B8] pointer-events-none" />
@@ -229,7 +296,7 @@ export default function Page({ isKiosk = false }: { isKiosk?: boolean }) {
         </div>
 
         {/* Scrollable Categories & Products Area */}
-        <div className="flex-1 flex flex-col gap-4 p-4 overflow-y-auto bg-[#0B0E14]">
+        <div ref={mainScrollRef} className="flex-1 flex flex-col gap-4 p-4 pb-24 lg:pb-4 overflow-y-auto bg-[#0B0E14] relative">
           {/* PERSISTENT ACTIVE KIOSK ORDER BANNER */}
           {isKiosk && activeKioskOrder && (
             <div className="bg-[#1E2333] border border-[#00F2FE]/40 rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-3 shadow-lg shrink-0 animate-in fade-in">
@@ -271,38 +338,43 @@ export default function Page({ isKiosk = false }: { isKiosk?: boolean }) {
             </div>
           )}
 
-          <div className="relative shrink-0">
-            <div className="flex w-full overflow-x-auto pb-2 gap-2 scrollbar-hide bg-[#131824] p-3 rounded-xl border border-[#232A3B] relative">
-              {allCategories.map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setActiveCategory(cat)}
-                  className={`whitespace-nowrap px-5 py-2.5 rounded-full text-[13px] transition-all cursor-pointer ${
-                    activeCategory === cat
-                      ? "bg-[#E6007E] text-white font-black shadow-md shadow-[#E6007E]/20" 
-                      : "bg-transparent text-[#94A3B8] border border-[#2D3448] hover:bg-[#1E2333] hover:text-[#E2E8F0]"
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
-              
-              {!isKiosk && (
-                <button 
-                  onClick={() => setIsAddCategoryOpen(true)}
-                  className="flex items-center gap-1 whitespace-nowrap px-5 py-2.5 rounded-full text-[13px] font-semibold border border-dashed border-[#2D3448] text-[#94A3B8] hover:border-[#E6007E] hover:text-[#E6007E] transition-colors cursor-pointer"
-                >
-                  <Plus className="h-4 w-4" />
-                  Add Category
-                </button>
-              )}
+          {/* STICKY CATEGORY NAVIGATION BAR */}
+          <div className="sticky -top-4 z-40 bg-[#0B0E14] -mx-4 px-4 py-2 border-b border-[#232A3B] shadow-md shrink-0">
+            <div className="relative shrink-0">
+              <div ref={pillsBarRef} className="flex w-full overflow-x-auto pb-2 gap-2 scrollbar-hide bg-[#131824] p-3 rounded-xl border border-[#232A3B] relative">
+                {allCategories.map((cat) => (
+                  <button
+                    key={cat}
+                    ref={(el) => { categoryPillRefs.current[cat] = el; }}
+                    onClick={() => handleCategoryPillClick(cat)}
+                    className={`whitespace-nowrap px-5 py-2.5 rounded-full text-[13px] transition-all cursor-pointer ${
+                      activeCategory === cat
+                        ? "bg-[#E6007E] text-white font-black shadow-md shadow-[#E6007E]/20" 
+                        : "bg-transparent text-[#94A3B8] border border-[#2D3448] hover:bg-[#1E2333] hover:text-[#E2E8F0]"
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+                
+                {!isKiosk && (
+                  <button 
+                    onClick={() => setIsAddCategoryOpen(true)}
+                    className="flex items-center gap-1 whitespace-nowrap px-5 py-2.5 rounded-full text-[13px] font-semibold border border-dashed border-[#2D3448] text-[#94A3B8] hover:border-[#E6007E] hover:text-[#E6007E] transition-colors cursor-pointer"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add Category
+                  </button>
+                )}
+              </div>
+              {/* Fade gradient for horizontal scroll */}
+              <div className="absolute right-0 top-0 bottom-2 w-12 bg-gradient-to-l from-[#131824] to-transparent pointer-events-none rounded-r-xl" />
             </div>
-            {/* Fade gradient for horizontal scroll */}
-            <div className="absolute right-0 top-0 bottom-2 w-12 bg-gradient-to-l from-[#131824] to-transparent pointer-events-none rounded-r-xl" />
           </div>
 
           <ProductGrid 
             products={filteredProducts}
+            categories={categories}
             onAddToCart={handleAddToCart}
             selectedProductId={selectedProductId}
             onDeleteProduct={handleStageForDeletion}
@@ -310,6 +382,32 @@ export default function Page({ isKiosk = false }: { isKiosk?: boolean }) {
             isKiosk={isKiosk}
           />
         </div>
+      </div>
+
+      {/* --- MOBILE FIXED BOTTOM TICKET BUTTON --- */}
+      <div className="fixed bottom-0 left-0 right-0 p-3 sm:p-4 bg-gradient-to-t from-[#0B0E14] via-[#0B0E14]/95 to-transparent z-30 lg:hidden pointer-events-none flex justify-center">
+        <Button 
+          onClick={() => setIsMobileTicketOpen(true)}
+          className="pointer-events-auto w-full max-w-md h-12 sm:h-14 rounded-2xl bg-[#E6007E] hover:bg-[#FF1A96] active:scale-[0.98] text-white font-bold shadow-[0_8px_25px_rgba(230,0,126,0.4)] border border-[#FF3366]/30 flex items-center justify-between px-4 sm:px-5 transition-all cursor-pointer touch-manipulation"
+        >
+          <div className="flex items-center gap-3">
+            <div className="relative flex items-center justify-center bg-white/20 rounded-full w-8 h-8 sm:w-9 sm:h-9 shrink-0">
+              <ShoppingBag className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
+              {totalCartItems > 0 && (
+                <span className="absolute -top-1 -right-1 bg-white text-[#E6007E] text-[10px] sm:text-[11px] font-black h-4 w-4 rounded-full flex items-center justify-center shadow">
+                  {totalCartItems}
+                </span>
+              )}
+            </div>
+            <span className="font-extrabold text-xs sm:text-sm tracking-wide uppercase">
+              {totalCartItems > 0 ? `View Ticket (${totalCartItems} ${totalCartItems === 1 ? 'item' : 'items'})` : "View Ticket"}
+            </span>
+          </div>
+          
+          <div className="flex items-center gap-1 font-black text-sm sm:text-base">
+            <span>₱{total.toFixed(2)}</span>
+          </div>
+        </Button>
       </div>
 
       {/* --- RIGHT SIDE: Ticket Sidebar --- */}
@@ -326,25 +424,38 @@ export default function Page({ isKiosk = false }: { isKiosk?: boolean }) {
         />
       </div>
 
-      {/* --- MOBILE TICKET OVERLAY --- */}
+      {/* --- MOBILE TICKET OVERLAY (BOTTOM-UP POPUP) --- */}
       {isMobileTicketOpen && (
-        <div className="fixed inset-0 z-50 flex lg:hidden">
+        <div className="fixed inset-0 z-50 flex flex-col justify-end lg:hidden">
+          {/* Backdrop */}
           <div 
-            className="fixed inset-0 bg-black/80 transition-opacity" 
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm transition-opacity animate-in fade-in duration-200" 
             onClick={() => setIsMobileTicketOpen(false)}
           />
-          <div className="fixed inset-y-0 right-0 w-[85%] sm:w-[350px] bg-[#131824] border-l border-[#232A3B] shadow-2xl animate-in slide-in-from-right overflow-hidden flex flex-col">
-            <TicketSidebar 
-              cart={cart}
-              updateQty={updateQty}
-              removeFromCart={removeFromCart}
-              clearCart={clearCart}
-              subtotal={subtotal}
-              total={total}
-              onClose={() => setIsMobileTicketOpen(false)}
-              isKiosk={isKiosk}
-              onPayAtCounter={handlePayAtCounter}
-            />
+          
+          {/* Bottom Sheet Drawer */}
+          <div className="relative w-full max-h-[85vh] h-[85vh] bg-[#131824] border-t border-[#232A3B] rounded-t-3xl shadow-2xl animate-in slide-in-from-bottom duration-300 overflow-hidden flex flex-col z-50">
+            {/* Drag Handle Bar Indicator */}
+            <div 
+              className="w-full flex items-center justify-center py-2.5 bg-[#131824] cursor-pointer shrink-0 border-b border-[#232A3B]/40"
+              onClick={() => setIsMobileTicketOpen(false)}
+            >
+              <div className="w-12 h-1.5 bg-[#2D3448] hover:bg-[#3D4760] transition-colors rounded-full" />
+            </div>
+
+            <div className="flex-1 overflow-hidden flex flex-col">
+              <TicketSidebar 
+                cart={cart}
+                updateQty={updateQty}
+                removeFromCart={removeFromCart}
+                clearCart={clearCart}
+                subtotal={subtotal}
+                total={total}
+                onClose={() => setIsMobileTicketOpen(false)}
+                isKiosk={isKiosk}
+                onPayAtCounter={handlePayAtCounter}
+              />
+            </div>
           </div>
         </div>
       )}

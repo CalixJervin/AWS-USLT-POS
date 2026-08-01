@@ -59,7 +59,7 @@ export default function InventoryPage() {
               <BreadcrumbList>
                 <BreadcrumbItem>
                   <BreadcrumbLink asChild>
-                    <Link to="/" className="text-[#94A3B8] hover:text-[#E2E8F0]">POS</Link>
+                    <Link to="/admin" className="text-[#94A3B8] hover:text-[#E2E8F0]">POS</Link>
                   </BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator className="text-[#2D3448]" />

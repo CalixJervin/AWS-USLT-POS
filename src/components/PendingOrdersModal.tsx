@@ -131,9 +131,6 @@ export function PendingOrdersModal({
                   {pendingOrders.length}
                 </span>
               </DialogTitle>
-              <p className="text-xs text-[#94A3B8]">
-                Finalize payment for customers who ordered at the kiosk ("Pay at Counter")
-              </p>
             </div>
           </div>
 
@@ -169,9 +166,6 @@ export function PendingOrdersModal({
             <div className="flex flex-col items-center justify-center py-12 text-center text-[#94A3B8]">
               <Receipt className="h-12 w-12 text-[#2D3448] mb-3" />
               <p className="font-bold text-sm text-[#E2E8F0]">No Pending Orders</p>
-              <p className="text-xs text-[#64748B] max-w-xs mt-1">
-                When customers select "Pay at Counter" at the kiosk, their orders will appear here for payment processing.
-              </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

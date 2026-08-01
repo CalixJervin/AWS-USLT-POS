@@ -85,7 +85,7 @@ export function TicketSidebar({
   };
 
   return (
-    <div className="w-full lg:w-[350px] border-l border-[#232A3B] bg-[#131824] flex flex-col h-full shadow-xl z-10 shrink-0">
+    <div className="w-full lg:w-[350px] lg:border-l border-[#232A3B] bg-[#131824] flex flex-col h-full shadow-xl z-10 shrink-0">
       
       {/* HEADER */}
       <div className="flex items-center justify-between p-4 border-b border-[#232A3B] shrink-0 h-16 bg-[#131824]">

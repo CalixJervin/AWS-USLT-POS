@@ -51,24 +51,35 @@ export function useKioskOrders() {
   const loadLocalOrders = useCallback(() => {
     try {
       const saved = localStorage.getItem(KIOSK_ORDERS_STORAGE_KEY);
+      const parsed: PendingKioskOrder[] = saved ? JSON.parse(saved) : [];
       if (saved) {
-        const parsed: PendingKioskOrder[] = JSON.parse(saved);
         setPendingOrders(parsed.filter(o => o.status === "pending_counter"));
       }
 
       // Check active order persistence
       const activeStored = localStorage.getItem(ACTIVE_KIOSK_ORDER_KEY);
       if (activeStored) {
-        const parsed = JSON.parse(activeStored);
-        const stillPending = saved ? JSON.parse(saved).some((o: any) => o.id === parsed.id && o.status === "pending_counter") : true;
-        if (stillPending) {
-          setActiveKioskOrderState(parsed);
+        const activeObj: PendingKioskOrder = JSON.parse(activeStored);
+        if (saved) {
+          const match = parsed.find(
+            (o: any) => o.id === activeObj.id || o.orderNumber === activeObj.orderNumber
+          );
+
+          if (match) {
+            if (match.status === "completed" || match.status === "cancelled") {
+              setActiveKioskOrderState(null);
+              localStorage.removeItem(ACTIVE_KIOSK_ORDER_KEY);
+            } else {
+              const updatedActive = { ...activeObj, id: match.id, orderNumber: match.orderNumber };
+              setActiveKioskOrderState(updatedActive);
+              localStorage.setItem(ACTIVE_KIOSK_ORDER_KEY, JSON.stringify(updatedActive));
+            }
+          } else {
+            setActiveKioskOrderState(activeObj);
+          }
         } else {
-          setActiveKioskOrderState(null);
-          localStorage.removeItem(ACTIVE_KIOSK_ORDER_KEY);
+          setActiveKioskOrderState(activeObj);
         }
-      } else {
-        setActiveKioskOrderState(null);
       }
     } catch (e) {
       console.error("Error reading kiosk orders from storage", e);
@@ -107,10 +118,15 @@ export function useKioskOrders() {
           }));
 
           // Preserve existing orderNumber if already in local storage
-          let orderNum = "";
-          const localMatch = localParsed.find(p => p.id === o.id);
-          if (localMatch && localMatch.orderNumber) {
-            orderNum = localMatch.orderNumber;
+          let orderNum = o.order_number || "";
+          if (!orderNum) {
+            const localMatch = localParsed.find(p => 
+              p.id === o.id || 
+              (p.createdAt && o.created_at && Math.abs(new Date(p.createdAt).getTime() - new Date(o.created_at).getTime()) < 10000)
+            );
+            if (localMatch && localMatch.orderNumber) {
+              orderNum = localMatch.orderNumber;
+            }
           }
 
           if (!orderNum) {
@@ -189,10 +205,11 @@ export function useKioskOrders() {
       }
     } catch (e) {}
 
+    const orderNum = `#${String(currentCounter).padStart(3, "0")}`;
     const nextVal = currentCounter >= 999 ? 1 : currentCounter + 1;
     localStorage.setItem(KIOSK_ORDER_COUNTER_KEY, String(nextVal));
 
-    return `#${String(currentCounter).padStart(3, "0")}`;
+    return orderNum;
   };
 
   const createPendingOrder = async (
@@ -219,7 +236,7 @@ export function useKioskOrders() {
     setActiveKioskOrder(newOrder);
 
     setPendingOrders((prev) => {
-      const updated = [newOrder, ...prev];
+      const updated = [newOrder, ...prev.filter(o => o.id !== newOrderId && o.orderNumber !== orderNumber)];
       localStorage.setItem(KIOSK_ORDERS_STORAGE_KEY, JSON.stringify(updated));
       return updated;
     });
@@ -231,14 +248,33 @@ export function useKioskOrders() {
     } catch (e) {}
 
     try {
-      const { data: dbOrder, error: orderErr } = await supabase
+      let dbOrder: any = null;
+      let orderErr: any = null;
+
+      const resWithNum = await supabase
         .from("orders")
         .insert({
           total,
-          status: "pending_counter"
+          status: "pending_counter",
+          order_number: orderNumber
         })
         .select()
         .single();
+
+      if (resWithNum.error) {
+        const resFallback = await supabase
+          .from("orders")
+          .insert({
+            total,
+            status: "pending_counter"
+          })
+          .select()
+          .single();
+        dbOrder = resFallback.data;
+        orderErr = resFallback.error;
+      } else {
+        dbOrder = resWithNum.data;
+      }
 
       if (!orderErr && dbOrder) {
         const itemsToInsert = cart.map(item => ({
@@ -252,12 +288,16 @@ export function useKioskOrders() {
         }));
         await supabase.from("order_items").insert(itemsToInsert);
 
-        newOrder.id = dbOrder.id;
-        setActiveKioskOrder(newOrder);
+        const updatedOrder: PendingKioskOrder = {
+          ...newOrder,
+          id: dbOrder.id
+        };
+
+        setActiveKioskOrder(updatedOrder);
 
         // Update in pending orders list with DB ID
         setPendingOrders((prev) => {
-          const updated = prev.map(o => o.id === newOrderId ? { ...o, id: dbOrder.id } : o);
+          const updated = prev.map(o => (o.id === newOrderId || o.orderNumber === orderNumber) ? { ...o, id: dbOrder.id } : o);
           localStorage.setItem(KIOSK_ORDERS_STORAGE_KEY, JSON.stringify(updated));
           return updated;
         });

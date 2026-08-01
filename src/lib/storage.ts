@@ -156,7 +156,6 @@ export const storage = {
 
   // Categories
   getCategories: async (): Promise<string[]> => {
-    const defaultCategories = ["Hot Coffee", "Iced Coffee", "Milk Tea", "Fruit Tea", "Pastries"];
     let catNames: string[] = [];
 
     // 1. Fetch custom categories from Supabase categories table
@@ -170,7 +169,7 @@ export const storage = {
         catNames = data.map((c: any) => c.name);
       }
     } catch (e) {
-      console.warn("Could not fetch categories table, falling back to products/defaults", e);
+      console.warn("Could not fetch categories table, falling back to products", e);
     }
 
     // 2. Fetch distinct categories used in products table
@@ -185,11 +184,6 @@ export const storage = {
       }
     } catch (e) {
       console.warn("Could not fetch product categories", e);
-    }
-
-    // If no categories were loaded at all, fallback to defaults
-    if (catNames.length === 0) {
-      catNames = [...defaultCategories];
     }
 
     return Array.from(new Set(catNames));

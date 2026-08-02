@@ -55,7 +55,7 @@ export function AddProductWizard({
     return validCategories[0] || "Uncategorized";
   });
   const [availability, setAvailability] = useState<ProductAvailability>("all-day");
-  const [type, setType] = useState<ProductType>("made-to-order");
+  const [type, setType] = useState<ProductType>("ready-made");
   const [price, setPrice] = useState("");
   const [quantity, setQuantity] = useState("");
   const [lowStockThreshold, setLowStockThreshold] = useState("");
@@ -205,18 +205,6 @@ export function AddProductWizard({
                 <label className={labelClass}>Stocking Method</label>
                 <div className="grid grid-cols-2 gap-3">
                   <button
-                    onClick={() => setType("made-to-order")}
-                    className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all gap-2 min-h-[80px] cursor-pointer ${
-                      type === "made-to-order" 
-                        ? "border-[#00F2FE] bg-[#00F2FE]/15 text-[#00F2FE]" 
-                        : "border-[#2D3448] text-[#94A3B8] hover:bg-[#131824]"
-                    }`}
-                  >
-                    <FlaskConical className="h-6 w-6" />
-                    <span className="text-xs font-bold">Made-to-order</span>
-                  </button>
-
-                  <button
                     onClick={() => setType("ready-made")}
                     className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all gap-2 min-h-[80px] cursor-pointer ${
                       type === "ready-made" 
@@ -226,6 +214,18 @@ export function AddProductWizard({
                   >
                     <Package className="h-6 w-6" />
                     <span className="text-xs font-bold">Ready-made</span>
+                  </button>
+
+                  <button
+                    onClick={() => setType("made-to-order")}
+                    className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all gap-2 min-h-[80px] cursor-pointer ${
+                      type === "made-to-order" 
+                        ? "border-[#00F2FE] bg-[#00F2FE]/15 text-[#00F2FE]" 
+                        : "border-[#2D3448] text-[#94A3B8] hover:bg-[#131824]"
+                    }`}
+                  >
+                    <FlaskConical className="h-6 w-6" />
+                    <span className="text-xs font-bold">Made-to-order</span>
                   </button>
                 </div>
               </div>

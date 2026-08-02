@@ -51,8 +51,8 @@ export default function InventoryPage() {
   };
 
   return (
-    <div className="flex flex-1 flex-col overflow-auto h-screen bg-[#0B0E14] relative">
-      <div className="bg-[#131824] border-b border-[#232A3B]">
+    <div className="flex flex-1 flex-col h-screen overflow-hidden bg-[#0B0E14] relative">
+      <div className="sticky top-0 z-50 bg-[#131824] border-b border-[#232A3B] shrink-0 select-none">
         <SiteHeader>
           <div className={`flex items-center gap-2 ${isMobileSearchOpen ? "hidden xl:flex" : "flex"}`}>
             <Breadcrumb>
@@ -115,7 +115,7 @@ export default function InventoryPage() {
         </SiteHeader>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 xl:p-8">
+      <div className="flex-1 overflow-y-auto p-4 xl:p-8 overscroll-contain touch-pan-y">
         <div className="max-w-6xl mx-auto space-y-6">
           <InventorySystem 
             externalSearchQuery={searchQuery} 

@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, Store, X } from "lucide-react";
+import { CheckCircle2, X } from "lucide-react";
 import type { PendingKioskOrder } from "@/hooks/useKioskOrders";
 
 interface KioskOrderConfirmationModalProps {
@@ -58,10 +58,6 @@ export function KioskOrderConfirmationModal({
             </div>
 
             <div className="flex flex-col gap-1">
-              <div className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1 rounded-full bg-[#E6007E]/15 border border-[#00F2FE]/40 text-[#E6007E] text-xs font-black uppercase tracking-wider mx-auto">
-                <Store className="h-3.5 w-3.5 text-[#00F2FE]" />
-                {order.paymentMethod === "gcash" ? "Order Placed • GCash Payment" : "Order Placed • Pay at Counter"}
-              </div>
               <h2 className="text-xl sm:text-2xl font-black text-[#E2E8F0] mt-2">
                 Thank You for Your Order!
               </h2>

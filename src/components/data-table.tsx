@@ -37,7 +37,6 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
@@ -83,7 +82,9 @@ import {
   FileSpreadsheet,
   Trash2,
   Trash,
-  AlertTriangle
+  AlertTriangle,
+  Utensils,
+  Shirt
 } from "lucide-react"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { format } from "date-fns"
@@ -96,6 +97,11 @@ export interface TransactionRow {
   total_amount: number
   items_summary: string
   items_count: number
+  customer_name?: string
+  customer_email?: string
+  customer_phone?: string
+  fulfillment_status?: string
+  is_pre_order?: boolean
 }
 
 // Create a separate component for the drag handle
@@ -177,7 +183,12 @@ export function DataTable() {
         payment_method: t.payment_method,
         total_amount: t.total_amount,
         items_summary: itemsSummary,
-        items_count: itemsCount
+        items_count: itemsCount,
+        customer_name: t.customer_name,
+        customer_email: t.customer_email,
+        customer_phone: t.customer_phone,
+        fulfillment_status: t.fulfillment_status,
+        is_pre_order: t.is_pre_order
       }
     })
   }, [transactions, transactionItems])
@@ -233,6 +244,27 @@ export function DataTable() {
       enableHiding: true,
     },
     {
+      accessorKey: "customer_name",
+      header: "Customer Contact",
+      cell: ({ row }) => {
+        const name = row.original.customer_name;
+        const phone = row.original.customer_phone;
+        const email = row.original.customer_email;
+
+        if (!name && !phone && !email) {
+          return <span className="text-[#64748B] text-xs italic">N/A</span>;
+        }
+
+        return (
+          <div className="flex flex-col py-1 text-xs gap-0.5 max-w-[200px]">
+            {name && <span className="font-bold text-[#00F2FE] text-xs truncate">{name}</span>}
+            {phone && <span className="text-[11px] text-[#94A3B8] font-medium">📞 {phone}</span>}
+            {email && <span className="text-[11px] text-[#64748B] truncate">✉️ {email}</span>}
+          </div>
+        );
+      },
+    },
+    {
       accessorKey: "timestamp",
       header: "Time",
       cell: ({ row }) => {
@@ -250,9 +282,10 @@ export function DataTable() {
       header: "Payment Status",
       cell: ({ row }) => {
         const method = row.original.payment_method || 'Unknown'
-        const label = `Paid (${method.toUpperCase()})`
+        const isPreOrder = row.original.is_pre_order
+        const label = isPreOrder ? "PRE-ORDER PAID" : `Paid (${method.toUpperCase()})`
         return (
-          <Badge variant="outline" className="px-1.5 font-black text-[10px] uppercase border-[#E6007E]/30 bg-[#131824] text-[#E6007E]">
+          <Badge variant="outline" className={`px-1.5 font-black text-[10px] uppercase ${isPreOrder ? "border-[#00F2FE]/50 bg-[#00F2FE]/10 text-[#00F2FE]" : "border-[#E6007E]/30 bg-[#131824] text-[#E6007E]"}`}>
             <CircleCheckIcon className="size-3 fill-current mr-1" />
             {label}
           </Badge>
@@ -317,24 +350,22 @@ export function DataTable() {
     },
   ], [])
 
+  // Category Filter State: "foods" | "merch" | "all"
+  const [transactionCategory, setTransactionCategory] = React.useState<"foods" | "merch" | "all">("foods");
+
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({
       order_id: false,
+      customer_name: false,
     })
 
   React.useEffect(() => {
-    if (isMobile) {
-      setColumnVisibility((prev) => ({
-        ...prev,
-        payment_method: false,
-      }))
-    } else {
-      setColumnVisibility((prev) => ({
-        ...prev,
-        payment_method: true,
-      }))
-    }
-  }, [isMobile])
+    setColumnVisibility((prev) => ({
+      ...prev,
+      payment_method: !isMobile,
+      customer_name: transactionCategory !== "foods",
+    }))
+  }, [isMobile, transactionCategory])
 
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []
@@ -344,11 +375,21 @@ export function DataTable() {
     pageIndex: 0,
     pageSize: 10,
   })
-  
-  const [tableData, setTableData] = React.useState(data)
+
+  const filteredData = React.useMemo(() => {
+    if (transactionCategory === "foods") {
+      return data.filter(d => !d.is_pre_order);
+    }
+    if (transactionCategory === "merch") {
+      return data.filter(d => d.is_pre_order);
+    }
+    return data;
+  }, [data, transactionCategory]);
+
+  const [tableData, setTableData] = React.useState(filteredData)
   React.useEffect(() => {
-    setTableData(data)
-  }, [data])
+    setTableData(filteredData)
+  }, [filteredData])
 
   const sortableId = React.useId()
   const sensors = useSensors(
@@ -390,6 +431,17 @@ export function DataTable() {
   const selectedRows = table.getFilteredSelectedRowModel().rows
   const selectedIds = React.useMemo(() => selectedRows.map(r => r.original.id), [selectedRows])
 
+  const filteredTransactions = React.useMemo(() => {
+    const ids = new Set(tableData.map(d => d.id));
+    return transactions.filter(t => ids.has(t.id));
+  }, [transactions, tableData]);
+
+  const categoryLabel = transactionCategory === "foods" 
+    ? "Foods" 
+    : transactionCategory === "merch" 
+    ? "Shirt Pre-orders" 
+    : "All Transactions";
+
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
     if (active && over && active.id !== over.id) {
@@ -405,7 +457,9 @@ export function DataTable() {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2 px-4 lg:px-6">
         <div>
-          <h2 className="text-xl font-black text-[#E2E8F0]">Recent Transactions</h2>
+          <h2 className="text-xl font-black text-[#E2E8F0]">
+            {transactionCategory === "foods" ? "Foods Transactions" : transactionCategory === "merch" ? "Shirt Pre-orders Transactions" : "Recent Transactions"}
+          </h2>
           {selectedIds.length > 0 && (
             <p className="text-xs text-[#E6007E] font-semibold">{selectedIds.length} record(s) selected</p>
           )}
@@ -417,7 +471,11 @@ export function DataTable() {
             variant="outline" 
             size="sm" 
             className="bg-[#00F2FE] text-[#217346] hover:bg-[#38F9FF] border-none font-black gap-1.5 shadow-md rounded-full px-4"
-            onClick={() => exportToExcel(selectedIds.length > 0 ? selectedIds : undefined)}
+            onClick={() => exportToExcel(
+              selectedIds.length > 0 ? selectedIds : undefined,
+              filteredTransactions,
+              categoryLabel
+            )}
           >
             <FileSpreadsheet className="size-4 text-[#217346]" />
             {selectedIds.length > 0 ? `Export Selected (${selectedIds.length})` : "Export to Excel"}
@@ -449,36 +507,55 @@ export function DataTable() {
             </Button>
           )}
 
+          {/* CATEGORY VIEWS: "Foods" vs "Shirt Pre-orders" (RIGHT NEXT TO DELETE ALL) */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="bg-[#131824] border-[#232A3B] text-[#94A3B8] hover:text-[#E2E8F0] font-bold rounded-full">
-                <Columns3Icon data-icon="inline-start" />
-                Columns
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="bg-[#131824] border-[#00F2FE]/50 text-[#00F2FE] hover:bg-[#1E2333] hover:text-white font-black rounded-full px-4 gap-1.5 shadow-sm cursor-pointer"
+              >
+                {transactionCategory === "foods" ? (
+                  <>
+                    <Utensils className="size-4 text-[#00F2FE]" />
+                    Foods
+                  </>
+                ) : transactionCategory === "merch" ? (
+                  <>
+                    <Shirt className="size-4 text-[#E6007E]" />
+                    Shirt Pre-orders
+                  </>
+                ) : (
+                  <>
+                    <Columns3Icon data-icon="inline-start" />
+                    All Transactions
+                  </>
+                )}
                 <ChevronDownIcon data-icon="inline-end" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-32 bg-[#1E2333] border-[#2D3448]">
-              {table
-                .getAllColumns()
-                .filter(
-                  (column) =>
-                    typeof column.accessorFn !== "undefined" &&
-                    column.getCanHide()
-                )
-                .map((column) => {
-                  return (
-                    <DropdownMenuCheckboxItem
-                      key={column.id}
-                      className="capitalize text-[#94A3B8] focus:bg-[#131824] focus:text-[#E2E8F0]"
-                      checked={column.getIsVisible()}
-                      onCheckedChange={(value) =>
-                        column.toggleVisibility(!!value)
-                      }
-                    >
-                      {column.id.replace("_", " ")}
-                    </DropdownMenuCheckboxItem>
-                  )
-                })}
+            <DropdownMenuContent align="end" className="w-52 bg-[#1E2333] border-[#2D3448]">
+              <DropdownMenuItem
+                className={`cursor-pointer font-bold ${transactionCategory === "foods" ? "text-[#00F2FE] bg-[#131824]" : "text-[#E2E8F0]"}`}
+                onClick={() => setTransactionCategory("foods")}
+              >
+                <Utensils className="size-4 mr-2 text-[#00F2FE]" />
+                Foods ({data.filter(d => !d.is_pre_order).length})
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className={`cursor-pointer font-bold ${transactionCategory === "merch" ? "text-[#E6007E] bg-[#131824]" : "text-[#E2E8F0]"}`}
+                onClick={() => setTransactionCategory("merch")}
+              >
+                <Shirt className="size-4 mr-2 text-[#E6007E]" />
+                Shirt Pre-orders ({data.filter(d => d.is_pre_order).length})
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className={`cursor-pointer font-bold ${transactionCategory === "all" ? "text-[#00F2FE] bg-[#131824]" : "text-[#94A3B8]"}`}
+                onClick={() => setTransactionCategory("all")}
+              >
+                <Columns3Icon className="size-4 mr-2" />
+                All Transactions ({data.length})
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

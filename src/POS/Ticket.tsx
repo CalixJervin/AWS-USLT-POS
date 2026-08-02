@@ -24,7 +24,13 @@ interface TicketSidebarProps {
   total: number;
   onClose?: () => void;
   isKiosk?: boolean;
-  onPayAtCounter?: (cart: CartItem[], subtotal: number, total: number, paymentMethod?: "counter" | "cash" | "gcash") => Promise<void>;
+  onPayAtCounter?: (
+    cart: CartItem[], 
+    subtotal: number, 
+    total: number, 
+    paymentMethod?: "counter" | "cash" | "gcash",
+    customerDetails?: { customerName?: string; customerEmail?: string; customerPhone?: string }
+  ) => Promise<void>;
 }
 
 export function TicketSidebar({
@@ -85,7 +91,7 @@ export function TicketSidebar({
   };
 
   return (
-    <div className="w-full xl:w-[350px] xl:border-l border-[#232A3B] bg-[#131824] flex flex-col h-full shadow-xl z-10 shrink-0">
+    <div className="w-full h-full bg-[#131824] flex flex-col shadow-xl z-10 shrink-0 border-l border-[#232A3B]">
       
       {/* HEADER */}
       <div className="flex items-center justify-between p-4 border-b border-[#232A3B] shrink-0 h-16 bg-[#131824]">
@@ -94,7 +100,7 @@ export function TicketSidebar({
             <Button 
               variant="ghost" 
               size="icon" 
-              className="xl:hidden h-11 w-11 -ml-2 text-[#94A3B8] hover:text-[#E2E8F0] active:scale-95 touch-manipulation" 
+              className="h-11 w-11 -ml-2 text-[#94A3B8] hover:text-[#E2E8F0] active:scale-95 touch-manipulation cursor-pointer" 
               onClick={onClose}
             >
               <X className="h-6 w-6" />

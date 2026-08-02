@@ -14,6 +14,8 @@ import { SiteHeader } from "@/components/site-header"
 import { useInventory } from "@/hooks/useInventory"
 import { useKioskOrders } from "@/hooks/useKioskOrders"
 import { PendingOrdersModal } from "@/components/PendingOrdersModal"
+import { PreOrderModal } from "@/components/PreOrderModal"
+import { motion, AnimatePresence } from "framer-motion"
 
 function LiveClock() {
   const [time, setTime] = useState(new Date())
@@ -71,8 +73,11 @@ export default function AdminPOSView() {
   // Pending Kiosk Orders modal state
   const [isPendingModalOpen, setIsPendingModalOpen] = useState(false)
 
+  // Pre-Order Modal State for Merch Banners
+  const [selectedMerchProduct, setSelectedMerchProduct] = useState<Product | null>(null)
+
   // Map inventory products to POS structure
-  const products: Product[] = useMemo(() => inventoryProducts.map(p => ({
+  const allProducts: Product[] = useMemo(() => inventoryProducts.map(p => ({
     id: p.id,
     name: p.name,
     price: p.variants[0]?.price || 0,
@@ -80,18 +85,31 @@ export default function AdminPOSView() {
     image: p.image || undefined,
     inStock: p.inStock,
     variantId: p.variants[0]?.id as any,
-    size: p.variants[0]?.size || "Regular"
+    size: p.variants[0]?.size || "Regular",
+    isPreOrder: p.isPreOrder || p.type === "merch" || p.category.toLowerCase().includes("merch")
   })), [inventoryProducts])
+
+  // 1. Top Carousel: ONLY items with category === "Merch" or type === "merch" or isPreOrder === true
+  const merchProducts = useMemo(() => {
+    return allProducts.filter(p => p.isPreOrder || p.category.toLowerCase().includes("merch") || (p as any).type === "merch");
+  }, [allProducts]);
+
+  // 2. Regular Menu Below: EXCLUDE merch/pre-order items (only food/beverage on-hand menu)
+  const regularProducts = useMemo(() => {
+    return allProducts
+      .filter(p => !(p.isPreOrder || p.category.toLowerCase().includes("merch") || (p as any).type === "merch"))
+      .filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  }, [allProducts, searchQuery]);
 
   const handleProductAdded = useCallback(async (productData: any) => {
     await addProduct(productData)
   }, [addProduct])
 
   const handleStageForDeletion = useCallback((id: string, _name: string) => {
-    const product = products.find(p => p.id === id) || null;
+    const product = allProducts.find(p => p.id === id) || null;
     setProductToDelete(product);
     setIsDeleteModalOpen(true);
-  }, [products]);
+  }, [allProducts]);
 
   const handleConfirmDelete = useCallback(async (id: string) => {
     try {
@@ -112,11 +130,7 @@ export default function AdminPOSView() {
     }
   }, [addCategory, updateProduct])
 
-  const allCategories = useMemo(() => ["All", ...categories], [categories])
-
-  const filteredProducts = useMemo(() => products.filter((product) => {
-    return product.name.toLowerCase().includes(searchQuery.toLowerCase());
-  }), [products, searchQuery])
+  const allCategories = useMemo(() => ["All", ...categories.filter(c => !c.toLowerCase().includes("merch"))], [categories])
 
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null)
   const totalCartItems = useMemo(() => cart.reduce((tot, item) => tot + item.qty, 0), [cart])
@@ -308,8 +322,57 @@ export default function AdminPOSView() {
             </div>
           </div>
 
+          {/* 1. FEATURED PRE-ORDERS CAROUSEL (TOP OF PAGE) */}
+          {merchProducts.length > 0 && (
+            <div className="flex flex-col gap-2.5 my-2 shrink-0">
+              <div className="flex items-center justify-between px-1">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-5 rounded-full bg-[#E6007E]" />
+                  <h3 className="text-sm font-extrabold text-[#E2E8F0] tracking-wide uppercase flex items-center gap-2">
+                    Featured 
+                  </h3>
+                </div>
+              </div>
+
+              <div className="flex w-full overflow-x-auto gap-4 pb-3 pt-1 scrollbar-hide snap-x snap-mandatory">
+                {merchProducts.map((merch) => (
+                  <div
+                    key={merch.id}
+                    onClick={() => setSelectedMerchProduct(merch)}
+                    className="min-w-[280px] sm:min-w-[320px] h-[160px] rounded-2xl bg-[#1E2333] border border-[#00F2FE]/40 hover:border-[#00F2FE] cursor-pointer snap-start relative overflow-hidden flex flex-col justify-between p-4 shadow-lg transition-all active:scale-[0.99] group shrink-0"
+                  >
+                    {/* Background image or gradient fallback */}
+                    {merch.image ? (
+                      <img 
+                        src={merch.image} 
+                        alt={merch.name} 
+                        className="absolute inset-0 w-full h-full object-cover opacity-35 group-hover:opacity-50 transition-opacity" 
+                      />
+                    ) : (
+                      <div className="absolute inset-0 bg-gradient-to-br from-[#E6007E]/25 via-transparent to-[#00F2FE]/15" />
+                    )}
+
+                    <div className="relative z-10 flex items-center justify-between">
+                      <span className="bg-[#E6007E] text-white text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider shadow-md">
+                        PRE-ORDER
+                      </span>
+                      <span className="bg-[#131824]/90 backdrop-blur-md text-[#00F2FE] border border-[#00F2FE]/40 text-xs font-black px-2.5 py-1 rounded-full">
+                        ₱{merch.price.toFixed(2)}
+                      </span>
+                    </div>
+
+                    <div className="relative z-10">
+                      <h4 className="text-base font-black text-white drop-shadow-md truncate">{merch.name}</h4>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 2. REGULAR MENU (BELOW CAROUSEL - FOOD & ON-HAND ITEMS ONLY) */}
           <ProductGrid 
-            products={filteredProducts}
+            products={regularProducts}
             categories={categories}
             onAddToCart={handleAddToCart}
             selectedProductId={selectedProductId}
@@ -347,7 +410,7 @@ export default function AdminPOSView() {
       </div>
 
       {/* RIGHT SIDE: Ticket Sidebar (Desktop >= 1280px) */}
-      <div className="hidden xl:block h-full border-l border-[#232A3B] shrink-0 z-10 bg-[#131824]">
+      <div className="hidden xl:flex w-[200px] 2xl:w-[350px] h-full shrink-0 z-10 bg-[#131824] flex-col">
         <TicketSidebar 
           cart={cart}
           updateQty={updateQty}
@@ -359,22 +422,24 @@ export default function AdminPOSView() {
         />
       </div>
 
-      {/* MOBILE TICKET OVERLAY (< 1280px) */}
-      {isMobileTicketOpen && (
-        <div className="fixed inset-0 z-50 flex flex-col justify-end xl:hidden">
-          <div 
-            className="fixed inset-0 bg-black/80 backdrop-blur-sm transition-opacity animate-in fade-in duration-200" 
-            onClick={() => setIsMobileTicketOpen(false)}
-          />
-          <div className="relative w-full max-h-[85vh] h-[85vh] bg-[#131824] border-t border-[#232A3B] rounded-t-3xl shadow-2xl animate-in slide-in-from-bottom duration-300 overflow-hidden flex flex-col z-50">
-            <div 
-              className="w-full flex items-center justify-center py-2.5 bg-[#131824] cursor-pointer shrink-0 border-b border-[#232A3B]/40"
+      {/* TICKET OVERLAY SLIDES FROM RIGHT (ALL SCREEN SIZES WHEN TRIGGERED) */}
+      <AnimatePresence>
+        {isMobileTicketOpen && (
+          <div className="fixed inset-0 z-50 flex justify-end overflow-hidden">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/80 backdrop-blur-sm transition-opacity" 
               onClick={() => setIsMobileTicketOpen(false)}
+            />
+            <motion.div 
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 220 }}
+              className="relative w-full max-w-[420px] sm:w-[420px] h-full bg-[#131824] border-l border-[#232A3B] shadow-2xl overflow-hidden flex flex-col z-50"
             >
-              <div className="w-12 h-1.5 bg-[#2D3448] hover:bg-[#3D4760] transition-colors rounded-full" />
-            </div>
-
-            <div className="flex-1 overflow-hidden flex flex-col">
               <TicketSidebar 
                 cart={cart}
                 updateQty={updateQty}
@@ -385,15 +450,15 @@ export default function AdminPOSView() {
                 onClose={() => setIsMobileTicketOpen(false)}
                 isKiosk={false}
               />
-            </div>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
 
       {/* ADMIN MODALS */}
       <AddProductModal isOpen={isAddModalOpen} onOpenChange={setIsAddModalOpen} onAddProduct={handleProductAdded} categories={categories} />
       <DeleteProductModal isOpen={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen} onDeleteProduct={handleConfirmDelete} product={productToDelete} />
-      <AddCategoryModal isOpen={isAddCategoryOpen} onOpenChange={setIsAddCategoryOpen} onAddCategory={handleAddCategory} existingProducts={products} existingCategories={categories} />
+      <AddCategoryModal isOpen={isAddCategoryOpen} onOpenChange={setIsAddCategoryOpen} onAddCategory={handleAddCategory} existingProducts={allProducts} existingCategories={categories} />
 
       {/* STAFF PENDING KIOSK ORDERS INTERFACE */}
       <PendingOrdersModal
@@ -403,6 +468,13 @@ export default function AdminPOSView() {
         onFinalizeOrder={finalizePendingOrder}
         onCancelOrder={cancelPendingOrder}
         onClearAllOrders={clearAllPendingOrders}
+      />
+
+      {/* PRE-ORDER MERCH MODAL */}
+      <PreOrderModal
+        item={selectedMerchProduct}
+        isOpen={!!selectedMerchProduct}
+        onClose={() => setSelectedMerchProduct(null)}
       />
     </div>
   )

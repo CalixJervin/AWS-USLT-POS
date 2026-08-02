@@ -13,6 +13,12 @@ export interface PendingKioskOrder {
   paymentMethod: "counter" | "cash" | "gcash";
   createdAt: string;
   status: "pending_counter" | "completed" | "cancelled";
+  
+  // Customer & Pre-Order Contact Details
+  customerName?: string;
+  customerEmail?: string;
+  customerPhone?: string;
+  fulfillmentStatus?: "pending" | "pre_ordered" | "in_production" | "ready_for_pickup" | "claimed";
 }
 
 const KIOSK_ORDERS_STORAGE_KEY = "timpla_kiosk_pending_orders";
@@ -59,27 +65,27 @@ export function useKioskOrders() {
       // Check active order persistence
       const activeStored = localStorage.getItem(ACTIVE_KIOSK_ORDER_KEY);
       if (activeStored) {
-        const activeObj: PendingKioskOrder = JSON.parse(activeStored);
-        if (saved) {
+        try {
+          const activeObj: PendingKioskOrder = JSON.parse(activeStored);
           const match = parsed.find(
             (o: any) => o.id === activeObj.id || o.orderNumber === activeObj.orderNumber
           );
 
-          if (match) {
-            if (match.status === "completed" || match.status === "cancelled") {
-              setActiveKioskOrderState(null);
-              localStorage.removeItem(ACTIVE_KIOSK_ORDER_KEY);
-            } else {
-              const updatedActive = { ...activeObj, id: match.id, orderNumber: match.orderNumber };
-              setActiveKioskOrderState(updatedActive);
-              localStorage.setItem(ACTIVE_KIOSK_ORDER_KEY, JSON.stringify(updatedActive));
-            }
+          if (match && match.status === "pending_counter") {
+            const updatedActive = { ...activeObj, id: match.id, orderNumber: match.orderNumber };
+            setActiveKioskOrderState(updatedActive);
+            localStorage.setItem(ACTIVE_KIOSK_ORDER_KEY, JSON.stringify(updatedActive));
           } else {
-            setActiveKioskOrderState(activeObj);
+            // Order was finalized, completed, or cancelled by POS staff -> clear active kiosk order banner
+            setActiveKioskOrderState(null);
+            localStorage.removeItem(ACTIVE_KIOSK_ORDER_KEY);
           }
-        } else {
-          setActiveKioskOrderState(activeObj);
+        } catch (e) {
+          setActiveKioskOrderState(null);
+          localStorage.removeItem(ACTIVE_KIOSK_ORDER_KEY);
         }
+      } else {
+        setActiveKioskOrderState(null);
       }
     } catch (e) {
       console.error("Error reading kiosk orders from storage", e);
@@ -142,7 +148,11 @@ export function useKioskOrders() {
             total: Number(o.total),
             paymentMethod: "counter",
             createdAt: o.created_at,
-            status: "pending_counter"
+            status: "pending_counter",
+            customerName: o.customer_name || undefined,
+            customerEmail: o.customer_email || undefined,
+            customerPhone: o.customer_phone || undefined,
+            fulfillmentStatus: o.fulfillment_status || (items.some(i => i.isPreOrder) ? "pre_ordered" : "pending")
           };
         });
 
@@ -216,10 +226,16 @@ export function useKioskOrders() {
     cart: CartItem[],
     subtotal: number,
     total: number,
-    paymentMethod: "counter" | "cash" | "gcash" = "counter"
+    paymentMethod: "counter" | "cash" | "gcash" = "counter",
+    customerDetails?: {
+      customerName?: string;
+      customerEmail?: string;
+      customerPhone?: string;
+    }
   ): Promise<PendingKioskOrder> => {
     const orderNumber = getNextOrderNumber();
     const newOrderId = `kiosk-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+    const hasPreOrder = cart.some(i => i.isPreOrder);
 
     const newOrder: PendingKioskOrder = {
       id: newOrderId,
@@ -229,7 +245,11 @@ export function useKioskOrders() {
       total,
       paymentMethod,
       createdAt: new Date().toISOString(),
-      status: "pending_counter"
+      status: "pending_counter",
+      customerName: customerDetails?.customerName,
+      customerEmail: customerDetails?.customerEmail,
+      customerPhone: customerDetails?.customerPhone,
+      fulfillmentStatus: hasPreOrder ? "pre_ordered" : "pending"
     };
 
     // Store as active order for session/tab persistence
@@ -251,13 +271,19 @@ export function useKioskOrders() {
       let dbOrder: any = null;
       let orderErr: any = null;
 
+      const payload = {
+        total,
+        status: "pending_counter",
+        order_number: orderNumber,
+        customer_name: customerDetails?.customerName || null,
+        customer_email: customerDetails?.customerEmail || null,
+        customer_phone: customerDetails?.customerPhone || null,
+        fulfillment_status: hasPreOrder ? "pre_ordered" : "pending"
+      };
+
       const resWithNum = await supabase
         .from("orders")
-        .insert({
-          total,
-          status: "pending_counter",
-          order_number: orderNumber
-        })
+        .insert(payload)
         .select()
         .single();
 
@@ -329,21 +355,34 @@ export function useKioskOrders() {
       }
 
       setPendingOrders((prev) => {
-        const updated = prev.filter(o => o.id !== orderId);
+        const updated = prev.filter(o => o.id !== orderId && o.orderNumber !== orderToFinalize.orderNumber);
         localStorage.setItem(KIOSK_ORDERS_STORAGE_KEY, JSON.stringify(updated));
         return updated;
       });
 
-      // Clear active kiosk order if it was finalized
-      if (activeKioskOrder?.id === orderId) {
+      // Clear active kiosk order in state & localStorage if it was finalized
+      const activeStored = localStorage.getItem(ACTIVE_KIOSK_ORDER_KEY);
+      if (activeStored) {
+        try {
+          const activeObj = JSON.parse(activeStored);
+          if (activeObj.id === orderId || activeObj.orderNumber === orderToFinalize.orderNumber || activeObj.id === orderToFinalize.id) {
+            clearActiveKioskOrder();
+          }
+        } catch (e) {
+          clearActiveKioskOrder();
+        }
+      } else {
         clearActiveKioskOrder();
       }
 
       try {
         const bc = new BroadcastChannel("timpla_kiosk_channel");
-        bc.postMessage({ type: "SYNC_PENDING_ORDERS" });
+        bc.postMessage({ type: "SYNC_PENDING_ORDERS", action: "FINALIZE", orderId, orderNumber: orderToFinalize.orderNumber });
         bc.close();
       } catch (e) {}
+
+      window.dispatchEvent(new Event("storage"));
+      window.dispatchEvent(new Event("timpla_kiosk_orders_updated"));
 
       let methodLabel = finalPaymentMethod.toUpperCase();
       if (finalPaymentMethod === "split" && splitDetails) {

@@ -280,15 +280,14 @@ export function PreOrderModal({
           ) : (
             <>
               {/* ITEM CARD BANNER / ORDER PREVIEW */}
-              <div className="bg-[#1E2333] border border-[#2D3448] rounded-2xl p-4 flex gap-4 sm:gap-5 items-center relative overflow-hidden shadow-xl shrink-0 group">
+              <div className="bg-[#1E2333] border border-[#2D3448] rounded-2xl p-2 flex gap-4 sm:gap-5 items-center relative overflow-hidden shadow-xl shrink-0 group">
                 {/* SUBTLE BACKGROUND AMBIENT GLOW */}
-                <div className="absolute -right-10 -bottom-10 w-36 h-36 bg-[#00F2FE]/10 rounded-full blur-2xl pointer-events-none" />
                 <div className="absolute -left-10 -top-10 w-36 h-36 bg-[#E6007E]/10 rounded-full blur-2xl pointer-events-none" />
 
                 {/* PRODUCT IMAGE CONTAINER */}
-                <div className="w-20 h-20 sm:w-24 sm:h-24 aspect-square bg-[#131824] rounded-xl border border-[#232A3B] flex items-center justify-center shrink-0 overflow-hidden p-1.5 shadow-inner relative z-10">
+                <div className="w-20 h-20 sm:w-24 sm:h-24 aspect-square bg-[#131824] rounded-xl border border-[#232A3B] flex items-center justify-center shrink-0 overflow-hidden shadow-inner relative z-10">
                   {item.image ? (
-                    <img src={item.image} alt={item.name} className="w-full h-full object-contain rounded-lg" />
+                    <img src={item.image} alt={item.name} className="w-full h-full object-cover rounded-lg" />
                   ) : (
                     <Sparkles className="h-8 w-8 text-[#00F2FE]" />
                   )}

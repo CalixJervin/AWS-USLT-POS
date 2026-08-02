@@ -24,13 +24,13 @@ export default function Page() {
   }
 
   return (
-    <div className="flex flex-1 flex-col overflow-auto bg-[#0B0E14]">
-      <div className="bg-[#131824] border-b border-[#232A3B]">
+    <div className="flex flex-1 flex-col h-screen overflow-hidden bg-[#0B0E14] relative">
+      <div className="sticky top-0 z-50 bg-[#131824] border-b border-[#232A3B] shrink-0 select-none">
         <SiteHeader>
           <h1 className="text-sm font-bold text-[#E2E8F0]">Dashboard</h1>
         </SiteHeader>
       </div>
-      <div className="flex flex-1 flex-col">
+      <div className="flex flex-1 flex-col overflow-y-auto overscroll-contain touch-pan-y">
         <div className="@container/main flex flex-1 flex-col gap-2">
           <div className="flex flex-col gap-8 py-4 xl:gap-10 xl:py-8">
             

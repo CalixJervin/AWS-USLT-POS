@@ -137,8 +137,8 @@
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background-color: #00F2FE !important;
-  box-shadow: 0 0 12px rgba(0, 242, 254, 0.7) !important;
+  background-color: #E6007E !important;
+  
 }
 
 ::-webkit-scrollbar-thumb:active {

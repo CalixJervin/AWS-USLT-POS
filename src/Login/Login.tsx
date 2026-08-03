@@ -172,15 +172,18 @@ export default function LoginPage() {
         {/* HEADER WITH VIVID PINK BRANDING & NEON BLUE TOUCHES */}
         <div className="bg-[#1E2333] p-6 flex items-center justify-between border-b border-[#232A3B]">
           <div className="flex items-center gap-3">
-            <div className="flex aspect-square size-10 items-center justify-center rounded-xl bg-[#E6007E] text-white shadow-[0_0_15px_#E6007E] font-bold">
-              <CommandIcon className="size-5" />
+            <div className="flex aspect-square size-10 items-center justify-center rounded-xl  text-white font-bold">
+              <img 
+                  src="takopi.jpg" 
+                  alt="AWS Logo" 
+                  className="size-15 object-contain" 
+                />
             </div>
             <div>
               <h1 className="text-2xl font-black tracking-tight text-[#E2E8F0]">
-                Timpla <span className="text-[#E6007E]">Cafe</span>
-              </h1>
+                AWS-SBG              </h1>
               <p className="text-xs font-semibold text-[#00F2FE] tracking-wide uppercase">
-                Staff & Admin Portal
+                POS & Kiosk
               </p>
             </div>
           </div>

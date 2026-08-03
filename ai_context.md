@@ -103,10 +103,15 @@ To prevent "kiosk escapes" and isolate public UI from admin controls, Kiosk and 
 - **Direct Order Finalization**: `finalizePendingOrder` updates existing DB records directly preserving `customer_name`, `customer_email`, `customer_phone`, and `order_number`, eliminating duplicate `create_complete_order` RPC invocations.
 - **Intelligent Transaction Deduplication**: `useTransactions.ts` deduplicates transactions by matching exact IDs or order numbers (`#PO-`), merging contact details and removing redundant generic entries (`#ORD-`).
 
-### 2. Bidirectional Deletion Synchronization
-- **Customer Cancellation $\rightarrow$ Admin Data Table**: When a customer cancels a pre-order on their device via `cancelMyPreOrder(orderId, orderNumber)`, the record is deleted from Supabase `orders` by both `order_number` and `id`. A broadcast message triggers `fetchTransactions()` on Admin POS to immediately remove it from the Data Table.
-- **Admin Data Table Deletion $\rightarrow$ Customer Device**: When an admin deletes a pre-order record from the Data Table (`deleteTransaction` / `deleteSelectedTransactions` / `clearTransactions`), the order is removed from Supabase and a `PREORDER_DELETED` / `ALL_PREORDERS_CLEARED` event is broadcasted.
-- **Remote Validity Sync (`checkRemoteValidity`)**: When a customer opens their "My Pre-Orders" drawer, `useMyPreOrders` verifies saved local pre-orders against Supabase `orders` and automatically purges any records that were deleted remotely by staff.
+### 3. Admin Data Table Payment Status Mutation
+- **In-Row Status Control**: Admin staff can mutate the payment status of any transaction row directly within the Data Table ([`data-table.tsx`](file:///C:/Users/User/Desktop/AWS%20POS/Client-Project/src/components/data-table.tsx#L288)) using an interactive `<Select>` dropdown.
+- **Supported Statuses**:
+  - 🟢 `Paid` (`status: "completed"`)
+  - 🔵 `Pending Verification` (`status: "verifying"`)
+  - 🩷 `Cash Pending` (`status: "pending_counter"`)
+  - 🟠 `Unpaid` (`status: "unpaid"`)
+- **Instant Non-Flicker Reactivity**: `useReactTable` directly binds to `filteredData`, ensuring that status updates reflect immediately without intermediate state delays or dropdown value reversions.
+- **Real-Time Supabase & Customer Sync**: `updatePreOrderPaymentStatus` in `useTransactions.ts` updates Supabase `orders` table by `order_number` & `id`, updates local storage, and broadcasts a `PREORDER_PAYMENT_STATUS_UPDATED` message across `timpla_my_preorders_channel`. Customer devices dynamically update their saved pre-order status badge in real-time.
 
 ---
 
@@ -182,11 +187,25 @@ CREATE TABLE IF NOT EXISTS public.order_items (
     quantity INTEGER NOT NULL DEFAULT 1,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
-```
+---
+
+## 7. Completed Tasks (Recent Session Handoff)
+
+- **Fixed Duplicate Pre-Order Transactions**: Removed fallback empty row insertions (`{ total, status }`) in [`PreOrderModal.tsx`](file:///C:/Users/User/Desktop/AWS%20POS/Client-Project/src/components/PreOrderModal.tsx) and [`useKioskOrders.ts`](file:///C:/Users/User/Desktop/AWS%20POS/Client-Project/src/hooks/useKioskOrders.ts). Generated DB UUIDs are synced immediately to local storage `timpla_my_saved_preorders`.
+- **Isolated Pre-Orders from Pending Kiosk Queue**: Filtered pre-orders (`fulfillment_status === "pre_ordered"` or `#PO-`) out of `timpla_kiosk_pending_orders` so only immediate counter orders appear in `<PendingOrdersModal />`.
+- **Bidirectional Cancellation & Deletion Synchronization**:
+  - Customer cancels pre-order $\rightarrow$ Deletes row from Supabase `orders` and broadcasts event to clear it from Admin POS Data Table.
+  - Admin deletes transaction in Data Table $\rightarrow$ Deletes row from Supabase and broadcasts event so customer devices purge it automatically (`checkRemoteValidity`).
+- **In-Row Payment Status Mutation & Instant Reactivity**:
+  - Added interactive `<Select>` dropdowns directly inside Data Table rows ([`data-table.tsx`](file:///C:/Users/User/Desktop/AWS%20POS/Client-Project/src/components/data-table.tsx#L288)) allowing staff to change payment statuses (`Paid`, `Pending Verification`, `Cash Pending`, `Unpaid`).
+  - Passed `data: filteredData` directly to `useReactTable` to eliminate state sync delays and prevent dropdown value reversions.
+  - Added normalized case string handling (`rawStatus.toLowerCase()`) in `useTransactions.ts` so DB status values map cleanly without defaulting back to "Paid".
+  - Refactored deduplication to prioritize `completed` / `paid` transactions over `pending_counter` records.
+- **Idempotent SQL Schema & RLS Policies**: Updated SQL scripts with `DROP POLICY IF EXISTS` to make policy execution 100% idempotent without triggering duplicate policy errors.
 
 ---
 
-## 7. Instructions for AI Coding Assistants
+## 8. Instructions for AI Coding Assistants
 
 - Always inspect existing custom hooks (`useCart`, `useInventory`, `useKioskOrders`, `useGCashSettings`, `useMyPreOrders`, `useTransactions`) before creating new state logic.
 - Run `npx tsc --noEmit` and `npm run build` after file edits to verify type safety and bundle compilation.

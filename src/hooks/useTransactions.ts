@@ -10,6 +10,8 @@ export interface Transaction {
   order_id: string; 
   total_amount: number;
   payment_method: string;
+  status?: string;
+  payment_status?: string;
   timestamp: string;
   customer_name?: string;
   customer_email?: string;
@@ -63,8 +65,8 @@ export function useTransactions() {
     } catch (e) {}
   };
 
-  const fetchTransactions = useCallback(async () => {
-    setIsLoading(true);
+  const fetchTransactions = useCallback(async (showLoading = false) => {
+    if (showLoading) setIsLoading(true);
     try {
       const { data: orders, error: ordersError } = await supabase
         .from('orders')
@@ -114,39 +116,62 @@ export function useTransactions() {
 
       (orders || []).forEach(o => {
         const orderItems = o.order_items || [];
-        let localMatch = localOrders.find(l => 
+        const localMatch = localOrders.find(l => 
           l.id === o.id || 
           (l.orderNumber && o.order_number && l.orderNumber === o.order_number)
         );
-
-        if (!localMatch && (!o.order_number || o.order_number.startsWith("#ORD-"))) {
-          // Try fuzzy match with local pre-orders by total & time proximity (within 10 mins)
-          localMatch = localOrders.find(l => 
-            Math.abs(Number(l.total) - Number(o.total)) < 0.01 &&
-            l.createdAt && o.created_at &&
-            Math.abs(new Date(l.createdAt).getTime() - new Date(o.created_at).getTime()) < 600000
-          );
-        }
 
         const custName = o.customer_name || localMatch?.customerName || undefined;
         const custEmail = o.customer_email || localMatch?.customerEmail || undefined;
         const custPhone = o.customer_phone || localMatch?.customerPhone || undefined;
 
+        // Fix: Food orders are NOT pre-orders unless fulfillment_status === 'pre_ordered', starts with #PO-, or contains merch items
         const isPreOrder = o.fulfillment_status === "pre_ordered" || 
                            localMatch?.fulfillmentStatus === "pre_ordered" ||
                            (o.order_number && o.order_number.startsWith("#PO-")) ||
                            (localMatch?.orderNumber && localMatch.orderNumber.startsWith("#PO-")) ||
                            orderItems.some((i: any) => 
-                             (i.product_name && (i.product_name.toLowerCase().includes("shirt") || i.product_name.toLowerCase().includes("merch") || i.product_name.toLowerCase().includes("pin") || i.product_name.toLowerCase().includes("lace")))
-                           ) || 
-                           !!custName || 
-                           !!custPhone;
+                             i.product_name && (
+                               i.product_name.toLowerCase().includes("shirt") || 
+                               i.product_name.toLowerCase().includes("merch") || 
+                               i.product_name.toLowerCase().includes("t-shirt") || 
+                               i.product_name.toLowerCase().includes("tshirt") || 
+                               i.product_name.toLowerCase().includes("apparel") || 
+                               i.product_name.toLowerCase().includes("hoodie")
+                             )
+                           );
+
+        // Primary Source of Truth: DB status column with normalized case handling
+        let payStatus: string | undefined = undefined;
+        const rawStatus = (o.status || "").toString().toLowerCase().trim();
+
+        if (rawStatus === "completed" || rawStatus === "paid") {
+          payStatus = "Paid";
+        } else if (rawStatus === "verifying" || rawStatus === "pending verification") {
+          payStatus = "Pending Verification";
+        } else if (rawStatus === "unpaid") {
+          payStatus = "Unpaid";
+        } else if (rawStatus === "pending_counter" || rawStatus === "cash pending" || rawStatus === "pending") {
+          payStatus = "Cash Pending";
+        }
+
+        // Fallback to localMatch ONLY IF DB status is missing or unmapped
+        if (!payStatus && localMatch?.paymentStatus) {
+          payStatus = localMatch.paymentStatus;
+        }
+
+        // Ultimate default
+        if (!payStatus) {
+          payStatus = isPreOrder ? "Cash Pending" : "Paid";
+        }
 
         txMap.set(o.id, {
           id: o.id,
           order_id: o.order_number || localMatch?.orderNumber || `#ORD-${o.id.slice(0, 4).toUpperCase()}`,
           total_amount: Number(o.total),
           payment_method: o.payment_method || localMatch?.paymentMethod || "cash", 
+          status: o.status || "completed",
+          payment_status: payStatus,
           timestamp: o.created_at,
           customer_name: custName,
           customer_email: custEmail,
@@ -167,24 +192,32 @@ export function useTransactions() {
         });
       });
 
-      // Merge local pre-orders ONLY if not already present by ID or order_number
+      // Merge local pre-orders AND kiosk pending orders if not already present in DB
       localOrders.forEach(l => {
         const existingTx = Array.from(txMap.values()).find(
           tx => tx.id === l.id || (l.orderNumber && tx.order_id === l.orderNumber)
         );
 
-        if (!existingTx && (l.fulfillmentStatus === "pre_ordered" || (l.orderNumber && l.orderNumber.startsWith("#PO-")))) {
+        if (!existingTx) {
+          const isPO = l.fulfillmentStatus === "pre_ordered" || (l.orderNumber && l.orderNumber.startsWith("#PO-"));
+          let payStatus = l.paymentStatus;
+          if (!payStatus) {
+            payStatus = l.status === "completed" ? "Paid" : "Cash Pending";
+          }
+
           txMap.set(l.id, {
             id: l.id,
-            order_id: l.orderNumber || `#PO-LOCAL`,
+            order_id: l.orderNumber || (isPO ? `#PO-LOCAL` : `#ORD-LOCAL`),
             total_amount: Number(l.total),
             payment_method: l.paymentMethod || "cash",
+            status: l.status || "pending_counter",
+            payment_status: payStatus,
             timestamp: l.createdAt || new Date().toISOString(),
             customer_name: l.customerName,
             customer_email: l.customerEmail,
             customer_phone: l.customerPhone,
-            fulfillment_status: l.fulfillmentStatus || "pre_ordered",
-            is_pre_order: true
+            fulfillment_status: l.fulfillmentStatus || (isPO ? "pre_ordered" : "pending"),
+            is_pre_order: isPO
           });
 
           if (l.cart) {
@@ -199,7 +232,7 @@ export function useTransactions() {
               });
             });
           }
-        } else if (existingTx) {
+        } else {
           // Enrich existing DB entry with local contact details if missing
           if (!existingTx.customer_name && l.customerName) existingTx.customer_name = l.customerName;
           if (!existingTx.customer_email && l.customerEmail) existingTx.customer_email = l.customerEmail;
@@ -229,7 +262,17 @@ export function useTransactions() {
           deduplicated.push(tx);
         } else {
           const existing = deduplicated[duplicateIdx];
-          const preferTx = (tx.order_id.startsWith("#PO-") || (tx.customer_name && !existing.customer_name)) ? tx : existing;
+          const isCompleted = (t: Transaction) => t.status === "completed" || t.status === "paid" || t.payment_status === "Paid";
+
+          let preferTx = existing;
+          if (isCompleted(tx) && !isCompleted(existing)) {
+            preferTx = tx;
+          } else if (!isCompleted(tx) && isCompleted(existing)) {
+            preferTx = existing;
+          } else if (tx.order_id.startsWith("#PO-") || (tx.customer_name && !existing.customer_name)) {
+            preferTx = tx;
+          }
+
           const secondary = preferTx === tx ? existing : tx;
 
           deduplicated[duplicateIdx] = {
@@ -253,10 +296,10 @@ export function useTransactions() {
   }, []);
 
   useEffect(() => {
-    fetchTransactions();
+    fetchTransactions(true);
 
     const handleStorageChange = () => {
-      fetchTransactions();
+      fetchTransactions(false);
     };
     window.addEventListener("storage", handleStorageChange);
     window.addEventListener("timpla_my_preorders_updated", handleStorageChange);
@@ -265,10 +308,10 @@ export function useTransactions() {
     let bc2: BroadcastChannel | null = null;
     try {
       bc1 = new BroadcastChannel("timpla_kiosk_channel");
-      bc1.onmessage = () => fetchTransactions();
+      bc1.onmessage = () => fetchTransactions(false);
 
       bc2 = new BroadcastChannel("timpla_my_preorders_channel");
-      bc2.onmessage = () => fetchTransactions();
+      bc2.onmessage = () => fetchTransactions(false);
     } catch (e) {}
 
     return () => {
@@ -411,6 +454,102 @@ export function useTransactions() {
     }
   };
 
+  const updatePreOrderPaymentStatus = async (id: string, orderNumber: string, newPaymentStatus: string) => {
+    let dbStatus = "completed";
+    if (newPaymentStatus === "Unpaid") dbStatus = "unpaid";
+    else if (newPaymentStatus === "Pending Verification") dbStatus = "verifying";
+    else if (newPaymentStatus === "Cash Pending") dbStatus = "pending_counter";
+    else if (newPaymentStatus === "Paid") dbStatus = "completed";
+
+    // 0. Optimistically update local transactions state in-place so UI updates instantly with ZERO scroll jump
+    setTransactions((prev) =>
+      prev.map((t) => {
+        if (t.id === id || (orderNumber && t.order_id === orderNumber)) {
+          return {
+            ...t,
+            payment_status: newPaymentStatus,
+            status: dbStatus
+          };
+        }
+        return t;
+      })
+    );
+
+    try {
+      // 1. Update in Supabase orders table
+      const filterConditions = [];
+      if (id && !id.startsWith("preorder-") && !id.startsWith("kiosk-")) {
+        filterConditions.push(`id.eq.${id}`);
+      }
+      if (orderNumber && orderNumber !== "#PO-LOCAL") {
+        filterConditions.push(`order_number.eq.${orderNumber}`);
+      }
+
+      if (filterConditions.length > 0) {
+        await supabase
+          .from("orders")
+          .update({ 
+            status: dbStatus,
+            fulfillment_status: dbStatus === "completed" ? "completed" : undefined
+          })
+          .or(filterConditions.join(","));
+      }
+
+      // 2. Update local storage on current device if present
+      try {
+        const savedPre = localStorage.getItem("timpla_my_saved_preorders");
+        if (savedPre) {
+          const parsed: any[] = JSON.parse(savedPre);
+          const updated = parsed.map((o: any) => {
+            if (o.id === id || (o.orderNumber && o.orderNumber === orderNumber)) {
+              return { ...o, paymentStatus: newPaymentStatus, status: dbStatus };
+            }
+            return o;
+          });
+          localStorage.setItem("timpla_my_saved_preorders", JSON.stringify(updated));
+        }
+
+        const savedKiosk = localStorage.getItem("timpla_kiosk_pending_orders");
+        if (savedKiosk) {
+          const parsed: any[] = JSON.parse(savedKiosk);
+          const updated = parsed.map((o: any) => {
+            if (o.id === id || (o.orderNumber && o.orderNumber === orderNumber)) {
+              return { ...o, paymentStatus: newPaymentStatus, status: dbStatus };
+            }
+            return o;
+          });
+          localStorage.setItem("timpla_kiosk_pending_orders", JSON.stringify(updated));
+        }
+      } catch (e) {}
+
+      // 3. Broadcast to all open tabs and customer devices
+      try {
+        const bc1 = new BroadcastChannel("timpla_my_preorders_channel");
+        bc1.postMessage({
+          type: "PREORDER_PAYMENT_STATUS_UPDATED",
+          orderId: id,
+          orderNumber: orderNumber,
+          paymentStatus: newPaymentStatus,
+          status: dbStatus
+        });
+        bc1.close();
+
+        const bc2 = new BroadcastChannel("timpla_kiosk_channel");
+        bc2.postMessage({ type: "SYNC_PENDING_ORDERS" });
+        bc2.close();
+
+        window.dispatchEvent(new Event("storage"));
+        window.dispatchEvent(new Event("timpla_my_preorders_updated"));
+      } catch (e) {}
+
+      await fetchTransactions(false);
+      toast.success(`Payment status for ${orderNumber || "order"} set to ${newPaymentStatus.toUpperCase()}`);
+    } catch (error: any) {
+      console.error("Error updating payment status:", error);
+      toast.error("Failed to update payment status");
+    }
+  };
+
   const exportToExcel = (
     selectedIds?: string[], 
     customTransactions?: Transaction[], 
@@ -508,6 +647,7 @@ export function useTransactions() {
     deleteTransaction,
     deleteSelectedTransactions,
     clearTransactions,
+    updatePreOrderPaymentStatus,
     exportToExcel,
     refetchTransactions: fetchTransactions,
     isLoading,

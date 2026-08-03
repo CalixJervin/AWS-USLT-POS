@@ -7,12 +7,10 @@ import {
   TouchSensor,
   useSensor,
   useSensors,
-  type DragEndEvent,
   type UniqueIdentifier,
 } from "@dnd-kit/core"
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers"
 import {
-  arrayMove,
   SortableContext,
   useSortable,
   verticalListSortingStrategy,
@@ -33,7 +31,6 @@ import {
   type Row,
 } from "@tanstack/react-table"
 import { useTransactions } from "@/hooks/useTransactions"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -94,6 +91,8 @@ export interface TransactionRow {
   order_id: string
   timestamp: string
   payment_method: string
+  status?: string
+  payment_status?: string
   total_amount: number
   items_summary: string
   items_count: number
@@ -155,7 +154,8 @@ export function DataTable() {
     transactionItems, 
     deleteTransaction, 
     deleteSelectedTransactions, 
-    clearTransactions, 
+    clearTransactions,
+    updatePreOrderPaymentStatus,
     exportToExcel 
   } = useTransactions()
 
@@ -181,6 +181,8 @@ export function DataTable() {
         order_id: t.order_id,
         timestamp: t.timestamp,
         payment_method: t.payment_method,
+        status: t.status,
+        payment_status: t.payment_status,
         total_amount: t.total_amount,
         items_summary: itemsSummary,
         items_count: itemsCount,
@@ -281,15 +283,47 @@ export function DataTable() {
       accessorKey: "payment_method",
       header: "Payment Status",
       cell: ({ row }) => {
-        const method = row.original.payment_method || 'Unknown'
-        const isPreOrder = row.original.is_pre_order
-        const label = isPreOrder ? "PRE-ORDER PAID" : `Paid (${method.toUpperCase()})`
+        const currentPayStatus = row.original.payment_status || "Paid";
+
         return (
-          <Badge variant="outline" className={`px-1.5 font-black text-[10px] uppercase ${isPreOrder ? "border-[#00F2FE]/50 bg-[#00F2FE]/10 text-[#00F2FE]" : "border-[#E6007E]/30 bg-[#131824] text-[#E6007E]"}`}>
-            <CircleCheckIcon className="size-3 fill-current mr-1" />
-            {label}
-          </Badge>
-        )
+          <Select
+            value={currentPayStatus}
+            onValueChange={(newVal) => {
+              updatePreOrderPaymentStatus(row.original.id, row.original.order_id, newVal);
+            }}
+          >
+            <SelectTrigger
+              className={`h-7 px-2.5 text-[10px] font-black uppercase rounded-full border cursor-pointer transition-all ${
+                currentPayStatus === "Paid" || currentPayStatus === "Completed"
+                  ? "bg-[#00E676]/20 text-[#00E676] border-[#00E676]/50 hover:bg-[#00E676]/30 shadow-[0_0_10px_rgba(0,230,118,0.2)]"
+                  : currentPayStatus === "Pending Verification"
+                  ? "bg-[#00F2FE]/20 text-[#00F2FE] border-[#00F2FE]/50 hover:bg-[#00F2FE]/30 shadow-[0_0_10px_rgba(0,242,254,0.2)]"
+                  : currentPayStatus === "Unpaid"
+                  ? "bg-[#FF9900]/20 text-[#FF9900] border-[#FF9900]/50 hover:bg-[#FF9900]/30 shadow-[0_0_10px_rgba(255,153,0,0.2)]"
+                  : "bg-[#E6007E]/20 text-[#E6007E] border-[#E6007E]/50 hover:bg-[#E6007E]/30 shadow-[0_0_10px_rgba(230,0,126,0.2)]"
+              }`}
+            >
+              <div className="flex items-center gap-1">
+                <CircleCheckIcon className="size-3 fill-current shrink-0" />
+                <SelectValue placeholder={currentPayStatus} />
+              </div>
+            </SelectTrigger>
+            <SelectContent className="bg-[#1E2333] border-[#2D3448] text-[#E2E8F0]">
+              <SelectItem value="Paid" className="text-[#00E676] font-black text-xs cursor-pointer focus:bg-[#131824]">
+                PAID
+              </SelectItem>
+              <SelectItem value="Pending Verification" className="text-[#00F2FE] font-black text-xs cursor-pointer focus:bg-[#131824]">
+                PENDING VERIFICATION
+              </SelectItem>
+              <SelectItem value="Cash Pending" className="text-[#E6007E] font-black text-xs cursor-pointer focus:bg-[#131824]">
+                CASH PENDING
+              </SelectItem>
+              <SelectItem value="Unpaid" className="text-[#FF9900] font-black text-xs cursor-pointer focus:bg-[#131824]">
+                UNPAID (PAY LATER)
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        );
       },
     },
     {
@@ -386,11 +420,6 @@ export function DataTable() {
     return data;
   }, [data, transactionCategory]);
 
-  const [tableData, setTableData] = React.useState(filteredData)
-  React.useEffect(() => {
-    setTableData(filteredData)
-  }, [filteredData])
-
   const sortableId = React.useId()
   const sensors = useSensors(
     useSensor(MouseSensor, {}),
@@ -399,12 +428,12 @@ export function DataTable() {
   )
 
   const dataIds = React.useMemo<UniqueIdentifier[]>(
-    () => tableData.map(({ id }) => id),
-    [tableData]
+    () => filteredData.map(({ id }) => id),
+    [filteredData]
   )
 
   const table = useReactTable({
-    data: tableData,
+    data: filteredData,
     columns,
     state: {
       sorting,
@@ -432,9 +461,9 @@ export function DataTable() {
   const selectedIds = React.useMemo(() => selectedRows.map(r => r.original.id), [selectedRows])
 
   const filteredTransactions = React.useMemo(() => {
-    const ids = new Set(tableData.map(d => d.id));
+    const ids = new Set(filteredData.map(d => d.id));
     return transactions.filter(t => ids.has(t.id));
-  }, [transactions, tableData]);
+  }, [transactions, filteredData]);
 
   const categoryLabel = transactionCategory === "foods" 
     ? "Foods" 
@@ -442,15 +471,8 @@ export function DataTable() {
     ? "Shirt Pre-orders" 
     : "All Transactions";
 
-  function handleDragEnd(event: DragEndEvent) {
-    const { active, over } = event
-    if (active && over && active.id !== over.id) {
-      setTableData((prev) => {
-        const oldIndex = dataIds.indexOf(active.id)
-        const newIndex = dataIds.indexOf(over.id)
-        return arrayMove(prev, oldIndex, newIndex)
-      })
-    }
+  function handleDragEnd() {
+    // Row reordering handle
   }
 
   return (
@@ -495,7 +517,7 @@ export function DataTable() {
           )}
 
           {/* Clear All Option */}
-          {tableData.length > 0 && (
+          {filteredData.length > 0 && (
             <Button 
               variant="outline" 
               size="sm" 

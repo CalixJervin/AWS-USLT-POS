@@ -351,17 +351,35 @@ export function useKioskOrders() {
     try {
       const mappedMethod = finalPaymentMethod === "cash" ? "cash" : "gcash";
 
-      if (!orderId.startsWith("kiosk-") && !orderId.startsWith("preorder-")) {
-        // Order already in DB -> update existing record preserving customer contact info and order number
-        await supabase.from("orders").update({
-          status: "completed",
-          payment_method: mappedMethod,
-          customer_name: orderToFinalize.customerName || null,
-          customer_email: orderToFinalize.customerEmail || null,
-          customer_phone: orderToFinalize.customerPhone || null,
-          fulfillment_status: orderToFinalize.fulfillmentStatus || (orderToFinalize.cart.some(i => i.isPreOrder) ? "pre_ordered" : "completed")
-        }).eq("id", orderId);
-      } else {
+      const filterConditions = [];
+      if (orderId && !orderId.startsWith("kiosk-") && !orderId.startsWith("preorder-")) {
+        filterConditions.push(`id.eq.${orderId}`);
+      }
+      if (orderToFinalize.orderNumber) {
+        filterConditions.push(`order_number.eq.${orderToFinalize.orderNumber}`);
+      }
+
+      let updatedInDb = false;
+      if (filterConditions.length > 0) {
+        const { data: dbRows } = await supabase
+          .from("orders")
+          .update({
+            status: "completed",
+            payment_method: mappedMethod,
+            customer_name: orderToFinalize.customerName || null,
+            customer_email: orderToFinalize.customerEmail || null,
+            customer_phone: orderToFinalize.customerPhone || null,
+            fulfillment_status: orderToFinalize.fulfillmentStatus || (orderToFinalize.cart.some(i => i.isPreOrder) ? "pre_ordered" : "completed")
+          })
+          .or(filterConditions.join(","))
+          .select();
+
+        if (dbRows && dbRows.length > 0) {
+          updatedInDb = true;
+        }
+      }
+
+      if (!updatedInDb) {
         // Order stored only locally -> insert into DB as completed WITH customer contact info and order number
         const { data: dbRes } = await supabase.from("orders").insert({
           order_number: orderToFinalize.orderNumber,

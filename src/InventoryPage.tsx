@@ -115,7 +115,7 @@ export default function InventoryPage() {
         </SiteHeader>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 xl:p-8 overscroll-contain touch-pan-y">
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-4 xl:p-8 overscroll-contain touch-pan-y">
         <div className="max-w-6xl mx-auto space-y-6">
           <InventorySystem 
             externalSearchQuery={searchQuery} 

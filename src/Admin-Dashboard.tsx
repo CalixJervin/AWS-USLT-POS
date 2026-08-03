@@ -30,7 +30,8 @@ export default function Page() {
           <h1 className="text-sm font-bold text-[#E2E8F0]">Dashboard</h1>
         </SiteHeader>
       </div>
-      <div className="flex flex-1 flex-col overflow-y-auto overscroll-contain touch-pan-y">
+      {/* Scrollable Dashboard Body */}
+      <div className="flex flex-1 flex-col overflow-y-auto custom-scrollbar overscroll-contain touch-pan-y">
         <div className="@container/main flex flex-1 flex-col gap-2">
           <div className="flex flex-col gap-8 py-4 xl:gap-10 xl:py-8">
             

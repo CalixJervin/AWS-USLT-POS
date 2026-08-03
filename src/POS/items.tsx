@@ -165,6 +165,8 @@ export const ProductGrid = memo(({
         const sectionId = `category-section-${encodeURIComponent(categoryName.toLowerCase().replace(/\s+/g, '-'))}`;
         const hasItems = categoryItems.length > 0;
 
+        if (!hasItems) return null;
+
         return (
           <section 
             key={categoryName} 
@@ -179,37 +181,30 @@ export const ProductGrid = memo(({
               </h2>
             </div>
 
-            {/* Display Items or Empty/Unavailable State */}
-            {hasItems ? (
-              useGrid ? (
-                /* Grid Layout with set product card dimensions */
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(130px,160px))] gap-4">
-                  {categoryItems.map((product) => (
-                    <ProductItemGrid 
-                      key={product.id}
-                      product={product}
-                      onAddToCart={onAddToCart}
-                      isSelected={selectedProductId === product.id}
-                    />
-                  ))}
-                </div>
-              ) : (
-                /* 1-Column Horizontal List Layout for categories */
-                <div className="flex flex-col gap-3">
-                  {categoryItems.map((product) => (
-                    <ProductItemList
-                      key={product.id}
-                      product={product}
-                      onAddToCart={onAddToCart}
-                      isSelected={selectedProductId === product.id}
-                    />
-                  ))}
-                </div>
-              )
+            {/* Display Items */}
+            {useGrid ? (
+              /* Grid Layout with set product card dimensions */
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(130px,160px))] gap-4">
+                {categoryItems.map((product) => (
+                  <ProductItemGrid 
+                    key={product.id}
+                    product={product}
+                    onAddToCart={onAddToCart}
+                    isSelected={selectedProductId === product.id}
+                  />
+                ))}
+              </div>
             ) : (
-              /* Empty Category: Show Unavailable Badge */
-              <div className="w-full py-4 text-center text-[#94A3B8]">
-                Unavailable
+              /* 1-Column Horizontal List Layout for categories */
+              <div className="flex flex-col gap-3">
+                {categoryItems.map((product) => (
+                  <ProductItemList
+                    key={product.id}
+                    product={product}
+                    onAddToCart={onAddToCart}
+                    isSelected={selectedProductId === product.id}
+                  />
+                ))}
               </div>
             )}
           </section>

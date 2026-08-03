@@ -17,7 +17,8 @@ import {
   QrCode, 
   Split, 
   Trash2, 
-  Receipt
+  Receipt,
+  Coffee
 } from "lucide-react";
 import type { PendingKioskOrder } from "@/hooks/useKioskOrders";
 import { motion, AnimatePresence } from "framer-motion";
@@ -54,13 +55,16 @@ export function PendingOrdersModal({
   const [splitCashAmount, setSplitCashAmount] = useState<number | "">("");
   const [splitSecondaryAmount, setSplitSecondaryAmount] = useState<number | "">("");
 
-  // Filter orders by order number or item names
+  // Filter orders by order number, customer contact info, or item names
   const filteredOrders = pendingOrders.filter((order) => {
     const q = searchQuery.toLowerCase().trim();
     if (!q) return true;
     const matchesNumber = order.orderNumber.toLowerCase().includes(q);
     const matchesItems = order.cart.some(i => i.name.toLowerCase().includes(q));
-    return matchesNumber || matchesItems;
+    const matchesName = order.customerName?.toLowerCase().includes(q) || false;
+    const matchesEmail = order.customerEmail?.toLowerCase().includes(q) || false;
+    const matchesPhone = order.customerPhone?.toLowerCase().includes(q) || false;
+    return matchesNumber || matchesItems || matchesName || matchesEmail || matchesPhone;
   });
 
   const handleSelectOrderToFinalize = (order: PendingKioskOrder) => {
@@ -147,7 +151,7 @@ export function PendingOrdersModal({
         </DialogHeader>
 
         {/* MAIN CONTENT AREA */}
-        <div className="flex-1 overflow-y-auto p-5 bg-[#0B0E14] flex flex-col gap-4">
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-5 bg-[#0B0E14] flex flex-col gap-4">
           
           {/* SEARCH BAR */}
           <div className="relative">
@@ -182,7 +186,7 @@ export function PendingOrdersModal({
                     {/* CARD HEADER */}
                     <div className="flex items-start justify-between border-b border-[#2D3448] pb-3">
                       <div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <div className="text-2xl font-black text-[#00F2FE] tracking-tight drop-shadow-[0_0_10px_rgba(0,242,254,0.3)]">
                             {order.orderNumber}
                           </div>
@@ -191,11 +195,26 @@ export function PendingOrdersModal({
                               <QrCode className="h-3 w-3" /> GCash
                             </span>
                           )}
+                          {(order.fulfillmentStatus === "pre_ordered" || order.cart.some(i => i.isPreOrder)) && (
+                            <span className="bg-[#00F2FE]/20 text-[#00F2FE] border border-[#00F2FE]/50 text-[10px] font-black px-2 py-0.5 rounded-full">
+                              PRE-ORDER
+                            </span>
+                          )}
                         </div>
                         <div className="flex items-center gap-1.5 text-[11px] text-[#94A3B8] mt-0.5">
                           <Clock className="h-3 w-3 text-[#E6007E]" />
                           {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </div>
+                        
+                        {(order.customerName || order.customerPhone || order.customerEmail) && (
+                          <div className="mt-2 bg-[#131824] p-2 rounded-lg border border-[#232A3B] text-[11px] text-[#E2E8F0]">
+                            {order.customerName && <div className="font-bold text-[#00F2FE]">{order.customerName}</div>}
+                            <div className="text-[10px] text-[#94A3B8] flex gap-2 flex-wrap">
+                              {order.customerPhone && <span>📞 {order.customerPhone}</span>}
+                              {order.customerEmail && <span>✉️ {order.customerEmail}</span>}
+                            </div>
+                          </div>
+                        )}
                       </div>
                       <div className="text-right">
                         <span className="text-xs text-[#94A3B8] font-medium block">Total Due</span>
@@ -206,16 +225,25 @@ export function PendingOrdersModal({
                     </div>
 
                     {/* ITEMS SUMMARY */}
-                    <div className="flex flex-col gap-1 max-h-24 overflow-y-auto text-xs py-1">
+                    <div className="flex flex-col gap-1.5 max-h-32 overflow-y-auto text-xs py-1 custom-scrollbar">
                       {order.cart.map((item) => (
-                        <div key={item.id} className="flex justify-between text-[#E2E8F0]">
-                          <span className="truncate max-w-[180px]">
-                            <span className="font-bold text-[#00F2FE] mr-1">{item.qty}x</span>
-                            {item.name}
-                          </span>
-                          <span className="text-[#94A3B8] font-semibold">
-                            ₱{(item.price * item.qty).toFixed(2)}
-                          </span>
+                        <div key={item.id} className="flex items-center gap-2 text-[#E2E8F0]">
+                          <div className="w-7 h-7 rounded-md bg-[#131824] border border-[#232A3B] overflow-hidden shrink-0 flex items-center justify-center">
+                            {item.image ? (
+                              <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <Coffee className="h-3.5 w-3.5 text-[#E6007E]/70" />
+                            )}
+                          </div>
+                          <div className="flex-1 flex justify-between items-center min-w-0">
+                            <span className="truncate">
+                              <span className="font-bold text-[#00F2FE] mr-1">{item.qty}x</span>
+                              {item.name}
+                            </span>
+                            <span className="text-[#94A3B8] font-semibold shrink-0 ml-2">
+                              ₱{(item.price * item.qty).toFixed(2)}
+                            </span>
+                          </div>
                         </div>
                       ))}
                     </div>

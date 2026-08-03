@@ -4,7 +4,7 @@ import * as React from "react"
 import { Area, AreaChart, CartesianGrid, XAxis } from "recharts"
 
 import { useIsMobile } from "@/hooks/use-mobile"
-import { useTransactions } from "@/hooks/useTransactions"
+import { useTransactions, isPaidTransaction } from "@/hooks/useTransactions"
 import {
   Card,
   CardAction,
@@ -46,7 +46,9 @@ export function ChartAreaInteractive() {
   const [timeRange, setTimeRange] = React.useState("90d")
 
   const chartData = React.useMemo(() => {
-    const grouped = transactions.reduce((acc: Record<string, number>, t) => {
+    const paidTransactions = transactions.filter(isPaidTransaction);
+
+    const grouped = paidTransactions.reduce((acc: Record<string, number>, t) => {
       const date = new Date(t.timestamp).toISOString().split('T')[0]
       acc[date] = (acc[date] || 0) + t.total_amount
       return acc

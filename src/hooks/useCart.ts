@@ -10,6 +10,7 @@ export interface Product {
   variantId?: string; // Added for Supabase
   size?: string;      // Added for Supabase
   inStock?: boolean;
+  isPreOrder?: boolean;
 }
 
 export interface CartItem extends Product {
@@ -21,10 +22,14 @@ export function useCart() {
 
   const addToCart = useCallback((product: Product) => {
     setCart((prevCart) => {
-      const existingItem = prevCart.find((item) => item.id === product.id);
+      const existingItem = prevCart.find(
+        (item) => item.id === product.id && (item.size || "Regular") === (product.size || "Regular")
+      );
       if (existingItem) {
         return prevCart.map((item) =>
-          item.id === product.id ? { ...item, qty: item.qty + 1 } : item
+          item.id === product.id && (item.size || "Regular") === (product.size || "Regular")
+            ? { ...item, qty: item.qty + 1 }
+            : item
         );
       }
       return [...prevCart, { ...product, qty: 1 }];

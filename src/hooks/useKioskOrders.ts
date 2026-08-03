@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from "react";
 import type { CartItem } from "./useCart";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
-import { useTransactions } from "./useTransactions";
 
 export interface PendingKioskOrder {
   id: string;
@@ -13,6 +12,12 @@ export interface PendingKioskOrder {
   paymentMethod: "counter" | "cash" | "gcash";
   createdAt: string;
   status: "pending_counter" | "completed" | "cancelled";
+  
+  // Customer & Pre-Order Contact Details
+  customerName?: string;
+  customerEmail?: string;
+  customerPhone?: string;
+  fulfillmentStatus?: "pending" | "pre_ordered" | "in_production" | "ready_for_pickup" | "claimed";
 }
 
 const KIOSK_ORDERS_STORAGE_KEY = "timpla_kiosk_pending_orders";
@@ -21,7 +26,6 @@ const ACTIVE_KIOSK_ORDER_KEY = "timpla_active_kiosk_order";
 
 export function useKioskOrders() {
   const [pendingOrders, setPendingOrders] = useState<PendingKioskOrder[]>([]);
-  const { saveTransaction } = useTransactions();
 
   // Active kiosk order for tab/session persistence
   const [activeKioskOrder, setActiveKioskOrderState] = useState<PendingKioskOrder | null>(() => {
@@ -53,33 +57,37 @@ export function useKioskOrders() {
       const saved = localStorage.getItem(KIOSK_ORDERS_STORAGE_KEY);
       const parsed: PendingKioskOrder[] = saved ? JSON.parse(saved) : [];
       if (saved) {
-        setPendingOrders(parsed.filter(o => o.status === "pending_counter"));
+        setPendingOrders(parsed.filter(o => 
+          o.status === "pending_counter" && 
+          o.fulfillmentStatus !== "pre_ordered" && 
+          !o.orderNumber?.startsWith("#PO-")
+        ));
       }
 
       // Check active order persistence
       const activeStored = localStorage.getItem(ACTIVE_KIOSK_ORDER_KEY);
       if (activeStored) {
-        const activeObj: PendingKioskOrder = JSON.parse(activeStored);
-        if (saved) {
+        try {
+          const activeObj: PendingKioskOrder = JSON.parse(activeStored);
           const match = parsed.find(
             (o: any) => o.id === activeObj.id || o.orderNumber === activeObj.orderNumber
           );
 
-          if (match) {
-            if (match.status === "completed" || match.status === "cancelled") {
-              setActiveKioskOrderState(null);
-              localStorage.removeItem(ACTIVE_KIOSK_ORDER_KEY);
-            } else {
-              const updatedActive = { ...activeObj, id: match.id, orderNumber: match.orderNumber };
-              setActiveKioskOrderState(updatedActive);
-              localStorage.setItem(ACTIVE_KIOSK_ORDER_KEY, JSON.stringify(updatedActive));
-            }
+          if (match && match.status === "pending_counter") {
+            const updatedActive = { ...activeObj, id: match.id, orderNumber: match.orderNumber };
+            setActiveKioskOrderState(updatedActive);
+            localStorage.setItem(ACTIVE_KIOSK_ORDER_KEY, JSON.stringify(updatedActive));
           } else {
-            setActiveKioskOrderState(activeObj);
+            // Order was finalized, completed, or cancelled by POS staff -> clear active kiosk order banner
+            setActiveKioskOrderState(null);
+            localStorage.removeItem(ACTIVE_KIOSK_ORDER_KEY);
           }
-        } else {
-          setActiveKioskOrderState(activeObj);
+        } catch (e) {
+          setActiveKioskOrderState(null);
+          localStorage.removeItem(ACTIVE_KIOSK_ORDER_KEY);
         }
+      } else {
+        setActiveKioskOrderState(null);
       }
     } catch (e) {
       console.error("Error reading kiosk orders from storage", e);
@@ -95,6 +103,7 @@ export function useKioskOrders() {
         .from("orders")
         .select("*, order_items(*)")
         .eq("status", "pending_counter")
+        .neq("fulfillment_status", "pre_ordered")
         .order("created_at", { ascending: false });
 
       if (error) {
@@ -106,7 +115,12 @@ export function useKioskOrders() {
         const saved = localStorage.getItem(KIOSK_ORDERS_STORAGE_KEY);
         const localParsed: PendingKioskOrder[] = saved ? JSON.parse(saved) : [];
 
-        const mapped: PendingKioskOrder[] = dbOrders.map((o: any, idx: number) => {
+        const filteredDbOrders = dbOrders.filter((o: any) => 
+          o.fulfillment_status !== "pre_ordered" && 
+          !o.order_number?.startsWith("#PO-")
+        );
+
+        const mapped: PendingKioskOrder[] = filteredDbOrders.map((o: any, idx: number) => {
           const items: CartItem[] = (o.order_items || []).map((i: any) => ({
             id: i.product_id || i.id,
             name: i.product_name,
@@ -130,7 +144,7 @@ export function useKioskOrders() {
           }
 
           if (!orderNum) {
-            const seq = String((dbOrders.length - idx) % 999).padStart(3, "0");
+            const seq = String((filteredDbOrders.length - idx) % 999).padStart(3, "0");
             orderNum = `#${seq}`;
           }
 
@@ -142,7 +156,11 @@ export function useKioskOrders() {
             total: Number(o.total),
             paymentMethod: "counter",
             createdAt: o.created_at,
-            status: "pending_counter"
+            status: "pending_counter",
+            customerName: o.customer_name || undefined,
+            customerEmail: o.customer_email || undefined,
+            customerPhone: o.customer_phone || undefined,
+            fulfillmentStatus: o.fulfillment_status || "pending"
           };
         });
 
@@ -160,7 +178,11 @@ export function useKioskOrders() {
             }
           });
 
-          const merged = Array.from(map.values()).filter(o => o.status === "pending_counter");
+          const merged = Array.from(map.values()).filter(o => 
+            o.status === "pending_counter" && 
+            o.fulfillmentStatus !== "pre_ordered" && 
+            !o.orderNumber?.startsWith("#PO-")
+          );
           localStorage.setItem(KIOSK_ORDERS_STORAGE_KEY, JSON.stringify(merged));
           return merged;
         });
@@ -216,10 +238,16 @@ export function useKioskOrders() {
     cart: CartItem[],
     subtotal: number,
     total: number,
-    paymentMethod: "counter" | "cash" | "gcash" = "counter"
+    paymentMethod: "counter" | "cash" | "gcash" = "counter",
+    customerDetails?: {
+      customerName?: string;
+      customerEmail?: string;
+      customerPhone?: string;
+    }
   ): Promise<PendingKioskOrder> => {
     const orderNumber = getNextOrderNumber();
     const newOrderId = `kiosk-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+    const hasPreOrder = cart.some(i => i.isPreOrder);
 
     const newOrder: PendingKioskOrder = {
       id: newOrderId,
@@ -229,7 +257,11 @@ export function useKioskOrders() {
       total,
       paymentMethod,
       createdAt: new Date().toISOString(),
-      status: "pending_counter"
+      status: "pending_counter",
+      customerName: customerDetails?.customerName,
+      customerEmail: customerDetails?.customerEmail,
+      customerPhone: customerDetails?.customerPhone,
+      fulfillmentStatus: hasPreOrder ? "pre_ordered" : "pending"
     };
 
     // Store as active order for session/tab persistence
@@ -249,38 +281,40 @@ export function useKioskOrders() {
 
     try {
       let dbOrder: any = null;
-      let orderErr: any = null;
 
-      const resWithNum = await supabase
+      const payload: any = {
+        total,
+        status: "pending_counter",
+        order_number: orderNumber,
+        customer_name: customerDetails?.customerName || null,
+        customer_email: customerDetails?.customerEmail || null,
+        customer_phone: customerDetails?.customerPhone || null,
+        fulfillment_status: hasPreOrder ? "pre_ordered" : "pending"
+      };
+
+      let resWithNum = await supabase
         .from("orders")
-        .insert({
-          total,
-          status: "pending_counter",
-          order_number: orderNumber
-        })
+        .insert(payload)
         .select()
         .single();
 
       if (resWithNum.error) {
-        const resFallback = await supabase
-          .from("orders")
-          .insert({
-            total,
-            status: "pending_counter"
-          })
-          .select()
-          .single();
-        dbOrder = resFallback.data;
-        orderErr = resFallback.error;
-      } else {
+        console.warn("Supabase create pending order notice:", resWithNum.error.message);
+        // Fallback without order_number if column is not yet present in Supabase table schema
+        delete payload.order_number;
+        resWithNum = await supabase.from("orders").insert(payload).select().single();
+      }
+
+      if (resWithNum.data) {
         dbOrder = resWithNum.data;
       }
 
-      if (!orderErr && dbOrder) {
+      if (dbOrder) {
+        const isValidUuid = (val?: string) => Boolean(val && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val));
         const itemsToInsert = cart.map(item => ({
           order_id: dbOrder.id,
-          product_id: item.id,
-          variant_id: item.variantId,
+          product_id: isValidUuid(item.id) ? item.id : null,
+          variant_id: isValidUuid(item.variantId) ? item.variantId : null,
           product_name: item.name,
           size: item.size || "Regular",
           price: item.price,
@@ -314,7 +348,7 @@ export function useKioskOrders() {
     finalPaymentMethod: "cash" | "gcash" | "split",
     splitDetails?: { cashAmount: number; secondaryMethod: "gcash"; secondaryAmount: number }
   ) => {
-    const orderToFinalize = pendingOrders.find(o => o.id === orderId);
+    const orderToFinalize = pendingOrders.find(o => o.id === orderId || (o.orderNumber && o.orderNumber === orderId));
     if (!orderToFinalize) {
       toast.error("Pending order not found");
       return;
@@ -322,28 +356,167 @@ export function useKioskOrders() {
 
     try {
       const mappedMethod = finalPaymentMethod === "cash" ? "cash" : "gcash";
-      await saveTransaction(orderToFinalize.cart, orderToFinalize.total, mappedMethod);
+      const targetFulfillment = (orderToFinalize.fulfillmentStatus && orderToFinalize.fulfillmentStatus !== "pending")
+        ? orderToFinalize.fulfillmentStatus
+        : (orderToFinalize.cart.some(i => i.isPreOrder) ? "pre_ordered" : "completed");
 
-      if (!orderId.startsWith("kiosk-")) {
-        await supabase.from("orders").update({ status: "completed" }).eq("id", orderId);
+      let updatedInDb = false;
+      let finalDbOrderId: string | null = null;
+      const isValidUuid = (val?: string) => Boolean(val && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val));
+
+      // 1. Target exact DB record by UUID primary key first if present
+      if (isValidUuid(orderToFinalize.id)) {
+        const updatePayload: any = {
+          status: "completed",
+          payment_method: mappedMethod,
+          customer_name: orderToFinalize.customerName || null,
+          customer_email: orderToFinalize.customerEmail || null,
+          customer_phone: orderToFinalize.customerPhone || null,
+          fulfillment_status: targetFulfillment
+        };
+
+        let res = await supabase.from("orders").update(updatePayload).eq("id", orderToFinalize.id).select();
+        if (res.error) {
+          delete updatePayload.payment_method;
+          res = await supabase.from("orders").update(updatePayload).eq("id", orderToFinalize.id).select();
+        }
+
+        if (res.data && res.data.length > 0) {
+          updatedInDb = true;
+          finalDbOrderId = res.data[0].id;
+        }
+      }
+
+      // 2. Secondary fallback: target active pending counter order matching order_number (with or without #)
+      if (!updatedInDb && orderToFinalize.orderNumber) {
+        const numWithHash = orderToFinalize.orderNumber.startsWith("#") ? orderToFinalize.orderNumber : `#${orderToFinalize.orderNumber}`;
+        const numClean = orderToFinalize.orderNumber.replace(/^#/, "");
+
+        const updatePayload: any = {
+          status: "completed",
+          payment_method: mappedMethod,
+          customer_name: orderToFinalize.customerName || null,
+          customer_email: orderToFinalize.customerEmail || null,
+          customer_phone: orderToFinalize.customerPhone || null,
+          fulfillment_status: targetFulfillment
+        };
+
+        let res = await supabase
+          .from("orders")
+          .update(updatePayload)
+          .or(`order_number.eq.${numWithHash},order_number.eq.${numClean}`)
+          .eq("status", "pending_counter")
+          .select();
+
+        if (res.error) {
+          delete updatePayload.payment_method;
+          res = await supabase
+            .from("orders")
+            .update(updatePayload)
+            .or(`order_number.eq.${numWithHash},order_number.eq.${numClean}`)
+            .eq("status", "pending_counter")
+            .select();
+        }
+
+        if (res.data && res.data.length > 0) {
+          updatedInDb = true;
+          finalDbOrderId = res.data[0].id;
+        }
+      }
+
+      // 3. Fallback for local-only pending orders: insert as completed
+      if (!updatedInDb) {
+        const insertPayload: any = {
+          order_number: orderToFinalize.orderNumber,
+          total: orderToFinalize.total,
+          status: "completed",
+          payment_method: mappedMethod,
+          customer_name: orderToFinalize.customerName || null,
+          customer_email: orderToFinalize.customerEmail || null,
+          customer_phone: orderToFinalize.customerPhone || null,
+          fulfillment_status: targetFulfillment
+        };
+
+        let res = await supabase.from("orders").insert(insertPayload).select().single();
+        if (res.error) {
+          delete insertPayload.order_number;
+          delete insertPayload.payment_method;
+          res = await supabase.from("orders").insert(insertPayload).select().single();
+        }
+
+        if (res.data) {
+          updatedInDb = true;
+          finalDbOrderId = res.data.id;
+        }
+      }
+
+      // Ensure order_items exist in DB for this finalized order
+      if (finalDbOrderId) {
+        const { data: existingItems } = await supabase
+          .from("order_items")
+          .select("id")
+          .eq("order_id", finalDbOrderId);
+
+        if (!existingItems || existingItems.length === 0) {
+          const itemsToInsert = orderToFinalize.cart.map(item => ({
+            order_id: finalDbOrderId,
+            product_id: isValidUuid(item.id) ? item.id : null,
+            variant_id: isValidUuid(item.variantId) ? item.variantId : null,
+            product_name: item.name,
+            size: item.size || "Regular",
+            price: item.price,
+            quantity: item.qty
+          }));
+          await supabase.from("order_items").insert(itemsToInsert);
+        }
+      }
+
+      // Deduct stock for ingredients and ready-made products
+      try {
+        const rpcItems = orderToFinalize.cart.map(item => ({
+          product_id: isValidUuid(item.id) ? item.id : null,
+          variant_id: isValidUuid(item.variantId) ? item.variantId : null,
+          product_name: item.name,
+          size: item.size || "Regular",
+          price: item.price,
+          quantity: item.qty
+        }));
+        await supabase.rpc("deduct_stock_on_sale", { p_order_items: rpcItems });
+      } catch (stockErr) {
+        console.warn("Stock deduction notice:", stockErr);
       }
 
       setPendingOrders((prev) => {
-        const updated = prev.filter(o => o.id !== orderId);
+        const updated = prev.filter(o => o.id !== orderId && o.orderNumber !== orderToFinalize.orderNumber);
         localStorage.setItem(KIOSK_ORDERS_STORAGE_KEY, JSON.stringify(updated));
         return updated;
       });
 
-      // Clear active kiosk order if it was finalized
-      if (activeKioskOrder?.id === orderId) {
+      // Clear active kiosk order in state & localStorage if it was finalized
+      const activeStored = localStorage.getItem(ACTIVE_KIOSK_ORDER_KEY);
+      if (activeStored) {
+        try {
+          const activeObj = JSON.parse(activeStored);
+          if (activeObj.id === orderId || activeObj.orderNumber === orderToFinalize.orderNumber || activeObj.id === orderToFinalize.id) {
+            clearActiveKioskOrder();
+          }
+        } catch (e) {
+          clearActiveKioskOrder();
+        }
+      } else {
         clearActiveKioskOrder();
       }
 
       try {
         const bc = new BroadcastChannel("timpla_kiosk_channel");
-        bc.postMessage({ type: "SYNC_PENDING_ORDERS" });
+        bc.postMessage({ type: "SYNC_PENDING_ORDERS", action: "FINALIZE", orderId, orderNumber: orderToFinalize.orderNumber });
         bc.close();
       } catch (e) {}
+
+      window.dispatchEvent(new Event("storage"));
+      window.dispatchEvent(new Event("timpla_kiosk_orders_updated"));
+      window.dispatchEvent(new Event("timpla_my_preorders_updated"));
+      window.dispatchEvent(new Event("timpla_inventory_updated"));
 
       let methodLabel = finalPaymentMethod.toUpperCase();
       if (finalPaymentMethod === "split" && splitDetails) {

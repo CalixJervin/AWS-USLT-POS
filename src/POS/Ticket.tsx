@@ -24,7 +24,13 @@ interface TicketSidebarProps {
   total: number;
   onClose?: () => void;
   isKiosk?: boolean;
-  onPayAtCounter?: (cart: CartItem[], subtotal: number, total: number, paymentMethod?: "counter" | "cash" | "gcash") => Promise<void>;
+  onPayAtCounter?: (
+    cart: CartItem[], 
+    subtotal: number, 
+    total: number, 
+    paymentMethod?: "counter" | "cash" | "gcash",
+    customerDetails?: { customerName?: string; customerEmail?: string; customerPhone?: string }
+  ) => Promise<void>;
 }
 
 export function TicketSidebar({
@@ -85,7 +91,7 @@ export function TicketSidebar({
   };
 
   return (
-    <div className="w-full xl:w-[350px] xl:border-l border-[#232A3B] bg-[#131824] flex flex-col h-full shadow-xl z-10 shrink-0">
+    <div className="w-full h-full bg-[#131824] flex flex-col shadow-xl z-10 shrink-0 border-l border-[#232A3B]">
       
       {/* HEADER */}
       <div className="flex items-center justify-between p-4 border-b border-[#232A3B] shrink-0 h-16 bg-[#131824]">
@@ -94,7 +100,7 @@ export function TicketSidebar({
             <Button 
               variant="ghost" 
               size="icon" 
-              className="xl:hidden h-11 w-11 -ml-2 text-[#94A3B8] hover:text-[#E2E8F0] active:scale-95 touch-manipulation" 
+              className="h-11 w-11 -ml-2 text-[#94A3B8] hover:text-[#E2E8F0] active:scale-95 touch-manipulation cursor-pointer" 
               onClick={onClose}
             >
               <X className="h-6 w-6" />
@@ -136,7 +142,7 @@ export function TicketSidebar({
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 bg-[#0B0E14]">
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-4 flex flex-col gap-4 bg-[#0B0E14]">
         {cart.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center py-12 text-center animate-in fade-in duration-500">
             <div className="bg-[#1E2333] p-6 rounded-full mb-4 border border-[#2D3448]">
@@ -156,26 +162,51 @@ export function TicketSidebar({
                 transition={{ duration: 0.2 }}
                 className="flex flex-col gap-2 overflow-hidden bg-[#1E2333] p-3 rounded-xl border border-[#2D3448]"
               >
-                <div className="flex justify-between text-[#E2E8F0] font-semibold text-[14px] gap-2 flex-wrap">
-                  <span>{item.name}</span>
-                  <span className="text-[#E6007E] font-bold">₱{(item.price * item.qty).toFixed(2)}</span>
+                <div className="flex items-center gap-3">
+                  {/* Product Image / Picture */}
+                  <div className="w-12 h-12 rounded-lg bg-[#131824] border border-[#2D3448] overflow-hidden shrink-0 flex items-center justify-center relative">
+                    {item.image ? (
+                      <img 
+                        src={item.image} 
+                        alt={item.name} 
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLElement).style.display = 'none';
+                        }}
+                      />
+                    ) : (
+                      <Coffee className="h-5 w-5 text-[#E6007E]/70" />
+                    )}
+                  </div>
+
+                  {/* Product Info */}
+                  <div className="flex-1 min-w-0 flex flex-col justify-center">
+                    <div className="flex justify-between items-start text-[#E2E8F0] font-semibold text-[14px] gap-2">
+                      <span className="truncate leading-tight">{item.name}</span>
+                      <span className="text-[#E6007E] font-bold shrink-0">₱{(item.price * item.qty).toFixed(2)}</span>
+                    </div>
+                    {item.size && item.size !== "Regular" && (
+                      <span className="text-[11px] text-[#94A3B8] font-medium leading-none mt-1">{item.size}</span>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center justify-between pt-1">
+
+                <div className="flex items-center justify-between pt-1 border-t border-[#232A3B]/60 mt-0.5">
                   <div className="flex items-center border border-[#2D3448] rounded-lg bg-[#131824]">
                     <Button 
                       variant="ghost" 
                       size="icon" 
                       onClick={() => updateQty(item.id, -1)}
-                      className="h-9 w-9 rounded-none hover:bg-[#282E42] touch-manipulation text-[#E2E8F0]"
+                      className="h-8 w-8 rounded-none hover:bg-[#282E42] touch-manipulation text-[#E2E8F0]"
                     >
                       <Minus className="h-3.5 w-3.5" />
                     </Button>
-                    <span className="w-8 text-center text-sm font-black text-[#00F2FE]">{item.qty}</span>
+                    <span className="w-7 text-center text-xs font-black text-[#00F2FE]">{item.qty}</span>
                     <Button 
                       variant="ghost" 
                       size="icon" 
                       onClick={() => updateQty(item.id, 1)}
-                      className="h-9 w-9 rounded-none hover:bg-[#282E42] touch-manipulation text-[#E2E8F0]"
+                      className="h-8 w-8 rounded-none hover:bg-[#282E42] touch-manipulation text-[#E2E8F0]"
                     >
                       <Plus className="h-3.5 w-3.5" />
                     </Button>
@@ -184,7 +215,7 @@ export function TicketSidebar({
                     variant="ghost" 
                     size="icon" 
                     onClick={() => removeFromCart(item.id)}
-                    className="h-9 w-9 text-[#64748B] hover:text-[#FF3366] active:scale-95 touch-manipulation"
+                    className="h-8 w-8 text-[#64748B] hover:text-[#FF3366] active:scale-95 touch-manipulation"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>

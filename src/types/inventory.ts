@@ -41,7 +41,7 @@ export interface ProductVariant {
 
 export type ProductCategory = string;
 export type ProductAvailability = 'all-day' | 'morning' | 'weekend';
-export type ProductType = 'made-to-order' | 'ready-made';
+export type ProductType = 'made-to-order' | 'ready-made' | 'merch';
 
 export interface Product {
   id: string;
@@ -52,6 +52,10 @@ export interface Product {
   image?: string | null; // base64
   inStock: boolean;
   availability: ProductAvailability;
+  
+  // Pre-Order & Merch fields
+  isPreOrder?: boolean;
+  estimatedFulfillmentDate?: string;
   
   // Ready-made specific fields
   quantity?: number;

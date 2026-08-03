@@ -112,6 +112,55 @@
     --sidebar-ring: #E6007E;
 }
 
+/* ==========================================================================
+   GLOBAL DESKTOP / PC & MOBILE CUSTOM DARK BLENDED SCROLLBAR (SYSTEM-WIDE)
+   ========================================================================== */
+
+/* 1. WebKit Engine Custom Scrollbars (Chrome, Edge, Brave, Opera, Safari on PC/Mobile) */
+::-webkit-scrollbar {
+  width: 8px !important;
+  height: 8px !important;
+  display: block !important;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent !important;
+  border-radius: 9999px !important;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: rgba(148, 163, 184, 0.5) !important;
+  border-radius: 9999px !important;
+  border: 2px solid transparent !important;
+  background-clip: padding-box !important;
+  transition: background-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out !important;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: #00F2FE !important;
+  box-shadow: 0 0 12px rgba(0, 242, 254, 0.7) !important;
+}
+
+::-webkit-scrollbar-thumb:active {
+  background-color: #E6007E !important;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent !important;
+}
+
+/* 2. Firefox Standard Scrollbars (Scoped exclusively to Firefox) */
+@supports (-moz-appearance: none) {
+  html, body, #root, *, *::before, *::after {
+    scrollbar-width: thin !important;
+    scrollbar-color: rgba(148, 163, 184, 0.5) transparent !important;
+  }
+  
+  html:hover, body:hover, #root:hover, *:hover {
+    scrollbar-color: #00F2FE transparent !important;
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -133,4 +182,73 @@
   html {
     @apply font-sans;
   }
+}
+
+@layer utilities {
+  /* Subtle Custom Scrollbar Utility */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px !important;
+    height: 8px !important;
+    display: block !important;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent !important;
+    border-radius: 9999px !important;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: rgba(148, 163, 184, 0.5) !important;
+    border-radius: 9999px !important;
+    border: 2px solid transparent !important;
+    background-clip: padding-box !important;
+    transition: background-color 0.2s ease-in-out !important;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: #00F2FE !important;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:active {
+    background-color: #E6007E !important;
+  }
+
+  /* Utility to explicitly hide scrollbars while preserving scroll functionality */
+  .scrollbar-hide::-webkit-scrollbar,
+  .no-scrollbar::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .scrollbar-hide,
+  .no-scrollbar {
+    -ms-overflow-style: none !important;
+    scrollbar-width: none !important;
+  }
+}
+
+/* --- CUSTOM DARK THEME SCROLLBAR --- */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #0B0E14;
+  border-radius: 5px;
+}
+::-webkit-scrollbar-thumb {
+  background: #1E2333;
+  border-radius: 5px;
+  border: 2px solid #0B0E14;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #2D3448;
+}
+
+/* Utility class to hide scrollbar but keep functionality */
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
 }

@@ -142,7 +142,7 @@ export function TicketSidebar({
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 bg-[#0B0E14]">
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-4 flex flex-col gap-4 bg-[#0B0E14]">
         {cart.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center py-12 text-center animate-in fade-in duration-500">
             <div className="bg-[#1E2333] p-6 rounded-full mb-4 border border-[#2D3448]">

@@ -218,7 +218,7 @@ export default function ManageMenuPage() {
         </SiteHeader>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 xl:p-8 pb-24 overscroll-contain touch-pan-y"> 
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-4 xl:p-8 pb-24 overscroll-contain touch-pan-y"> 
         <div className="max-w-6xl mx-auto space-y-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -246,7 +246,7 @@ export default function ManageMenuPage() {
             {/* PRODUCTS TAB CONTENT */}
             <TabsContent value="products" className="space-y-4 mt-0 animate-in fade-in slide-in-from-bottom-2 duration-300">
               <div className="bg-[#1E2333] rounded-xl shadow-[0_4px_16px_rgba(0,0,0,0.2)] overflow-hidden border border-[#2D3448]">
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto custom-scrollbar">
                   <Table>
                     <TableHeader className="bg-[#131824]">
                       <TableRow className="hover:bg-transparent border-b border-[#232A3B]">
@@ -341,7 +341,7 @@ export default function ManageMenuPage() {
             {/* CATEGORIES TAB CONTENT */}
             <TabsContent value="categories" className="space-y-4 mt-0 animate-in fade-in slide-in-from-bottom-2 duration-300">
               <div className="bg-[#1E2333] rounded-xl shadow-[0_4px_16px_rgba(0,0,0,0.2)] overflow-hidden border border-[#2D3448]">
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto custom-scrollbar">
                   <Table>
                     <TableHeader className="bg-[#131824]">
                       <TableRow className="hover:bg-transparent border-b border-[#232A3B]">

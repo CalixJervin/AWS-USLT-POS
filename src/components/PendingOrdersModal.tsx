@@ -150,7 +150,7 @@ export function PendingOrdersModal({
         </DialogHeader>
 
         {/* MAIN CONTENT AREA */}
-        <div className="flex-1 overflow-y-auto p-5 bg-[#0B0E14] flex flex-col gap-4">
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-5 bg-[#0B0E14] flex flex-col gap-4">
           
           {/* SEARCH BAR */}
           <div className="relative">

@@ -290,11 +290,11 @@ export default function AdminPOSView() {
         </div>
 
                {/* Scrollable Categories & Products Area */}
-        <div ref={mainScrollRef} className="flex-1 flex flex-col gap-4 px-4 pt-0 pb-[25vh] overflow-y-auto bg-[#0B0E14] relative overscroll-contain touch-pan-y">
+        <div ref={mainScrollRef} className="flex-1 flex flex-col gap-4 px-4 pt-0 pb-[25vh] overflow-y-auto custom-scrollbar bg-[#0B0E14] relative overscroll-contain touch-pan-y">
           {/* STICKY CATEGORY NAVIGATION BAR */}
           <div className="sticky top-0 z-40 bg-[#0B0E14] -mx-4 px-4 py-2 border-b border-[#232A3B] shadow-md shrink-0">
             <div className="relative shrink-0">
-              <div ref={pillsBarRef} className="flex w-full overflow-x-auto pb-2 gap-2 scrollbar-hide bg-[#131824] p-3 rounded-xl border border-[#232A3B] relative">
+              <div ref={pillsBarRef} className="flex w-full overflow-x-auto pb-2 gap-2 custom-scrollbar bg-[#131824] p-3 rounded-xl border border-[#232A3B] relative">
                 {allCategories.map((cat) => (
                   <button
                     key={cat}
@@ -334,7 +334,7 @@ export default function AdminPOSView() {
                 </div>
               </div>
 
-              <div className="flex w-full overflow-x-auto gap-4 pb-3 pt-1 scrollbar-hide snap-x snap-mandatory">
+              <div className="flex w-full overflow-x-auto gap-4 pb-3 pt-1 custom-scrollbar snap-x snap-mandatory">
                 {merchProducts.map((merch) => (
                   <div
                     key={merch.id}

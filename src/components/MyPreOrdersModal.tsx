@@ -280,7 +280,7 @@ export function MyPreOrdersModalButton({ buttonClassName }: MyPreOrdersModalButt
             </div>
           </DialogHeader>
 
-          <div className="p-4 flex flex-col gap-3 bg-[#0B0E14] max-h-[75vh] overflow-y-auto">
+          <div className="p-4 flex flex-col gap-3 bg-[#0B0E14] max-h-[75vh] overflow-y-auto custom-scrollbar">
             {/* SMALL INFORMATIONAL PAYMENT WARNING (NON-BLOCKING) */}
             <div className="flex items-center gap-2 p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-300 text-[11px] font-medium">
               <AlertTriangle className="h-3.5 w-3.5 text-amber-400 shrink-0" />

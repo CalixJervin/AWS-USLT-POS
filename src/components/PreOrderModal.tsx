@@ -215,7 +215,7 @@ export function PreOrderModal({
         </DialogHeader>
 
         {/* MODAL BODY - SCROLLABLE CONTENT */}
-        <div className="p-4 sm:p-5 flex-1 overflow-y-auto flex flex-col gap-4 bg-[#0B0E14]">
+        <div className="p-4 sm:p-5 flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-4 bg-[#0B0E14]">
           {isSuccess ? (
             <div className="py-8 flex flex-col items-center justify-center text-center gap-3 animate-in fade-in zoom-in-95">
               <div className="w-16 h-16 rounded-full bg-[#00F2FE]/20 border border-[#00F2FE] flex items-center justify-center text-[#00F2FE] shadow-[0_0_20px_rgba(0,242,254,0.3)]">

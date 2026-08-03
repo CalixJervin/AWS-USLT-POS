@@ -244,7 +244,7 @@ export default function KioskView() {
         </div>
 
         {/* Scrollable Categories & Products Area */}
-        <div ref={mainScrollRef} className="flex-1 flex flex-col gap-4 px-4 pt-0 pb-[40vh] overflow-y-auto bg-[#0B0E14] relative overscroll-contain touch-pan-y">
+        <div ref={mainScrollRef} className="flex-1 flex flex-col gap-4 px-4 pt-0 pb-[40vh] overflow-y-auto custom-scrollbar bg-[#0B0E14] relative overscroll-contain touch-pan-y">
           {/* PERSISTENT ACTIVE KIOSK ORDER BANNER */}
           {activeKioskOrder && (
             <div className="bg-[#1E2333] border border-[#00F2FE]/40 rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-3 shadow-lg shrink-0 animate-in fade-in">
@@ -289,7 +289,7 @@ export default function KioskView() {
           {/* STICKY CATEGORY NAVIGATION BAR */}
           <div className="sticky top-0 z-40 bg-[#0B0E14] -mx-4 px-4 py-2 border-b border-[#232A3B] shadow-md shrink-0">
             <div className="relative shrink-0">
-              <div ref={pillsBarRef} className="flex w-full overflow-x-auto pb-2 gap-2 scrollbar-hide bg-[#131824] p-3 rounded-xl border border-[#232A3B] relative">
+              <div ref={pillsBarRef} className="flex w-full overflow-x-auto pb-2 gap-2 custom-scrollbar bg-[#131824] p-3 rounded-xl border border-[#232A3B] relative">
                 {allCategories.map((cat) => (
                   <button
                     key={cat}
@@ -321,7 +321,7 @@ export default function KioskView() {
                 </div>
               </div>
 
-              <div className="flex w-full overflow-x-auto gap-4 pb-3 pt-1 scrollbar-hide snap-x snap-mandatory">
+              <div className="flex w-full overflow-x-auto gap-4 pb-3 pt-1 hide-scrollbar snap-x snap-mandatory">
                 {merchProducts.map((merch) => (
                   <div
                     key={merch.id}

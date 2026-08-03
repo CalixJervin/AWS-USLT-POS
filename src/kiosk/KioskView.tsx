@@ -32,7 +32,7 @@ export default function KioskView() {
   } = useKioskOrders()
 
   const [isMobileTicketOpen, setIsMobileTicketOpen] = useState(false)
-  const [activeCategory, setActiveCategory] = useState("All")
+  const [activeCategory, setActiveCategory] = useState("Featured")
   const [searchQuery, setSearchQuery] = useState("")
 
   // Scroll spy & smooth scroll refs
@@ -97,7 +97,7 @@ export default function KioskView() {
       .filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
   }, [allProducts, searchQuery]);
 
-  const allCategories = useMemo(() => ["All", ...categories.filter(c => !c.toLowerCase().includes("merch"))], [categories])
+  const allCategories = useMemo(() => ["Featured", ...categories.filter(c => !c.toLowerCase().includes("merch"))], [categories])
 
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null)
   const totalCartItems = useMemo(() => cart.reduce((tot, item) => tot + item.qty, 0), [cart])
@@ -119,7 +119,7 @@ export default function KioskView() {
 
     const container = mainScrollRef.current
     if (container) {
-      if (cat === "All") {
+      if (cat === "Featured") {
         container.scrollTo({ top: 0, behavior: "smooth" })
       } else {
         const sectionId = `category-section-${encodeURIComponent(cat.toLowerCase().replace(/\s+/g, '-'))}`
@@ -147,7 +147,7 @@ export default function KioskView() {
       if (isManualClickRef.current) return
 
       if (container.scrollTop < 60) {
-        setActiveCategory("All")
+        setActiveCategory("Featured")
         return
       }
 

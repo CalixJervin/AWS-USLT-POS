@@ -60,7 +60,7 @@ export default function AdminPOSView() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [productToDelete, setProductToDelete] = useState<any>(null)
 
-  const [activeCategory, setActiveCategory] = useState("All")
+  const [activeCategory, setActiveCategory] = useState("Featured")
   const [isAddCategoryOpen, setIsAddCategoryOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
 
@@ -130,7 +130,7 @@ export default function AdminPOSView() {
     }
   }, [addCategory, updateProduct])
 
-  const allCategories = useMemo(() => ["All", ...categories.filter(c => !c.toLowerCase().includes("merch"))], [categories])
+  const allCategories = useMemo(() => ["Featured", ...categories.filter(c => !c.toLowerCase().includes("merch"))], [categories])
 
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null)
   const totalCartItems = useMemo(() => cart.reduce((tot, item) => tot + item.qty, 0), [cart])
@@ -152,7 +152,7 @@ export default function AdminPOSView() {
 
     const container = mainScrollRef.current
     if (container) {
-      if (cat === "All") {
+      if (cat === "Featured") {
         container.scrollTo({ top: 0, behavior: "smooth" })
       } else {
         const sectionId = `category-section-${encodeURIComponent(cat.toLowerCase().replace(/\s+/g, '-'))}`
@@ -180,7 +180,7 @@ export default function AdminPOSView() {
       if (isManualClickRef.current) return
 
       if (container.scrollTop < 60) {
-        setActiveCategory("All")
+        setActiveCategory("Featured")
         return
       }
 

@@ -133,7 +133,7 @@ export function PreOrderModal({
 
     // 2. Persist to Supabase orders
     try {
-      const orderPayload = {
+      const orderPayload: any = {
         total: item.price,
         status: isPayLater ? "unpaid" : "pending_counter",
         order_number: orderNum,
@@ -146,7 +146,7 @@ export function PreOrderModal({
 
       let dbOrder: any = null;
 
-      const resWithAllFields = await supabase
+      let resWithAllFields = await supabase
         .from("orders")
         .insert(orderPayload)
         .select()
@@ -154,15 +154,26 @@ export function PreOrderModal({
 
       if (resWithAllFields.error) {
         console.warn("Supabase full pre-order insert notice:", resWithAllFields.error.message);
-      } else {
+        // Fallback without order_number and payment_method if columns are missing
+        delete orderPayload.order_number;
+        delete orderPayload.payment_method;
+        resWithAllFields = await supabase
+          .from("orders")
+          .insert(orderPayload)
+          .select()
+          .single();
+      }
+
+      if (resWithAllFields.data) {
         dbOrder = resWithAllFields.data;
       }
 
       if (dbOrder) {
+        const isValidUuid = (val?: string) => Boolean(val && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val));
         await supabase.from("order_items").insert({
           order_id: dbOrder.id,
-          product_id: item.id,
-          variant_id: item.variantId || null,
+          product_id: isValidUuid(item.id) ? item.id : null,
+          variant_id: isValidUuid(item.variantId) ? item.variantId : null,
           product_name: displayName,
           size: sizeName,
           price: item.price,

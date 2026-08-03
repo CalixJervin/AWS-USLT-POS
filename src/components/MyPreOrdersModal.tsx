@@ -61,17 +61,33 @@ export function useMyPreOrders() {
 
       if (orderNums.length === 0 && dbIds.length === 0) return;
 
-      const { data: dbOrders } = await supabase
+      const { data: dbOrders, error } = await supabase
         .from("orders")
         .select("id, order_number");
 
+      if (error) {
+        // Do not purge local preorders if DB query encounters an error
+        return;
+      }
+
       if (dbOrders) {
         const validDbIds = new Set(dbOrders.map(d => d.id));
-        const validDbNums = new Set(dbOrders.map(d => d.order_number).filter(Boolean));
+        const validDbNums = new Set<string>();
+        dbOrders.forEach(d => {
+          if (d.order_number) {
+            validDbNums.add(d.order_number);
+            validDbNums.add(d.order_number.replace(/^#/, ''));
+            validDbNums.add(`#${d.order_number.replace(/^#/, '')}`);
+          }
+        });
 
-        const updated = localList.filter(o => 
-          validDbIds.has(o.id) || (o.orderNumber && validDbNums.has(o.orderNumber))
-        );
+        const updated = localList.filter(o => {
+          // Always keep local preorders with temporary IDs
+          if (o.id && o.id.startsWith("preorder-")) return true;
+          if (validDbIds.has(o.id)) return true;
+          if (o.orderNumber && (validDbNums.has(o.orderNumber) || validDbNums.has(o.orderNumber.replace(/^#/, '')))) return true;
+          return false;
+        });
 
         if (updated.length !== localList.length) {
           localStorage.setItem(MY_PREORDERS_KEY, JSON.stringify(updated));

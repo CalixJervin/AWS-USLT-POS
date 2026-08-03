@@ -123,52 +123,15 @@ export function PreOrderModal({
       createdAt: new Date().toISOString()
     });
 
-    // 2. Prepare local pending order structure for POS sync
-    const localOrder = {
-      id: newOrderId,
-      orderNumber: orderNum,
-      cart: [
-        {
-          id: item.id,
-          name: displayName,
-          price: item.price,
-          qty: 1,
-          category: item.category || "Merch",
-          variantId: item.variantId,
-          size: sizeName,
-          isPreOrder: true
-        }
-      ],
-      subtotal: item.price,
-      total: item.price,
-      paymentMethod: finalPaymentMethod,
-      createdAt: new Date().toISOString(),
-      status: isPayLater ? "unpaid" : paymentMethod === "gcash" ? "verifying" : "pending_counter",
-      customerName: customerName.trim(),
-      customerEmail: customerEmail.trim() || undefined,
-      customerPhone: customerPhone.trim() || undefined,
-      fulfillmentStatus: "pre_ordered",
-      paymentStatus: finalPaymentStatus,
-      gcashRefNumber: isPayLater ? "" : gcashRefNumber.trim()
-    };
-
     try {
-      const existingStr = localStorage.getItem("timpla_kiosk_pending_orders");
-      const existing = existingStr ? JSON.parse(existingStr) : [];
-      const updated = [localOrder, ...existing];
-      localStorage.setItem("timpla_kiosk_pending_orders", JSON.stringify(updated));
-    } catch (e) {
-      console.warn("Could not save to localStorage:", e);
-    }
-
-    try {
-      const bc = new BroadcastChannel("timpla_kiosk_channel");
-      bc.postMessage({ type: "SYNC_PENDING_ORDERS" });
+      const bc = new BroadcastChannel("timpla_my_preorders_channel");
+      bc.postMessage({ type: "PREORDER_SAVED" });
       bc.close();
       window.dispatchEvent(new Event("storage"));
+      window.dispatchEvent(new Event("timpla_my_preorders_updated"));
     } catch (e) {}
 
-    // 3. Persist to Supabase orders
+    // 2. Persist to Supabase orders
     try {
       const orderPayload = {
         total: item.price,
@@ -177,11 +140,11 @@ export function PreOrderModal({
         customer_name: customerName.trim(),
         customer_email: customerEmail.trim() || null,
         customer_phone: customerPhone.trim() || null,
-        fulfillment_status: "pre_ordered"
+        fulfillment_status: "pre_ordered",
+        payment_method: finalPaymentMethod
       };
 
       let dbOrder: any = null;
-      let orderErr: any = null;
 
       const resWithAllFields = await supabase
         .from("orders")
@@ -190,21 +153,12 @@ export function PreOrderModal({
         .single();
 
       if (resWithAllFields.error) {
-        const resFallback = await supabase
-          .from("orders")
-          .insert({
-            total: item.price,
-            status: isPayLater ? "unpaid" : "pending_counter"
-          })
-          .select()
-          .single();
-        dbOrder = resFallback.data;
-        orderErr = resFallback.error;
+        console.warn("Supabase full pre-order insert notice:", resWithAllFields.error.message);
       } else {
         dbOrder = resWithAllFields.data;
       }
 
-      if (!orderErr && dbOrder) {
+      if (dbOrder) {
         await supabase.from("order_items").insert({
           order_id: dbOrder.id,
           product_id: item.id,
@@ -214,6 +168,17 @@ export function PreOrderModal({
           price: item.price,
           quantity: 1
         });
+
+        // Sync DB ID to local storage pre-orders so local and DB share exact same ID
+        try {
+          const mySaved = localStorage.getItem("timpla_my_saved_preorders");
+          if (mySaved) {
+            const parsed = JSON.parse(mySaved);
+            const updated = parsed.map((o: any) => (o.id === newOrderId || o.orderNumber === orderNum) ? { ...o, id: dbOrder.id } : o);
+            localStorage.setItem("timpla_my_saved_preorders", JSON.stringify(updated));
+            window.dispatchEvent(new Event("timpla_my_preorders_updated"));
+          }
+        } catch (e) {}
       }
 
       setGeneratedOrderNum(orderNum);
@@ -257,9 +222,6 @@ export function PreOrderModal({
                 <CheckCircle2 className="h-10 w-10" />
               </div>
               <h3 className="text-xl font-black text-[#E2E8F0]">Pre-Order Confirmed!</h3>
-              <p className="text-xs text-[#94A3B8] max-w-xs">
-                Your pre-order for <span className="text-[#00F2FE] font-bold">{item.name}</span> has been logged.
-              </p>
               
               <div className="bg-[#1E2333] border border-[#00F2FE]/40 p-4 rounded-xl text-center w-full my-2">
                 <div className="text-[10px] font-bold uppercase text-[#94A3B8] tracking-widest">Pre-Order Ticket Number</div>
@@ -267,7 +229,7 @@ export function PreOrderModal({
               </div>
 
               <p className="text-[11px] text-[#94A3B8] italic">
-                You can manage or pay for this order anytime via the <span className="text-[#00F2FE] font-bold">"My Pre-Orders"</span> button near the search bar!
+                You can manage or pay for this order anytime via the button near the search bar!
               </p>
 
               <Button

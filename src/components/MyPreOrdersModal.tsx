@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -49,15 +49,73 @@ export function useMyPreOrders() {
     }
   };
 
+  const checkRemoteValidity = useCallback(async () => {
+    try {
+      const saved = localStorage.getItem(MY_PREORDERS_KEY);
+      if (!saved) return;
+      const localList: MyPreOrder[] = JSON.parse(saved);
+      if (localList.length === 0) return;
+
+      const orderNums = localList.map(o => o.orderNumber).filter(Boolean);
+      const dbIds = localList.map(o => o.id).filter(id => !id.startsWith("preorder-"));
+
+      if (orderNums.length === 0 && dbIds.length === 0) return;
+
+      const { data: dbOrders } = await supabase
+        .from("orders")
+        .select("id, order_number");
+
+      if (dbOrders) {
+        const validDbIds = new Set(dbOrders.map(d => d.id));
+        const validDbNums = new Set(dbOrders.map(d => d.order_number).filter(Boolean));
+
+        const updated = localList.filter(o => 
+          validDbIds.has(o.id) || (o.orderNumber && validDbNums.has(o.orderNumber))
+        );
+
+        if (updated.length !== localList.length) {
+          localStorage.setItem(MY_PREORDERS_KEY, JSON.stringify(updated));
+          setOrders(updated);
+        }
+      }
+    } catch (e) {}
+  }, []);
+
   useEffect(() => {
-    const handleUpdate = () => reloadOrders();
+    const handleUpdate = () => {
+      reloadOrders();
+      checkRemoteValidity();
+    };
     window.addEventListener("storage", handleUpdate);
     window.addEventListener("timpla_my_preorders_updated", handleUpdate);
+    checkRemoteValidity();
 
     let bc: BroadcastChannel | null = null;
     try {
       bc = new BroadcastChannel("timpla_my_preorders_channel");
-      bc.onmessage = () => reloadOrders();
+      bc.onmessage = (msg) => {
+        if (msg.data?.type === "ALL_PREORDERS_CLEARED") {
+          localStorage.removeItem(MY_PREORDERS_KEY);
+          setOrders([]);
+        } else if (msg.data?.type === "PREORDER_DELETED" || msg.data?.type === "PREORDER_CANCELLED") {
+          const targetIds: string[] = msg.data.orderIds || (msg.data.orderId ? [msg.data.orderId] : []);
+          const targetNums: string[] = msg.data.orderNumbers || (msg.data.orderNumber ? [msg.data.orderNumber] : []);
+
+          const saved = localStorage.getItem(MY_PREORDERS_KEY);
+          if (saved) {
+            const existing: MyPreOrder[] = JSON.parse(saved);
+            const updated = existing.filter(o => 
+              !targetIds.includes(o.id) && 
+              !(o.orderNumber && targetNums.includes(o.orderNumber))
+            );
+            localStorage.setItem(MY_PREORDERS_KEY, JSON.stringify(updated));
+            setOrders(updated);
+          }
+        } else {
+          reloadOrders();
+          checkRemoteValidity();
+        }
+      };
     } catch (e) {}
 
     return () => {
@@ -65,7 +123,7 @@ export function useMyPreOrders() {
       window.removeEventListener("timpla_my_preorders_updated", handleUpdate);
       if (bc) bc.close();
     };
-  }, []);
+  }, [checkRemoteValidity]);
 
   const saveMyPreOrder = (newOrder: MyPreOrder) => {
     try {
@@ -105,18 +163,25 @@ export function useMyPreOrders() {
         localStorage.setItem("timpla_kiosk_pending_orders", JSON.stringify(updatedKiosk));
       }
 
-      // 3. Remove from Supabase if stored
-      if (!orderId.startsWith("preorder-")) {
+      // 3. Remove from Supabase orders table by orderNumber and by ID
+      if (orderNumber) {
+        await supabase.from("orders").delete().eq("order_number", orderNumber);
+      }
+      if (orderId && !orderId.startsWith("preorder-") && !orderId.startsWith("kiosk-")) {
         await supabase.from("orders").delete().eq("id", orderId);
       }
 
-      // Broadcast changes
+      // Broadcast changes so Data Table and all open tabs immediately update
       window.dispatchEvent(new Event("timpla_my_preorders_updated"));
       window.dispatchEvent(new Event("storage"));
       try {
-        const bc = new BroadcastChannel("timpla_kiosk_channel");
-        bc.postMessage({ type: "SYNC_PENDING_ORDERS" });
-        bc.close();
+        const bc1 = new BroadcastChannel("timpla_kiosk_channel");
+        bc1.postMessage({ type: "SYNC_PENDING_ORDERS", action: "DELETE", orderId, orderNumber });
+        bc1.close();
+
+        const bc2 = new BroadcastChannel("timpla_my_preorders_channel");
+        bc2.postMessage({ type: "PREORDER_CANCELLED", orderId, orderNumber });
+        bc2.close();
       } catch (e) {}
 
       toast.success(`Pre-order ${orderNumber} has been cancelled.`);
@@ -209,11 +274,8 @@ export function MyPreOrdersModalButton({ buttonClassName }: MyPreOrdersModalButt
               </div>
               <div>
                 <DialogTitle className="text-base font-extrabold text-[#E2E8F0] flex items-center gap-2">
-                  My Saved Pre-Orders ({orders.length})
+                  My Pre-Orders
                 </DialogTitle>
-                <p className="text-[11px] text-[#94A3B8]">
-                  Persisted on your device. Manage payments or cancel pre-orders below.
-                </p>
               </div>
             </div>
           </DialogHeader>

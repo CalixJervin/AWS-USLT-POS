@@ -37,13 +37,24 @@ export function useTransactions() {
   const removeLocalOrders = (targetIds: string[], targetOrderNumbers: string[] = []) => {
     try {
       const saved = localStorage.getItem("timpla_kiosk_pending_orders");
-      if (!saved) return;
-      const parsed: any[] = JSON.parse(saved);
-      const updated = parsed.filter(o => 
-        !targetIds.includes(o.id) && 
-        !(o.orderNumber && targetOrderNumbers.includes(o.orderNumber))
-      );
-      localStorage.setItem("timpla_kiosk_pending_orders", JSON.stringify(updated));
+      if (saved) {
+        const parsed: any[] = JSON.parse(saved);
+        const updated = parsed.filter(o => 
+          !targetIds.includes(o.id) && 
+          !(o.orderNumber && targetOrderNumbers.includes(o.orderNumber))
+        );
+        localStorage.setItem("timpla_kiosk_pending_orders", JSON.stringify(updated));
+      }
+
+      const savedPre = localStorage.getItem("timpla_my_saved_preorders");
+      if (savedPre) {
+        const parsed: any[] = JSON.parse(savedPre);
+        const updated = parsed.filter(o => 
+          !targetIds.includes(o.id) && 
+          !(o.orderNumber && targetOrderNumbers.includes(o.orderNumber))
+        );
+        localStorage.setItem("timpla_my_saved_preorders", JSON.stringify(updated));
+      }
       
       const bc = new BroadcastChannel("timpla_kiosk_channel");
       bc.postMessage({ type: "SYNC_PENDING_ORDERS" });
@@ -62,11 +73,40 @@ export function useTransactions() {
 
       if (ordersError) throw ordersError;
 
-      // Load local pending/pre-orders from localStorage to ensure offline or fallback contact details are preserved
+      // Load local pending & saved pre-orders from localStorage to ensure contact details are preserved
       let localOrders: any[] = [];
       try {
-        const saved = localStorage.getItem("timpla_kiosk_pending_orders");
-        if (saved) localOrders = JSON.parse(saved);
+        const savedKiosk = localStorage.getItem("timpla_kiosk_pending_orders");
+        if (savedKiosk) localOrders = JSON.parse(savedKiosk);
+
+        const savedPre = localStorage.getItem("timpla_my_saved_preorders");
+        if (savedPre) {
+          const preList: any[] = JSON.parse(savedPre);
+          preList.forEach(m => {
+            if (!localOrders.some(l => l.id === m.id || (l.orderNumber && m.orderNumber && l.orderNumber === m.orderNumber))) {
+              localOrders.push({
+                id: m.id,
+                orderNumber: m.orderNumber,
+                customerName: m.customerName,
+                customerEmail: m.customerEmail,
+                customerPhone: m.customerPhone,
+                paymentMethod: m.paymentMethod,
+                paymentStatus: m.paymentStatus,
+                fulfillmentStatus: "pre_ordered",
+                total: m.price,
+                createdAt: m.createdAt,
+                cart: [{
+                  id: m.id,
+                  name: m.itemName,
+                  price: m.price,
+                  qty: 1,
+                  size: m.size || "Standard",
+                  isPreOrder: true
+                }]
+              });
+            }
+          });
+        }
       } catch (e) {}
 
       const txMap = new Map<string, Transaction>();
@@ -74,10 +114,19 @@ export function useTransactions() {
 
       (orders || []).forEach(o => {
         const orderItems = o.order_items || [];
-        const localMatch = localOrders.find(l => 
+        let localMatch = localOrders.find(l => 
           l.id === o.id || 
           (l.orderNumber && o.order_number && l.orderNumber === o.order_number)
         );
+
+        if (!localMatch && (!o.order_number || o.order_number.startsWith("#ORD-"))) {
+          // Try fuzzy match with local pre-orders by total & time proximity (within 10 mins)
+          localMatch = localOrders.find(l => 
+            Math.abs(Number(l.total) - Number(o.total)) < 0.01 &&
+            l.createdAt && o.created_at &&
+            Math.abs(new Date(l.createdAt).getTime() - new Date(o.created_at).getTime()) < 600000
+          );
+        }
 
         const custName = o.customer_name || localMatch?.customerName || undefined;
         const custEmail = o.customer_email || localMatch?.customerEmail || undefined;
@@ -86,6 +135,7 @@ export function useTransactions() {
         const isPreOrder = o.fulfillment_status === "pre_ordered" || 
                            localMatch?.fulfillmentStatus === "pre_ordered" ||
                            (o.order_number && o.order_number.startsWith("#PO-")) ||
+                           (localMatch?.orderNumber && localMatch.orderNumber.startsWith("#PO-")) ||
                            orderItems.some((i: any) => 
                              (i.product_name && (i.product_name.toLowerCase().includes("shirt") || i.product_name.toLowerCase().includes("merch") || i.product_name.toLowerCase().includes("pin") || i.product_name.toLowerCase().includes("lace")))
                            ) || 
@@ -157,7 +207,43 @@ export function useTransactions() {
         }
       });
 
-      setTransactions(Array.from(txMap.values()));
+      // Clean up and deduplicate transactions list
+      const rawList = Array.from(txMap.values());
+      const deduplicated: Transaction[] = [];
+
+      rawList.forEach((tx) => {
+        const duplicateIdx = deduplicated.findIndex((existing) => {
+          if (existing.order_id && tx.order_id && existing.order_id === tx.order_id) return true;
+
+          const isSameAmount = Math.abs(existing.total_amount - tx.total_amount) < 0.01;
+          const timeDiff = Math.abs(new Date(existing.timestamp).getTime() - new Date(tx.timestamp).getTime());
+          const isCloseInTime = timeDiff < 600000; // 10 minutes
+
+          const oneIsPO = existing.order_id.startsWith("#PO-") || tx.order_id.startsWith("#PO-");
+          const oneIsGeneric = existing.order_id.startsWith("#ORD-") || tx.order_id.startsWith("#ORD-");
+
+          return isSameAmount && isCloseInTime && oneIsPO && oneIsGeneric;
+        });
+
+        if (duplicateIdx === -1) {
+          deduplicated.push(tx);
+        } else {
+          const existing = deduplicated[duplicateIdx];
+          const preferTx = (tx.order_id.startsWith("#PO-") || (tx.customer_name && !existing.customer_name)) ? tx : existing;
+          const secondary = preferTx === tx ? existing : tx;
+
+          deduplicated[duplicateIdx] = {
+            ...preferTx,
+            customer_name: preferTx.customer_name || secondary.customer_name,
+            customer_email: preferTx.customer_email || secondary.customer_email,
+            customer_phone: preferTx.customer_phone || secondary.customer_phone,
+            fulfillment_status: preferTx.fulfillment_status || secondary.fulfillment_status,
+            is_pre_order: preferTx.is_pre_order || secondary.is_pre_order
+          };
+        }
+      });
+
+      setTransactions(deduplicated);
       setTransactionItems(items);
     } catch (error) {
       console.error("Error fetching transactions:", error);
@@ -173,18 +259,23 @@ export function useTransactions() {
       fetchTransactions();
     };
     window.addEventListener("storage", handleStorageChange);
+    window.addEventListener("timpla_my_preorders_updated", handleStorageChange);
 
-    let bc: BroadcastChannel | null = null;
+    let bc1: BroadcastChannel | null = null;
+    let bc2: BroadcastChannel | null = null;
     try {
-      bc = new BroadcastChannel("timpla_kiosk_channel");
-      bc.onmessage = () => {
-        fetchTransactions();
-      };
+      bc1 = new BroadcastChannel("timpla_kiosk_channel");
+      bc1.onmessage = () => fetchTransactions();
+
+      bc2 = new BroadcastChannel("timpla_my_preorders_channel");
+      bc2.onmessage = () => fetchTransactions();
     } catch (e) {}
 
     return () => {
       window.removeEventListener("storage", handleStorageChange);
-      if (bc) bc.close();
+      window.removeEventListener("timpla_my_preorders_updated", handleStorageChange);
+      if (bc1) bc1.close();
+      if (bc2) bc2.close();
     };
   }, [fetchTransactions]);
 
@@ -223,13 +314,24 @@ export function useTransactions() {
       const tx = transactions.find(t => t.id === id);
       const orderNum = tx?.order_id || "";
 
-      // 1. Remove from local storage
+      // 1. Remove from local storage on this device
       removeLocalOrders([id], [orderNum]);
 
-      // 2. Remove from Supabase if DB id
+      // 2. Remove from Supabase orders by order_number and by ID
+      if (orderNum) {
+        await supabase.from('orders').delete().eq('order_number', orderNum);
+      }
       if (!id.startsWith("preorder-") && !id.startsWith("kiosk-")) {
         await supabase.from('orders').delete().eq('id', id);
       }
+
+      // 3. Broadcast to all open tabs and customer devices
+      try {
+        const bc = new BroadcastChannel("timpla_my_preorders_channel");
+        bc.postMessage({ type: "PREORDER_DELETED", orderIds: [id], orderNumbers: [orderNum] });
+        bc.close();
+        window.dispatchEvent(new Event("timpla_my_preorders_updated"));
+      } catch (e) {}
 
       await fetchTransactions();
       await refreshData();
@@ -249,11 +351,22 @@ export function useTransactions() {
       // 1. Remove from local storage
       removeLocalOrders(ids, targetNums);
 
-      // 2. Remove from Supabase
+      // 2. Remove from Supabase by order_number and by ID
+      if (targetNums.length > 0) {
+        await supabase.from('orders').delete().in('order_number', targetNums);
+      }
       const dbIds = ids.filter(id => !id.startsWith("preorder-") && !id.startsWith("kiosk-"));
       if (dbIds.length > 0) {
         await supabase.from('orders').delete().in('id', dbIds);
       }
+
+      // 3. Broadcast to all open tabs and customer devices
+      try {
+        const bc = new BroadcastChannel("timpla_my_preorders_channel");
+        bc.postMessage({ type: "PREORDER_DELETED", orderIds: ids, orderNumbers: targetNums });
+        bc.close();
+        window.dispatchEvent(new Event("timpla_my_preorders_updated"));
+      } catch (e) {}
 
       await fetchTransactions();
       await refreshData();
@@ -268,16 +381,25 @@ export function useTransactions() {
     try {
       // 1. Clear local storage
       localStorage.removeItem("timpla_kiosk_pending_orders");
-      try {
-        const bc = new BroadcastChannel("timpla_kiosk_channel");
-        bc.postMessage({ type: "SYNC_PENDING_ORDERS" });
-        bc.close();
-        window.dispatchEvent(new Event("storage"));
-      } catch (e) {}
+      localStorage.removeItem("timpla_my_saved_preorders");
 
       // 2. Clear Supabase orders
       const { error } = await supabase.from('orders').delete().neq('id', '00000000-0000-0000-0000-000000000000');
       if (error) console.warn("Supabase clear orders notice:", error);
+
+      // 3. Broadcast clear to all customer devices and open tabs
+      try {
+        const bc1 = new BroadcastChannel("timpla_kiosk_channel");
+        bc1.postMessage({ type: "SYNC_PENDING_ORDERS" });
+        bc1.close();
+
+        const bc2 = new BroadcastChannel("timpla_my_preorders_channel");
+        bc2.postMessage({ type: "ALL_PREORDERS_CLEARED" });
+        bc2.close();
+
+        window.dispatchEvent(new Event("storage"));
+        window.dispatchEvent(new Event("timpla_my_preorders_updated"));
+      } catch (e) {}
 
       setTransactions([]);
       setTransactionItems([]);

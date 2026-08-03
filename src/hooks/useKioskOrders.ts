@@ -282,7 +282,7 @@ export function useKioskOrders() {
     try {
       let dbOrder: any = null;
 
-      const payload = {
+      const payload: any = {
         total,
         status: "pending_counter",
         order_number: orderNumber,
@@ -292,7 +292,7 @@ export function useKioskOrders() {
         fulfillment_status: hasPreOrder ? "pre_ordered" : "pending"
       };
 
-      const resWithNum = await supabase
+      let resWithNum = await supabase
         .from("orders")
         .insert(payload)
         .select()
@@ -300,15 +300,21 @@ export function useKioskOrders() {
 
       if (resWithNum.error) {
         console.warn("Supabase create pending order notice:", resWithNum.error.message);
-      } else {
+        // Fallback without order_number if column is not yet present in Supabase table schema
+        delete payload.order_number;
+        resWithNum = await supabase.from("orders").insert(payload).select().single();
+      }
+
+      if (resWithNum.data) {
         dbOrder = resWithNum.data;
       }
 
       if (dbOrder) {
+        const isValidUuid = (val?: string) => Boolean(val && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val));
         const itemsToInsert = cart.map(item => ({
           order_id: dbOrder.id,
-          product_id: item.id,
-          variant_id: item.variantId,
+          product_id: isValidUuid(item.id) ? item.id : null,
+          variant_id: isValidUuid(item.variantId) ? item.variantId : null,
           product_name: item.name,
           size: item.size || "Regular",
           price: item.price,
@@ -355,52 +361,72 @@ export function useKioskOrders() {
         : (orderToFinalize.cart.some(i => i.isPreOrder) ? "pre_ordered" : "completed");
 
       let updatedInDb = false;
+      let finalDbOrderId: string | null = null;
+      const isValidUuid = (val?: string) => Boolean(val && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val));
 
       // 1. Target exact DB record by UUID primary key first if present
-      if (orderToFinalize.id && !orderToFinalize.id.startsWith("kiosk-") && !orderToFinalize.id.startsWith("preorder-")) {
-        const { data: dbRowsById } = await supabase
-          .from("orders")
-          .update({
-            status: "completed",
-            payment_method: mappedMethod,
-            customer_name: orderToFinalize.customerName || null,
-            customer_email: orderToFinalize.customerEmail || null,
-            customer_phone: orderToFinalize.customerPhone || null,
-            fulfillment_status: targetFulfillment
-          })
-          .eq("id", orderToFinalize.id)
-          .select();
+      if (isValidUuid(orderToFinalize.id)) {
+        const updatePayload: any = {
+          status: "completed",
+          payment_method: mappedMethod,
+          customer_name: orderToFinalize.customerName || null,
+          customer_email: orderToFinalize.customerEmail || null,
+          customer_phone: orderToFinalize.customerPhone || null,
+          fulfillment_status: targetFulfillment
+        };
 
-        if (dbRowsById && dbRowsById.length > 0) {
+        let res = await supabase.from("orders").update(updatePayload).eq("id", orderToFinalize.id).select();
+        if (res.error) {
+          delete updatePayload.payment_method;
+          res = await supabase.from("orders").update(updatePayload).eq("id", orderToFinalize.id).select();
+        }
+
+        if (res.data && res.data.length > 0) {
           updatedInDb = true;
+          finalDbOrderId = res.data[0].id;
         }
       }
 
-      // 2. Secondary fallback: target active pending counter order matching order_number
+      // 2. Secondary fallback: target active pending counter order matching order_number (with or without #)
       if (!updatedInDb && orderToFinalize.orderNumber) {
-        const { data: dbRowsByNum } = await supabase
+        const numWithHash = orderToFinalize.orderNumber.startsWith("#") ? orderToFinalize.orderNumber : `#${orderToFinalize.orderNumber}`;
+        const numClean = orderToFinalize.orderNumber.replace(/^#/, "");
+
+        const updatePayload: any = {
+          status: "completed",
+          payment_method: mappedMethod,
+          customer_name: orderToFinalize.customerName || null,
+          customer_email: orderToFinalize.customerEmail || null,
+          customer_phone: orderToFinalize.customerPhone || null,
+          fulfillment_status: targetFulfillment
+        };
+
+        let res = await supabase
           .from("orders")
-          .update({
-            status: "completed",
-            payment_method: mappedMethod,
-            customer_name: orderToFinalize.customerName || null,
-            customer_email: orderToFinalize.customerEmail || null,
-            customer_phone: orderToFinalize.customerPhone || null,
-            fulfillment_status: targetFulfillment
-          })
-          .eq("order_number", orderToFinalize.orderNumber)
+          .update(updatePayload)
+          .or(`order_number.eq.${numWithHash},order_number.eq.${numClean}`)
           .eq("status", "pending_counter")
           .select();
 
-        if (dbRowsByNum && dbRowsByNum.length > 0) {
+        if (res.error) {
+          delete updatePayload.payment_method;
+          res = await supabase
+            .from("orders")
+            .update(updatePayload)
+            .or(`order_number.eq.${numWithHash},order_number.eq.${numClean}`)
+            .eq("status", "pending_counter")
+            .select();
+        }
+
+        if (res.data && res.data.length > 0) {
           updatedInDb = true;
+          finalDbOrderId = res.data[0].id;
         }
       }
 
       // 3. Fallback for local-only pending orders: insert as completed
       if (!updatedInDb) {
-        // Order stored only locally -> insert into DB as completed WITH customer contact info and order number
-        const { data: dbRes } = await supabase.from("orders").insert({
+        const insertPayload: any = {
           order_number: orderToFinalize.orderNumber,
           total: orderToFinalize.total,
           status: "completed",
@@ -409,13 +435,33 @@ export function useKioskOrders() {
           customer_email: orderToFinalize.customerEmail || null,
           customer_phone: orderToFinalize.customerPhone || null,
           fulfillment_status: targetFulfillment
-        }).select().single();
+        };
 
-        if (dbRes) {
+        let res = await supabase.from("orders").insert(insertPayload).select().single();
+        if (res.error) {
+          delete insertPayload.order_number;
+          delete insertPayload.payment_method;
+          res = await supabase.from("orders").insert(insertPayload).select().single();
+        }
+
+        if (res.data) {
+          updatedInDb = true;
+          finalDbOrderId = res.data.id;
+        }
+      }
+
+      // Ensure order_items exist in DB for this finalized order
+      if (finalDbOrderId) {
+        const { data: existingItems } = await supabase
+          .from("order_items")
+          .select("id")
+          .eq("order_id", finalDbOrderId);
+
+        if (!existingItems || existingItems.length === 0) {
           const itemsToInsert = orderToFinalize.cart.map(item => ({
-            order_id: dbRes.id,
-            product_id: item.id,
-            variant_id: item.variantId || null,
+            order_id: finalDbOrderId,
+            product_id: isValidUuid(item.id) ? item.id : null,
+            variant_id: isValidUuid(item.variantId) ? item.variantId : null,
             product_name: item.name,
             size: item.size || "Regular",
             price: item.price,
@@ -423,6 +469,21 @@ export function useKioskOrders() {
           }));
           await supabase.from("order_items").insert(itemsToInsert);
         }
+      }
+
+      // Deduct stock for ingredients and ready-made products
+      try {
+        const rpcItems = orderToFinalize.cart.map(item => ({
+          product_id: isValidUuid(item.id) ? item.id : null,
+          variant_id: isValidUuid(item.variantId) ? item.variantId : null,
+          product_name: item.name,
+          size: item.size || "Regular",
+          price: item.price,
+          quantity: item.qty
+        }));
+        await supabase.rpc("deduct_stock_on_sale", { p_order_items: rpcItems });
+      } catch (stockErr) {
+        console.warn("Stock deduction notice:", stockErr);
       }
 
       setPendingOrders((prev) => {
@@ -454,6 +515,8 @@ export function useKioskOrders() {
 
       window.dispatchEvent(new Event("storage"));
       window.dispatchEvent(new Event("timpla_kiosk_orders_updated"));
+      window.dispatchEvent(new Event("timpla_my_preorders_updated"));
+      window.dispatchEvent(new Event("timpla_inventory_updated"));
 
       let methodLabel = finalPaymentMethod.toUpperCase();
       if (finalPaymentMethod === "split" && splitDetails) {

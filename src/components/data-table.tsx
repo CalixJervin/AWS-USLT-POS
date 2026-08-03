@@ -466,7 +466,7 @@ export function DataTable() {
   }, [transactions, filteredData]);
 
   const categoryLabel = transactionCategory === "foods" 
-    ? "Foods" 
+    ? "Transactions" 
     : transactionCategory === "merch" 
     ? "Shirt Pre-orders" 
     : "All Transactions";
@@ -480,7 +480,7 @@ export function DataTable() {
       <div className="flex flex-wrap items-center justify-between gap-2 px-4 lg:px-6">
         <div>
           <h2 className="text-xl font-black text-[#E2E8F0]">
-            {transactionCategory === "foods" ? "Foods Transactions" : transactionCategory === "merch" ? "Shirt Pre-orders Transactions" : "Recent Transactions"}
+            {transactionCategory === "foods" ? "Transactions" : transactionCategory === "merch" ? "Shirt Pre-orders Transactions" : "Recent Transactions"}
           </h2>
           {selectedIds.length > 0 && (
             <p className="text-xs text-[#E6007E] font-semibold">{selectedIds.length} record(s) selected</p>
@@ -529,7 +529,7 @@ export function DataTable() {
             </Button>
           )}
 
-          {/* CATEGORY VIEWS: "Foods" vs "Shirt Pre-orders" (RIGHT NEXT TO DELETE ALL) */}
+          {/* CATEGORY VIEWS: "Transactions" vs "Shirt Pre-orders" (RIGHT NEXT TO DELETE ALL) */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button 
@@ -540,7 +540,7 @@ export function DataTable() {
                 {transactionCategory === "foods" ? (
                   <>
                     <Utensils className="size-4 text-[#00F2FE]" />
-                    Foods
+                    Transactions
                   </>
                 ) : transactionCategory === "merch" ? (
                   <>
@@ -562,7 +562,7 @@ export function DataTable() {
                 onClick={() => setTransactionCategory("foods")}
               >
                 <Utensils className="size-4 mr-2 text-[#00F2FE]" />
-                Foods ({data.filter(d => !d.is_pre_order).length})
+                Transactions ({data.filter(d => !d.is_pre_order).length})
               </DropdownMenuItem>
               <DropdownMenuItem
                 className={`cursor-pointer font-bold ${transactionCategory === "merch" ? "text-[#E6007E] bg-[#131824]" : "text-[#E2E8F0]"}`}

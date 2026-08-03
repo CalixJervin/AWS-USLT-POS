@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, X } from "lucide-react";
+import { CheckCircle2, X, Coffee } from "lucide-react";
 import type { PendingKioskOrder } from "@/hooks/useKioskOrders";
 
 interface KioskOrderConfirmationModalProps {
@@ -88,14 +88,23 @@ export function KioskOrderConfirmationModal({
                 <span className="text-[#E6007E] font-black">Total: ₱{order.total.toFixed(2)}</span>
               </div>
               {order.cart.map((item) => (
-                <div key={item.id} className="flex justify-between text-xs text-[#E2E8F0]">
-                  <span>
-                    <span className="font-bold text-[#00F2FE] mr-1.5">{item.qty}x</span>
-                    {item.name} ({item.size})
-                  </span>
-                  <span className="font-semibold text-[#94A3B8]">
-                    ₱{(item.price * item.qty).toFixed(2)}
-                  </span>
+                <div key={item.id} className="flex items-center gap-2 text-xs text-[#E2E8F0] py-0.5">
+                  <div className="w-8 h-8 rounded-lg bg-[#131824] border border-[#232A3B] overflow-hidden shrink-0 flex items-center justify-center">
+                    {item.image ? (
+                      <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <Coffee className="h-4 w-4 text-[#E6007E]/70" />
+                    )}
+                  </div>
+                  <div className="flex-1 flex justify-between items-center min-w-0">
+                    <span className="truncate">
+                      <span className="font-bold text-[#00F2FE] mr-1.5">{item.qty}x</span>
+                      {item.name} {item.size && item.size !== "Regular" ? `(${item.size})` : ""}
+                    </span>
+                    <span className="font-semibold text-[#94A3B8] shrink-0 ml-2">
+                      ₱{(item.price * item.qty).toFixed(2)}
+                    </span>
+                  </div>
                 </div>
               ))}
             </div>

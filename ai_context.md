@@ -10,7 +10,7 @@
 ### Project Overview
 This codebase is a **unified Point of Sale (POS) and Customer-Facing Kiosk Web Application** built for our student organization (**Takopi / AWS POS**). 
 It supports two main operating modes:
-1. **Public Customer Kiosk (`/`)**: A self-service ordering interface designed for fast customer browsing, visual menu navigation, merch pre-orders, custom order numbers, and pay-at-counter tickets.
+1. **Public Customer Kiosk (`/`)**: A self-service ordering interface designed for fast customer browsing, visual menu navigation with "Featured" category pill, merch pre-orders, custom order numbers, and pay-at-counter tickets.
 2. **Protected Staff & Admin POS (`/admin`)**: A comprehensive management interface for staff transaction processing, real-time pending kiosk order notifications, inventory tracking, recipe management, GCash verification, staff management, and dashboard analytics.
 
 ### Technology Stack
@@ -51,10 +51,10 @@ To prevent "kiosk escapes" and isolate public UI from admin controls, Kiosk and 
   - Layout Wrapper: `KioskLayout`
   - Features:
     - Sticky top header (`SiteHeader`).
-    - Sticky category navigation bar (`sticky top-0 z-40 bg-[#0B0E14]`) with container-isolated scroll spy.
+    - Sticky category navigation bar (`sticky top-0 z-40 bg-[#0B0E14]`) starting with **"Featured"** category pill and container-isolated scroll spy.
     - **Top Carousel Section**: Merch / Pre-Order items ONLY (`isPreOrder === true` or category/type `"merch"`).
     - **Main Menu List Below**: Food & beverage on-hand items ONLY (excludes merch items).
-    - Floating bottom ticket bar & mobile sheet drawer.
+    - Floating bottom ticket button with subtle micro-bounce (`1.03x` scale pulse, glowing shadow boost, and animated item count badge).
     - Persistent **"My Pre-Orders"** drawer button near search bar (`<MyPreOrdersModalButton />`), strictly saved per customer device.
 
 - **Staff & Admin POS (`/admin`)**:
@@ -66,6 +66,7 @@ To prevent "kiosk escapes" and isolate public UI from admin controls, Kiosk and 
     - `/admin/menuManagement` (`menuManagement.tsx`) - Menu item creation, category management, pricing, and merch toggle.
   - Features:
     - Pending Kiosk order modal badge (`<PendingOrdersModal />`), LiveClock, "+ Add Category" button, right-side transaction panel, inventory table management.
+    - **"Featured" Category Pill**: Default start pill replacing legacy "All" label.
     - **"My Pre-Orders" button is strictly excluded** from Admin POS view.
 
 ---
@@ -75,23 +76,24 @@ To prevent "kiosk escapes" and isolate public UI from admin controls, Kiosk and 
 ### 1. Merchandise Pre-Order Workflow (`<PreOrderModal />`)
 - Clicking any merchandise item opens `<PreOrderModal />` rather than adding directly to the food cart ticket.
 - Features item banner preview, shirt size selector (`XS`, `S`, `M`, `L`, `XL`, `2XL`, `3XL`), required customer contact inputs (`Name`, `Phone`, `Email`), and payment method selection (`Cash`, `GCash`, `Pay Later`).
-- **Storage & Isolation**: Pre-orders are saved to `timpla_my_saved_preorders` for customer device persistence and inserted into Supabase `orders` with `fulfillment_status = 'pre_ordered'`.
+- **Storage & Isolation**: Pre-orders are saved to `timpla_my_saved_preorders` for customer device persistence and inserted into Supabase `orders` with `fulfillment_status = 'pre_ordered'` and `status = 'unpaid'`.
 - **Pending Kiosk Orders Excluded**: Pre-orders do NOT go to `timpla_kiosk_pending_orders` or the Pending Kiosk Orders modal (`<PendingOrdersModal />`).
 
-### 2. Immediate Food & Beverage Kiosk Orders (`<TicketSidebar />` / `useKioskOrders`)
-- Adding food/beverage items builds a cart ticket.
+### 2. Immediate Food & Beverage Kiosk Orders & Ticket Visuals
+- Adding food/beverage items builds a cart ticket with product picture thumbnails rendered directly inside ticket items (`<TicketSidebar />`, `<KioskOrderConfirmationModal />`, and `<PendingOrdersModal />`).
 - Clicking "Checkout" generates a sequential 3-digit counter order ticket (e.g., `#042`).
 - Saved in `timpla_kiosk_pending_orders` and Supabase `orders` with `status = 'pending_counter'` and `fulfillment_status = 'pending'`.
 - Displayed in real-time in staff POS `<PendingOrdersModal />`.
 
-### 3. Payment Methods & Verification
-- **Cash / Counter**: Logs ticket with `paymentStatus: "Cash Pending"` and `status: "pending_counter"`.
-- **GCash**: Displays QR Code image (synced cross-device via Supabase `app_settings`) and account number with copy button. Requires 13-digit reference number. Submitting sets status to `paymentStatus: "Pending Verification"`.
-- **Pay Later**: Available strictly under GCash pre-orders. Sets `paymentStatus: "Unpaid"` and `status: "unpaid"`. Customers can pay later via their "My Pre-Orders" drawer.
+### 3. Finalization & Transaction Logging
+- Kiosk counter orders (`pending_counter`) stay in `<PendingOrdersModal />` and are **excluded** from the Transactions Data Table while pending.
+- When staff collects payment and clicks **"Finalize Payment"**, `finalizePendingOrder` updates Supabase `orders` via safe `.eq("order_number", orderNumber)` queries (preventing URL fragment truncation caused by `#` prefixes).
+- Sets `status = "completed"` and payment method (`cash`, `gcash`, `split`), removes the order from `timpla_kiosk_pending_orders`, and dispatches real-time `timpla_kiosk_orders_updated` events to log the finalized transaction in the Data Table.
 
-### 4. Real-Time Active Ticket Clearing
-- When staff clicks **"Finalize Payment"** on Admin POS (`/admin`), `finalizePendingOrder` updates the existing order to `status: "completed"`, clears `activeKioskOrder` in `localStorage`, and broadcasts a `SYNC_PENDING_ORDERS` message via `BroadcastChannel` and `storage` events.
-- On the customer's Kiosk screen, the active ticket banner (e.g. `#042`) and confirmation modal automatically clear in real-time.
+### 4. Strict Paid-Only Sales Metrics & Analytics
+- Metrics (`totalSales`, `totalOrders`, `averageOrderValue`, `itemsSold`) in [`useTransactions.ts`](file:///C:/Users/User/Desktop/AWS%20POS/Client-Project/src/hooks/useTransactions.ts) and daily sales area charts in [`chart-area-interactive.tsx`](file:///C:/Users/User/Desktop/AWS%20POS/Client-Project/src/components/chart-area-interactive.tsx) are filtered using `isPaidTransaction(t)`.
+- Only transactions with an explicit `Paid` payment status or `completed` status are calculated in Total Sales.
+- Unpaid items (`payment_status: "Unpaid"`, `"Cash Pending"`, or `"Pending Verification"`) are strictly excluded until staff mutates their payment status to `Paid` in the Data Table.
 
 ---
 
@@ -100,18 +102,17 @@ To prevent "kiosk escapes" and isolate public UI from admin controls, Kiosk and 
 ### 1. Duplicate Transaction Prevention
 - **Database ID Synchronization**: Upon creating a pre-order in Supabase, the generated DB UUID is immediately synced to local storage pre-orders (`timpla_my_saved_preorders`).
 - **No Blank Fallback Rows**: Removed empty fallback insertions (`{ total, status }`) to prevent anonymous ghost orders without customer contact details.
-- **Direct Order Finalization**: `finalizePendingOrder` updates existing DB records directly preserving `customer_name`, `customer_email`, `customer_phone`, and `order_number`, eliminating duplicate `create_complete_order` RPC invocations.
-- **Intelligent Transaction Deduplication**: `useTransactions.ts` deduplicates transactions by matching exact IDs or order numbers (`#PO-`), merging contact details and removing redundant generic entries (`#ORD-`).
+- **Direct Order Finalization**: `finalizePendingOrder` updates existing DB records directly preserving `customer_name`, `customer_email`, `customer_phone`, and `order_number`.
+- **Intelligent Transaction Deduplication**: `useTransactions.ts` deduplicates transactions using `isPaidTransaction` checks to prioritize completed/paid records over duplicate generic entries.
 
-### 3. Admin Data Table Payment Status Mutation
+### 2. Admin Data Table Payment Status Mutation
 - **In-Row Status Control**: Admin staff can mutate the payment status of any transaction row directly within the Data Table ([`data-table.tsx`](file:///C:/Users/User/Desktop/AWS%20POS/Client-Project/src/components/data-table.tsx#L288)) using an interactive `<Select>` dropdown.
 - **Supported Statuses**:
   - 🟢 `Paid` (`status: "completed"`)
   - 🔵 `Pending Verification` (`status: "verifying"`)
   - 🩷 `Cash Pending` (`status: "pending_counter"`)
   - 🟠 `Unpaid` (`status: "unpaid"`)
-- **Instant Non-Flicker Reactivity**: `useReactTable` directly binds to `filteredData`, ensuring that status updates reflect immediately without intermediate state delays or dropdown value reversions.
-- **Real-Time Supabase & Customer Sync**: `updatePreOrderPaymentStatus` in `useTransactions.ts` updates Supabase `orders` table by `order_number` & `id`, updates local storage, and broadcasts a `PREORDER_PAYMENT_STATUS_UPDATED` message across `timpla_my_preorders_channel`. Customer devices dynamically update their saved pre-order status badge in real-time.
+- **Instant Reactive Recalculation**: Changing status to `Paid` immediately includes the order in Total Sales and charts; changing status back to `Unpaid` immediately deducts it from Total Sales.
 
 ---
 
@@ -132,7 +133,7 @@ To prevent "kiosk escapes" and isolate public UI from admin controls, Kiosk and 
 | Channel Name | Message Types | Purpose |
 | :--- | :--- | :--- |
 | `timpla_kiosk_channel` | `SYNC_PENDING_ORDERS` | Syncs pending kiosk order badges and clears active ticket banners across tabs |
-| `timpla_my_preorders_channel` | `PREORDER_SAVED`, `PREORDER_CANCELLED`, `PREORDER_DELETED`, `ALL_PREORDERS_CLEARED` | Bidirectional real-time pre-order sync between Kiosk customer devices and Admin POS |
+| `timpla_my_preorders_channel` | `PREORDER_SAVED`, `PREORDER_CANCELLED`, `PREORDER_DELETED`, `PREORDER_PAYMENT_STATUS_UPDATED` | Bidirectional real-time pre-order sync between Kiosk customer devices and Admin POS |
 | `timpla_gcash_channel` | `GCASH_SETTINGS_UPDATED` | Instant cross-tab sync of GCash QR Code and account number changes |
 
 ---
@@ -187,21 +188,17 @@ CREATE TABLE IF NOT EXISTS public.order_items (
     quantity INTEGER NOT NULL DEFAULT 1,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+```
+
 ---
 
 ## 7. Completed Tasks (Recent Session Handoff)
 
-- **Fixed Duplicate Pre-Order Transactions**: Removed fallback empty row insertions (`{ total, status }`) in [`PreOrderModal.tsx`](file:///C:/Users/User/Desktop/AWS%20POS/Client-Project/src/components/PreOrderModal.tsx) and [`useKioskOrders.ts`](file:///C:/Users/User/Desktop/AWS%20POS/Client-Project/src/hooks/useKioskOrders.ts). Generated DB UUIDs are synced immediately to local storage `timpla_my_saved_preorders`.
-- **Isolated Pre-Orders from Pending Kiosk Queue**: Filtered pre-orders (`fulfillment_status === "pre_ordered"` or `#PO-`) out of `timpla_kiosk_pending_orders` so only immediate counter orders appear in `<PendingOrdersModal />`.
-- **Bidirectional Cancellation & Deletion Synchronization**:
-  - Customer cancels pre-order $\rightarrow$ Deletes row from Supabase `orders` and broadcasts event to clear it from Admin POS Data Table.
-  - Admin deletes transaction in Data Table $\rightarrow$ Deletes row from Supabase and broadcasts event so customer devices purge it automatically (`checkRemoteValidity`).
-- **In-Row Payment Status Mutation & Instant Reactivity**:
-  - Added interactive `<Select>` dropdowns directly inside Data Table rows ([`data-table.tsx`](file:///C:/Users/User/Desktop/AWS%20POS/Client-Project/src/components/data-table.tsx#L288)) allowing staff to change payment statuses (`Paid`, `Pending Verification`, `Cash Pending`, `Unpaid`).
-  - Passed `data: filteredData` directly to `useReactTable` to eliminate state sync delays and prevent dropdown value reversions.
-  - Added normalized case string handling (`rawStatus.toLowerCase()`) in `useTransactions.ts` so DB status values map cleanly without defaulting back to "Paid".
-  - Refactored deduplication to prioritize `completed` / `paid` transactions over `pending_counter` records.
-- **Idempotent SQL Schema & RLS Policies**: Updated SQL scripts with `DROP POLICY IF EXISTS` to make policy execution 100% idempotent without triggering duplicate policy errors.
+- **Renamed Category Navigation to "Featured"**: Updated category pill headers and default scroll spy targets from `"All"` to `"Featured"` in [`KioskView.tsx`](file:///C:/Users/User/Desktop/AWS%20POS/Client-Project/src/kiosk/KioskView.tsx) and [`AdminPOSView.tsx`](file:///C:/Users/User/Desktop/AWS%20POS/Client-Project/src/POS/AdminPOSView.tsx).
+- **Subtle View Ticket Micro-Animation**: Added smooth `1.03x` scale pulse, shadow depth burst, and badge pop on the floating "View Ticket" button when adding products to cart.
+- **Product Pictures Inside Tickets**: Rendered product thumbnails in ticket items across [`Ticket.tsx`](file:///C:/Users/User/Desktop/AWS%20POS/Client-Project/src/POS/Ticket.tsx), [`KioskOrderConfirmationModal.tsx`](file:///C:/Users/User/Desktop/AWS%20POS/Client-Project/src/POS/KioskOrderConfirmationModal.tsx), and [`PendingOrdersModal.tsx`](file:///C:/Users/User/Desktop/AWS%20POS/Client-Project/src/components/PendingOrdersModal.tsx), complete with fallback icon rendering (`Coffee`).
+- **URL-Safe Kiosk Order Finalization & Transaction Logging**: Replaced raw PostgREST `.or()` string filters with safe `.eq("order_number", orderNumber)` queries to prevent `#` character fragment truncation in URLs, ensuring finalized kiosk orders transition to `completed` in Supabase and log into the Data Table immediately upon pressing **"Finalize Payment"**.
+- **Strict Paid-Only Sales Metrics**: Created exported `isPaidTransaction` guard in [`useTransactions.ts`](file:///C:/Users/User/Desktop/AWS%20POS/Client-Project/src/hooks/useTransactions.ts) and [`chart-area-interactive.tsx`](file:///C:/Users/User/Desktop/AWS%20POS/Client-Project/src/components/chart-area-interactive.tsx) so `Unpaid` (Pay Later) and pending orders are excluded from Total Sales and charts until their payment status is set to `Paid`.
 
 ---
 

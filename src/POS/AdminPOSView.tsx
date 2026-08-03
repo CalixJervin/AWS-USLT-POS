@@ -135,14 +135,22 @@ export default function AdminPOSView() {
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null)
   const totalCartItems = useMemo(() => cart.reduce((tot, item) => tot + item.qty, 0), [cart])
 
+  const [isTicketBouncing, setIsTicketBouncing] = useState(false)
+
   const handleAddToCart = useCallback((product: Product) => {
     addToCart(product)
     setSelectedProductId(product.id)
     
+    setIsTicketBouncing(true)
+    const bounceTimer = setTimeout(() => setIsTicketBouncing(false), 500)
+
     const timer = setTimeout(() => {
       setSelectedProductId(null)
     }, 150)
-    return () => clearTimeout(timer)
+    return () => {
+      clearTimeout(timer)
+      clearTimeout(bounceTimer)
+    }
   }, [addToCart])
 
   // Click-to-Scroll Anchor handler
@@ -385,28 +393,45 @@ export default function AdminPOSView() {
 
       {/* MOBILE FLOATING BOTTOM TICKET BUTTON (< 1280px) */}
       <div className="fixed bottom-0 left-0 right-0 p-3 sm:p-4 bg-gradient-to-t from-[#0B0E14] via-[#0B0E14]/95 to-transparent z-30 flex xl:hidden pointer-events-none justify-center">
-        <Button 
-          onClick={() => setIsMobileTicketOpen(true)}
-          className="pointer-events-auto w-full max-w-md h-12 sm:h-14 rounded-2xl bg-[#E6007E] hover:bg-[#FF1A96] active:scale-[0.98] text-white font-bold shadow-[0_8px_25px_rgba(230,0,126,0.4)] border border-[#FF3366]/30 flex items-center justify-between px-4 sm:px-5 transition-all cursor-pointer touch-manipulation"
+        <motion.div
+          animate={isTicketBouncing ? { scale: [1, 1.03, 1] } : { scale: 1 }}
+          transition={{ duration: 0.3, ease: "easeOut" }}
+          className="w-full max-w-md pointer-events-auto"
         >
-          <div className="flex items-center gap-3">
-            <div className="relative flex items-center justify-center bg-white/20 rounded-full w-8 h-8 sm:w-9 sm:h-9 shrink-0">
-              <ShoppingBag className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
-              {totalCartItems > 0 && (
-                <span className="absolute -top-1 -right-1 bg-white text-[#E6007E] text-[10px] sm:text-[11px] font-black h-4 w-4 rounded-full flex items-center justify-center shadow">
-                  {totalCartItems}
-                </span>
-              )}
+          <Button 
+            onClick={() => setIsMobileTicketOpen(true)}
+            className={`w-full h-12 sm:h-14 rounded-2xl bg-[#E6007E] hover:bg-[#FF1A96] active:scale-[0.98] text-white font-bold border border-[#FF3366]/30 flex items-center justify-between px-4 sm:px-5 transition-all cursor-pointer touch-manipulation relative overflow-hidden ${
+              isTicketBouncing ? 'shadow-[0_8px_30px_rgba(230,0,126,0.65)]' : 'shadow-[0_8px_25px_rgba(230,0,126,0.4)]'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <motion.div 
+                animate={isTicketBouncing ? { scale: [1, 1.15, 1] } : { scale: 1 }}
+                transition={{ duration: 0.3 }}
+                className="relative flex items-center justify-center bg-white/20 rounded-full w-8 h-8 sm:w-9 sm:h-9 shrink-0"
+              >
+                <ShoppingBag className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
+                {totalCartItems > 0 && (
+                  <motion.span 
+                    key={totalCartItems}
+                    initial={{ scale: 0.8 }}
+                    animate={{ scale: 1 }}
+                    className="absolute -top-1 -right-1 bg-white text-[#E6007E] text-[10px] sm:text-[11px] font-black h-4 w-4 rounded-full flex items-center justify-center shadow"
+                  >
+                    {totalCartItems}
+                  </motion.span>
+                )}
+              </motion.div>
+              <span className="font-extrabold text-xs sm:text-sm tracking-wide uppercase">
+                {totalCartItems > 0 ? `View Ticket (${totalCartItems} ${totalCartItems === 1 ? 'item' : 'items'})` : "View Ticket"}
+              </span>
             </div>
-            <span className="font-extrabold text-xs sm:text-sm tracking-wide uppercase">
-              {totalCartItems > 0 ? `View Ticket (${totalCartItems} ${totalCartItems === 1 ? 'item' : 'items'})` : "View Ticket"}
-            </span>
-          </div>
-          
-          <div className="flex items-center gap-1 font-black text-sm sm:text-base">
-            <span>₱{total.toFixed(2)}</span>
-          </div>
-        </Button>
+            
+            <div className="flex items-center gap-1 font-black text-sm sm:text-base">
+              <span>₱{total.toFixed(2)}</span>
+            </div>
+          </Button>
+        </motion.div>
       </div>
 
       {/* RIGHT SIDE: Ticket Sidebar (Desktop >= 1280px) */}

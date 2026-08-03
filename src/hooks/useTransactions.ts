@@ -29,6 +29,26 @@ export interface TransactionItem {
   price: number;
 }
 
+export const isPaidTransaction = (t: Transaction): boolean => {
+  const payStatus = (t.payment_status || "").toString().trim();
+  const status = (t.status || "").toString().trim().toLowerCase();
+
+  // Explicitly un-paid statuses are NEVER paid
+  if (
+    payStatus === "Unpaid" || 
+    payStatus === "Cash Pending" || 
+    payStatus === "Pending Verification" ||
+    status === "unpaid" ||
+    status === "pending_counter" ||
+    status === "verifying" ||
+    status === "cancelled"
+  ) {
+    return false;
+  }
+
+  return payStatus === "Paid" || status === "completed" || status === "paid";
+};
+
 export function useTransactions() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [transactionItems, setTransactionItems] = useState<TransactionItem[]>([]);
@@ -141,9 +161,15 @@ export function useTransactions() {
                              )
                            );
 
+        const rawStatus = (o.status || "").toString().toLowerCase().trim();
+
+        // Kiosk food/beverage orders are only logged into the transactions table AFTER staff finalizes payment
+        if (!isPreOrder && (rawStatus === "pending_counter" || rawStatus === "pending")) {
+          return;
+        }
+
         // Primary Source of Truth: DB status column with normalized case handling
         let payStatus: string | undefined = undefined;
-        const rawStatus = (o.status || "").toString().toLowerCase().trim();
 
         if (rawStatus === "completed" || rawStatus === "paid") {
           payStatus = "Paid";
@@ -165,12 +191,14 @@ export function useTransactions() {
           payStatus = isPreOrder ? "Cash Pending" : "Paid";
         }
 
+        const derivedDbStatus = payStatus === "Paid" ? "completed" : (payStatus === "Unpaid" ? "unpaid" : (payStatus === "Pending Verification" ? "verifying" : "pending_counter"));
+
         txMap.set(o.id, {
           id: o.id,
           order_id: o.order_number || localMatch?.orderNumber || `#ORD-${o.id.slice(0, 4).toUpperCase()}`,
           total_amount: Number(o.total),
           payment_method: o.payment_method || localMatch?.paymentMethod || "cash", 
-          status: o.status || "completed",
+          status: (o.status && o.status !== "pending_counter" && o.status !== "completed") ? o.status : derivedDbStatus,
           payment_status: payStatus,
           timestamp: o.created_at,
           customer_name: custName,
@@ -192,14 +220,18 @@ export function useTransactions() {
         });
       });
 
-      // Merge local pre-orders AND kiosk pending orders if not already present in DB
+      // Merge local pre-orders if not already present in DB (exclude un-finalized kiosk counter orders)
       localOrders.forEach(l => {
+        const isPO = l.fulfillmentStatus === "pre_ordered" || (l.orderNumber && l.orderNumber.startsWith("#PO-"));
+        if (!isPO && (l.status === "pending_counter" || l.status !== "completed")) {
+          return;
+        }
+
         const existingTx = Array.from(txMap.values()).find(
           tx => tx.id === l.id || (l.orderNumber && tx.order_id === l.orderNumber)
         );
 
         if (!existingTx) {
-          const isPO = l.fulfillmentStatus === "pre_ordered" || (l.orderNumber && l.orderNumber.startsWith("#PO-"));
           let payStatus = l.paymentStatus;
           if (!payStatus) {
             payStatus = l.status === "completed" ? "Paid" : "Cash Pending";
@@ -210,13 +242,13 @@ export function useTransactions() {
             order_id: l.orderNumber || (isPO ? `#PO-LOCAL` : `#ORD-LOCAL`),
             total_amount: Number(l.total),
             payment_method: l.paymentMethod || "cash",
-            status: l.status || "pending_counter",
+            status: l.status || "completed",
             payment_status: payStatus,
             timestamp: l.createdAt || new Date().toISOString(),
             customer_name: l.customerName,
             customer_email: l.customerEmail,
             customer_phone: l.customerPhone,
-            fulfillment_status: l.fulfillmentStatus || (isPO ? "pre_ordered" : "pending"),
+            fulfillment_status: l.fulfillmentStatus || (isPO ? "pre_ordered" : "completed"),
             is_pre_order: isPO
           });
 
@@ -246,28 +278,46 @@ export function useTransactions() {
 
       rawList.forEach((tx) => {
         const duplicateIdx = deduplicated.findIndex((existing) => {
-          if (existing.order_id && tx.order_id && existing.order_id === tx.order_id) return true;
+          // 1. Exact same database UUID -> definite duplicate
+          if (existing.id === tx.id) return true;
 
-          const isSameAmount = Math.abs(existing.total_amount - tx.total_amount) < 0.01;
-          const timeDiff = Math.abs(new Date(existing.timestamp).getTime() - new Date(tx.timestamp).getTime());
-          const isCloseInTime = timeDiff < 600000; // 10 minutes
+          // 2. Determine if records are local storage fallbacks vs database records
+          const existingIsLocal = existing.id.startsWith("kiosk-") || existing.id.startsWith("preorder-");
+          const txIsLocal = tx.id.startsWith("kiosk-") || tx.id.startsWith("preorder-");
+          const bothAreDB = !existingIsLocal && !txIsLocal;
 
-          const oneIsPO = existing.order_id.startsWith("#PO-") || tx.order_id.startsWith("#PO-");
-          const oneIsGeneric = existing.order_id.startsWith("#ORD-") || tx.order_id.startsWith("#ORD-");
+          // Two separate database records with unique primary key IDs are NEVER duplicates of each other
+          if (bothAreDB) return false;
 
-          return isSameAmount && isCloseInTime && oneIsPO && oneIsGeneric;
+          // If one is local and one is DB, merge if order_id matches or amount & time match closely
+          if (existingIsLocal || txIsLocal) {
+            const sameOrderNum = Boolean(existing.order_id && tx.order_id && existing.order_id === tx.order_id);
+            const isSameAmount = Math.abs(existing.total_amount - tx.total_amount) < 0.01;
+            const timeDiff = Math.abs(new Date(existing.timestamp).getTime() - new Date(tx.timestamp).getTime());
+            const isCloseInTime = timeDiff < 600000; // 10 minutes
+
+            const oneIsPO = existing.order_id.startsWith("#PO-") || tx.order_id.startsWith("#PO-");
+            const oneIsGeneric = existing.order_id.startsWith("#ORD-") || tx.order_id.startsWith("#ORD-");
+
+            if (sameOrderNum || (isSameAmount && isCloseInTime && (oneIsPO && oneIsGeneric))) {
+              return true;
+            }
+          }
+
+          return false;
         });
 
         if (duplicateIdx === -1) {
           deduplicated.push(tx);
         } else {
           const existing = deduplicated[duplicateIdx];
-          const isCompleted = (t: Transaction) => t.status === "completed" || t.status === "paid" || t.payment_status === "Paid";
+          const preferTxIsPaid = isPaidTransaction(tx);
+          const existingIsPaid = isPaidTransaction(existing);
 
           let preferTx = existing;
-          if (isCompleted(tx) && !isCompleted(existing)) {
+          if (preferTxIsPaid && !existingIsPaid) {
             preferTx = tx;
-          } else if (!isCompleted(tx) && isCompleted(existing)) {
+          } else if (!preferTxIsPaid && existingIsPaid) {
             preferTx = existing;
           } else if (tx.order_id.startsWith("#PO-") || (tx.customer_name && !existing.customer_name)) {
             preferTx = tx;
@@ -303,6 +353,7 @@ export function useTransactions() {
     };
     window.addEventListener("storage", handleStorageChange);
     window.addEventListener("timpla_my_preorders_updated", handleStorageChange);
+    window.addEventListener("timpla_kiosk_orders_updated", handleStorageChange);
 
     let bc1: BroadcastChannel | null = null;
     let bc2: BroadcastChannel | null = null;
@@ -317,6 +368,7 @@ export function useTransactions() {
     return () => {
       window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("timpla_my_preorders_updated", handleStorageChange);
+      window.removeEventListener("timpla_kiosk_orders_updated", handleStorageChange);
       if (bc1) bc1.close();
       if (bc2) bc2.close();
     };
@@ -477,22 +529,30 @@ export function useTransactions() {
 
     try {
       // 1. Update in Supabase orders table
-      const filterConditions = [];
-      if (id && !id.startsWith("preorder-") && !id.startsWith("kiosk-")) {
-        filterConditions.push(`id.eq.${id}`);
-      }
+      let updatedInDb = false;
       if (orderNumber && orderNumber !== "#PO-LOCAL") {
-        filterConditions.push(`order_number.eq.${orderNumber}`);
+        const { data: dbRowsByNum } = await supabase
+          .from("orders")
+          .update({ 
+            status: dbStatus,
+            fulfillment_status: dbStatus === "completed" ? "completed" : undefined
+          })
+          .eq("order_number", orderNumber)
+          .select();
+
+        if (dbRowsByNum && dbRowsByNum.length > 0) {
+          updatedInDb = true;
+        }
       }
 
-      if (filterConditions.length > 0) {
+      if (!updatedInDb && id && !id.startsWith("preorder-") && !id.startsWith("kiosk-")) {
         await supabase
           .from("orders")
           .update({ 
             status: dbStatus,
             fulfillment_status: dbStatus === "completed" ? "completed" : undefined
           })
-          .or(filterConditions.join(","));
+          .eq("id", id);
       }
 
       // 2. Update local storage on current device if present
@@ -635,10 +695,17 @@ export function useTransactions() {
     toast.success(`Exported ${txsToExport.length} transaction(s) to Excel!`);
   };
 
-  const totalSales = transactions.reduce((sum, t) => sum + t.total_amount, 0);
-  const totalOrders = transactions.length;
+  // Calculate dashboard metrics strictly from PAID transactions (excluding Unpaid / Pay Later items)
+  const paidTransactions = transactions.filter(isPaidTransaction);
+
+  const totalSales = paidTransactions.reduce((sum, t) => sum + t.total_amount, 0);
+  const totalOrders = paidTransactions.length;
   const averageOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;
-  const itemsSold = transactionItems.reduce((sum, item) => sum + item.quantity, 0);
+
+  const paidTxIds = new Set(paidTransactions.map(t => t.id));
+  const itemsSold = transactionItems
+    .filter(item => paidTxIds.has(item.transaction_id))
+    .reduce((sum, item) => sum + item.quantity, 0);
 
   return {
     transactions,

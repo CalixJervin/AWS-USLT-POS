@@ -350,18 +350,15 @@ export function useKioskOrders() {
 
     try {
       const mappedMethod = finalPaymentMethod === "cash" ? "cash" : "gcash";
-
-      const filterConditions = [];
-      if (orderId && !orderId.startsWith("kiosk-") && !orderId.startsWith("preorder-")) {
-        filterConditions.push(`id.eq.${orderId}`);
-      }
-      if (orderToFinalize.orderNumber) {
-        filterConditions.push(`order_number.eq.${orderToFinalize.orderNumber}`);
-      }
+      const targetFulfillment = (orderToFinalize.fulfillmentStatus && orderToFinalize.fulfillmentStatus !== "pending")
+        ? orderToFinalize.fulfillmentStatus
+        : (orderToFinalize.cart.some(i => i.isPreOrder) ? "pre_ordered" : "completed");
 
       let updatedInDb = false;
-      if (filterConditions.length > 0) {
-        const { data: dbRows } = await supabase
+
+      // 1. Target exact DB record by UUID primary key first if present
+      if (orderToFinalize.id && !orderToFinalize.id.startsWith("kiosk-") && !orderToFinalize.id.startsWith("preorder-")) {
+        const { data: dbRowsById } = await supabase
           .from("orders")
           .update({
             status: "completed",
@@ -369,16 +366,38 @@ export function useKioskOrders() {
             customer_name: orderToFinalize.customerName || null,
             customer_email: orderToFinalize.customerEmail || null,
             customer_phone: orderToFinalize.customerPhone || null,
-            fulfillment_status: orderToFinalize.fulfillmentStatus || (orderToFinalize.cart.some(i => i.isPreOrder) ? "pre_ordered" : "completed")
+            fulfillment_status: targetFulfillment
           })
-          .or(filterConditions.join(","))
+          .eq("id", orderToFinalize.id)
           .select();
 
-        if (dbRows && dbRows.length > 0) {
+        if (dbRowsById && dbRowsById.length > 0) {
           updatedInDb = true;
         }
       }
 
+      // 2. Secondary fallback: target active pending counter order matching order_number
+      if (!updatedInDb && orderToFinalize.orderNumber) {
+        const { data: dbRowsByNum } = await supabase
+          .from("orders")
+          .update({
+            status: "completed",
+            payment_method: mappedMethod,
+            customer_name: orderToFinalize.customerName || null,
+            customer_email: orderToFinalize.customerEmail || null,
+            customer_phone: orderToFinalize.customerPhone || null,
+            fulfillment_status: targetFulfillment
+          })
+          .eq("order_number", orderToFinalize.orderNumber)
+          .eq("status", "pending_counter")
+          .select();
+
+        if (dbRowsByNum && dbRowsByNum.length > 0) {
+          updatedInDb = true;
+        }
+      }
+
+      // 3. Fallback for local-only pending orders: insert as completed
       if (!updatedInDb) {
         // Order stored only locally -> insert into DB as completed WITH customer contact info and order number
         const { data: dbRes } = await supabase.from("orders").insert({
@@ -389,14 +408,14 @@ export function useKioskOrders() {
           customer_name: orderToFinalize.customerName || null,
           customer_email: orderToFinalize.customerEmail || null,
           customer_phone: orderToFinalize.customerPhone || null,
-          fulfillment_status: orderToFinalize.fulfillmentStatus || (orderToFinalize.cart.some(i => i.isPreOrder) ? "pre_ordered" : "completed")
+          fulfillment_status: targetFulfillment
         }).select().single();
 
         if (dbRes) {
           const itemsToInsert = orderToFinalize.cart.map(item => ({
             order_id: dbRes.id,
             product_id: item.id,
-            variant_id: item.variantId,
+            variant_id: item.variantId || null,
             product_name: item.name,
             size: item.size || "Regular",
             price: item.price,

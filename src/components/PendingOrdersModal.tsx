@@ -17,7 +17,8 @@ import {
   QrCode, 
   Split, 
   Trash2, 
-  Receipt
+  Receipt,
+  Coffee
 } from "lucide-react";
 import type { PendingKioskOrder } from "@/hooks/useKioskOrders";
 import { motion, AnimatePresence } from "framer-motion";
@@ -224,16 +225,25 @@ export function PendingOrdersModal({
                     </div>
 
                     {/* ITEMS SUMMARY */}
-                    <div className="flex flex-col gap-1 max-h-24 overflow-y-auto text-xs py-1">
+                    <div className="flex flex-col gap-1.5 max-h-32 overflow-y-auto text-xs py-1 custom-scrollbar">
                       {order.cart.map((item) => (
-                        <div key={item.id} className="flex justify-between text-[#E2E8F0]">
-                          <span className="truncate max-w-[180px]">
-                            <span className="font-bold text-[#00F2FE] mr-1">{item.qty}x</span>
-                            {item.name}
-                          </span>
-                          <span className="text-[#94A3B8] font-semibold">
-                            ₱{(item.price * item.qty).toFixed(2)}
-                          </span>
+                        <div key={item.id} className="flex items-center gap-2 text-[#E2E8F0]">
+                          <div className="w-7 h-7 rounded-md bg-[#131824] border border-[#232A3B] overflow-hidden shrink-0 flex items-center justify-center">
+                            {item.image ? (
+                              <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <Coffee className="h-3.5 w-3.5 text-[#E6007E]/70" />
+                            )}
+                          </div>
+                          <div className="flex-1 flex justify-between items-center min-w-0">
+                            <span className="truncate">
+                              <span className="font-bold text-[#00F2FE] mr-1">{item.qty}x</span>
+                              {item.name}
+                            </span>
+                            <span className="text-[#94A3B8] font-semibold shrink-0 ml-2">
+                              ₱{(item.price * item.qty).toFixed(2)}
+                            </span>
+                          </div>
                         </div>
                       ))}
                     </div>

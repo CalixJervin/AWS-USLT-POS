@@ -37,7 +37,7 @@ export function SectionCards() {
             Total money earned
           </div>
           <div className="text-[#64748B] text-[11px]">
-            Sum of total_amount from transactions
+            Sum of total_amount from Paid transactions
           </div>
         </CardFooter>
       </Card>

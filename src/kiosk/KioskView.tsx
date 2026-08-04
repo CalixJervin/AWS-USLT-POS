@@ -49,10 +49,15 @@ export default function KioskView() {
   // Auto-close kiosk confirmation modal when order is finalized or cleared by staff
   useEffect(() => {
     if (submittedKioskOrder) {
-      const isStillPending = pendingOrders.some(
+      const isPendingInList = pendingOrders.some(
         o => o.id === submittedKioskOrder.id || o.orderNumber === submittedKioskOrder.orderNumber
       );
-      if (!isStillPending || !activeKioskOrder) {
+      const isMatchingActive = activeKioskOrder && (
+        activeKioskOrder.id === submittedKioskOrder.id || activeKioskOrder.orderNumber === submittedKioskOrder.orderNumber
+      );
+
+      // Only auto-close if order is explicitly no longer active and no longer in pending list (finalized by staff)
+      if (!isMatchingActive && !isPendingInList && activeKioskOrder === null) {
         setSubmittedKioskOrder(null);
       }
     }
@@ -87,8 +92,10 @@ export default function KioskView() {
 
   // 1. Top Carousel: ONLY items with category === "Merch" or type === "merch" or isPreOrder === true
   const merchProducts = useMemo(() => {
-    return allProducts.filter(p => p.isPreOrder || p.category.toLowerCase().includes("merch") || (p as any).type === "merch");
-  }, [allProducts]);
+    return allProducts
+      .filter(p => p.isPreOrder || p.category.toLowerCase().includes("merch") || (p as any).type === "merch")
+      .filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  }, [allProducts, searchQuery]);
 
   // 2. Regular Menu Below: EXCLUDE merch/pre-order items (only food/beverage on-hand menu)
   const regularProducts = useMemo(() => {

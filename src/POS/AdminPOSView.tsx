@@ -91,8 +91,10 @@ export default function AdminPOSView() {
 
   // 1. Top Carousel: ONLY items with category === "Merch" or type === "merch" or isPreOrder === true
   const merchProducts = useMemo(() => {
-    return allProducts.filter(p => p.isPreOrder || p.category.toLowerCase().includes("merch") || (p as any).type === "merch");
-  }, [allProducts]);
+    return allProducts
+      .filter(p => p.isPreOrder || p.category.toLowerCase().includes("merch") || (p as any).type === "merch")
+      .filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  }, [allProducts, searchQuery]);
 
   // 2. Regular Menu Below: EXCLUDE merch/pre-order items (only food/beverage on-hand menu)
   const regularProducts = useMemo(() => {

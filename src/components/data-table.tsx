@@ -32,6 +32,7 @@ import {
 } from "@tanstack/react-table"
 import { useTransactions } from "@/hooks/useTransactions"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -167,7 +168,11 @@ export function DataTable() {
   const [singleDeleteId, setSingleDeleteId] = React.useState<string | null>(null)
   const [isSingleDeleteOpen, setIsSingleDeleteOpen] = React.useState(false)
   const [isBulkDeleteOpen, setIsBulkDeleteOpen] = React.useState(false)
+
+  // Clear All Modal state & Extra level of confirmation
   const [isClearAllOpen, setIsClearAllOpen] = React.useState(false)
+  const [clearAllStep, setClearAllStep] = React.useState<1 | 2>(1)
+  const [clearAllConfirmText, setClearAllConfirmText] = React.useState("")
 
   const [rowSelection, setRowSelection] = React.useState({})
   
@@ -903,30 +908,93 @@ export function DataTable() {
         </DialogContent>
       </Dialog>
 
-      {/* CLEAR ALL CONFIRMATION DIALOG */}
-      <Dialog open={isClearAllOpen} onOpenChange={setIsClearAllOpen}>
+      {/* CLEAR ALL CONFIRMATION DIALOG - 2-STEP STRICT CONFIRMATION */}
+      <Dialog 
+        open={isClearAllOpen} 
+        onOpenChange={(open) => {
+          setIsClearAllOpen(open)
+          if (!open) {
+            setClearAllStep(1)
+            setClearAllConfirmText("")
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-md bg-[#FAF6F0]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-red-600 font-bold">
-              <AlertTriangle className="size-5 text-red-600" />
-              Delete All Transaction History
+              <AlertTriangle className="size-5 text-red-600 shrink-0" />
+              {clearAllStep === 1 ? "Delete All Transaction History" : "Final Deletion Confirmation"}
             </DialogTitle>
             <DialogDescription className="py-2 text-[#6B5B4E]">
-              Are you sure you want to delete <strong>ALL transaction history</strong>? This will permanently wipe all order records from the database.
+              {clearAllStep === 1 ? (
+                <>
+                  Are you sure you want to delete <strong>ALL transaction history</strong>? This will permanently wipe all order records from the database and local storage.
+                </>
+              ) : (
+                <>
+                  This action is <strong>irreversible</strong>. To confirm wiping your entire sales history, please type <strong className="text-red-600 font-mono">DELETE</strong> below.
+                </>
+              )}
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="flex gap-2">
-            <Button variant="outline" onClick={() => setIsClearAllOpen(false)}>Cancel</Button>
+
+          {clearAllStep === 1 ? (
+            <div className="py-2 text-xs text-red-700 bg-red-100 border border-red-300 rounded-lg p-3 font-medium">
+              ⚠️ <strong>High-Risk Warning:</strong> You are about to permanently erase {data.length} transaction record(s). All revenue metrics and sales logs will be reset.
+            </div>
+          ) : (
+            <div className="space-y-3 py-2">
+              <div className="py-2 text-xs text-red-700 bg-red-100 border border-red-300 rounded-lg p-3 font-bold">
+                🚨 Strict Verification Required: Type &quot;DELETE&quot; in capital letters to unlock the wipe button.
+              </div>
+              <Input
+                type="text"
+                placeholder='Type "DELETE" to confirm'
+                value={clearAllConfirmText}
+                onChange={(e) => setClearAllConfirmText(e.target.value)}
+                className="border-red-400 focus-visible:ring-red-500 bg-white text-black font-mono text-sm"
+              />
+            </div>
+          )}
+
+          <DialogFooter className="flex gap-2 sm:justify-end">
             <Button 
-              variant="destructive"
-              onClick={async () => {
-                await clearTransactions();
-                setRowSelection({});
-                setIsClearAllOpen(false);
+              variant="outline" 
+              onClick={() => {
+                if (clearAllStep === 2) {
+                  setClearAllStep(1)
+                } else {
+                  setIsClearAllOpen(false)
+                }
               }}
             >
-              Delete Everything
+              {clearAllStep === 2 ? "Back" : "Cancel"}
             </Button>
+
+            {clearAllStep === 1 ? (
+              <Button 
+                variant="destructive"
+                onClick={() => setClearAllStep(2)}
+                className="bg-red-600 hover:bg-red-700 font-bold"
+              >
+                Proceed to Final Confirmation →
+              </Button>
+            ) : (
+              <Button 
+                variant="destructive"
+                disabled={clearAllConfirmText.trim().toUpperCase() !== "DELETE"}
+                onClick={async () => {
+                  await clearTransactions()
+                  setRowSelection({})
+                  setIsClearAllOpen(false)
+                  setClearAllStep(1)
+                  setClearAllConfirmText("")
+                }}
+                className="bg-red-700 hover:bg-red-800 text-white font-black disabled:opacity-40"
+              >
+                Permanently Wipe All Data
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

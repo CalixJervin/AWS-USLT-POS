@@ -49,10 +49,15 @@ export default function KioskView() {
   // Auto-close kiosk confirmation modal when order is finalized or cleared by staff
   useEffect(() => {
     if (submittedKioskOrder) {
-      const isStillPending = pendingOrders.some(
+      const isPendingInList = pendingOrders.some(
         o => o.id === submittedKioskOrder.id || o.orderNumber === submittedKioskOrder.orderNumber
       );
-      if (!isStillPending || !activeKioskOrder) {
+      const isMatchingActive = activeKioskOrder && (
+        activeKioskOrder.id === submittedKioskOrder.id || activeKioskOrder.orderNumber === submittedKioskOrder.orderNumber
+      );
+
+      // Only auto-close if order is explicitly no longer active and no longer in pending list (finalized by staff)
+      if (!isMatchingActive && !isPendingInList && activeKioskOrder === null) {
         setSubmittedKioskOrder(null);
       }
     }

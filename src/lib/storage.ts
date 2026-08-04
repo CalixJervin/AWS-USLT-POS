@@ -28,7 +28,8 @@ export const storage = {
   getIngredients: async (): Promise<Ingredient[]> => {
     const { data, error } = await supabase
       .from('ingredients')
-      .select('*, restock_logs(*)');
+      .select('*, restock_logs(*)')
+      .order('created_at', { ascending: true });
     if (error) throw error;
     
     return (data || []).map(i => ({
@@ -55,7 +56,8 @@ export const storage = {
   getRecipes: async (): Promise<Recipe[]> => {
     const { data, error } = await supabase
       .from('recipes')
-      .select('*, recipe_ingredients(*)');
+      .select('*, recipe_ingredients(*)')
+      .order('created_at', { ascending: true });
     if (error) throw error;
     
     return (data || []).map(r => ({
@@ -73,7 +75,8 @@ export const storage = {
   getProducts: async (): Promise<Product[]> => {
     const { data, error } = await supabase
       .from('products')
-      .select('*, product_variants(*), restock_logs(*)');
+      .select('*, product_variants(*), restock_logs(*)')
+      .order('created_at', { ascending: true });
     if (error) throw error;
     
     return (data || []).map(p => ({

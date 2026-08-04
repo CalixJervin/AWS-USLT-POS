@@ -146,6 +146,11 @@ export const ProductGrid = memo(({
       map.get(cat)!.push(product);
     }
 
+    // 3. Sort items deterministically by ID within each category
+    for (const items of map.values()) {
+      items.sort((a, b) => (a.id || "").localeCompare(b.id || ""));
+    }
+
     return Array.from(map.entries());
   }, [products, categories]);
 

@@ -51,6 +51,61 @@ export function useKioskOrders() {
     localStorage.removeItem(ACTIVE_KIOSK_ORDER_KEY);
   }, []);
 
+  // Helper to verify if an active order is still pending in DB
+  const verifyActiveKioskOrder = useCallback(async (activeObj: PendingKioskOrder, currentPendingDbOrders?: any[]) => {
+    try {
+      const isValidUuid = (val?: string) => Boolean(val && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val));
+
+      // 1. Check if activeObj matches any current pending DB orders
+      if (currentPendingDbOrders) {
+        const matchInPending = currentPendingDbOrders.some((o: any) => 
+          (isValidUuid(activeObj.id) && o.id === activeObj.id) ||
+          (activeObj.orderNumber && (o.order_number === activeObj.orderNumber || o.order_number === activeObj.orderNumber.replace(/^#/, '')))
+        );
+        if (matchInPending) {
+          return true; // Order is still pending_counter
+        }
+      }
+
+      // 2. Query Supabase DB for this specific order's status
+      let query = supabase.from("orders").select("id, status, order_number");
+      if (isValidUuid(activeObj.id)) {
+        query = query.eq("id", activeObj.id);
+      } else if (activeObj.orderNumber) {
+        const numWithHash = activeObj.orderNumber.startsWith("#") ? activeObj.orderNumber : `#${activeObj.orderNumber}`;
+        const numClean = activeObj.orderNumber.replace(/^#/, "");
+        query = query.or(`order_number.eq.${numWithHash},order_number.eq.${numClean}`);
+      } else {
+        return false;
+      }
+
+      const { data: dbCheck, error } = await query;
+      if (error) return true; // Keep local on network/query error to prevent false clearing
+
+      if (dbCheck && dbCheck.length > 0) {
+        const dbStatus = dbCheck[0].status;
+        if (dbStatus === "pending_counter") {
+          return true;
+        } else {
+          // Order status is completed, cancelled, or paid -> finalized!
+          return false;
+        }
+      } else {
+        // If order has a DB UUID and wasn't found in DB, it was deleted
+        if (isValidUuid(activeObj.id)) {
+          return false;
+        }
+        // If temporary local kiosk order created very recently (< 60s), keep active until synced
+        if (activeObj.createdAt && (Date.now() - new Date(activeObj.createdAt).getTime() < 60000)) {
+          return true;
+        }
+        return false;
+      }
+    } catch (e) {
+      return true;
+    }
+  }, []);
+
   // Helper to load orders from localStorage
   const loadLocalOrders = useCallback(() => {
     try {
@@ -69,19 +124,7 @@ export function useKioskOrders() {
       if (activeStored) {
         try {
           const activeObj: PendingKioskOrder = JSON.parse(activeStored);
-          const match = parsed.find(
-            (o: any) => o.id === activeObj.id || o.orderNumber === activeObj.orderNumber
-          );
-
-          if (match && match.status === "pending_counter") {
-            const updatedActive = { ...activeObj, id: match.id, orderNumber: match.orderNumber };
-            setActiveKioskOrderState(updatedActive);
-            localStorage.setItem(ACTIVE_KIOSK_ORDER_KEY, JSON.stringify(updatedActive));
-          } else {
-            // Order was finalized, completed, or cancelled by POS staff -> clear active kiosk order banner
-            setActiveKioskOrderState(null);
-            localStorage.removeItem(ACTIVE_KIOSK_ORDER_KEY);
-          }
+          setActiveKioskOrderState(activeObj);
         } catch (e) {
           setActiveKioskOrderState(null);
           localStorage.removeItem(ACTIVE_KIOSK_ORDER_KEY);
@@ -164,33 +207,46 @@ export function useKioskOrders() {
           };
         });
 
-        setPendingOrders((prev) => {
-          const map = new Map<string, PendingKioskOrder>();
-          // 1. Fill with previous local orders first to retain orderNumbers
-          prev.forEach(o => map.set(o.id, o));
-          // 2. Add/merge DB orders, preserving existing orderNumber
-          mapped.forEach(o => {
-            if (map.has(o.id)) {
-              const existing = map.get(o.id)!;
-              map.set(o.id, { ...o, orderNumber: existing.orderNumber });
-            } else {
-              map.set(o.id, o);
-            }
-          });
-
-          const merged = Array.from(map.values()).filter(o => 
-            o.status === "pending_counter" && 
-            o.fulfillmentStatus !== "pre_ordered" && 
-            !o.orderNumber?.startsWith("#PO-")
-          );
-          localStorage.setItem(KIOSK_ORDERS_STORAGE_KEY, JSON.stringify(merged));
-          return merged;
+        // Update pendingOrders state with current pending DB orders
+        setPendingOrders(() => {
+          localStorage.setItem(KIOSK_ORDERS_STORAGE_KEY, JSON.stringify(mapped));
+          return mapped;
         });
+
+        // Verify active kiosk order status against DB & delete if finalized
+        const activeStored = localStorage.getItem(ACTIVE_KIOSK_ORDER_KEY);
+        if (activeStored) {
+          try {
+            const activeObj: PendingKioskOrder = JSON.parse(activeStored);
+            const isStillPending = await verifyActiveKioskOrder(activeObj, filteredDbOrders);
+            if (!isStillPending) {
+              // Order was finalized, completed, or cancelled by POS staff -> delete active kiosk order number
+              setActiveKioskOrderState(null);
+              localStorage.removeItem(ACTIVE_KIOSK_ORDER_KEY);
+              try {
+                const bc = new BroadcastChannel("timpla_kiosk_channel");
+                bc.postMessage({ type: "ACTIVE_ORDER_CLEARED", orderId: activeObj.id, orderNumber: activeObj.orderNumber });
+                bc.close();
+              } catch (e) {}
+            } else {
+              // Update active order state with matching order data
+              const match = mapped.find(m => m.id === activeObj.id || m.orderNumber === activeObj.orderNumber);
+              if (match) {
+                const updatedActive = { ...activeObj, id: match.id, orderNumber: match.orderNumber };
+                setActiveKioskOrderState(updatedActive);
+                localStorage.setItem(ACTIVE_KIOSK_ORDER_KEY, JSON.stringify(updatedActive));
+              }
+            }
+          } catch (e) {
+            setActiveKioskOrderState(null);
+            localStorage.removeItem(ACTIVE_KIOSK_ORDER_KEY);
+          }
+        }
       }
     } catch (err) {
       console.error("Error fetching pending kiosk orders:", err);
     }
-  }, [loadLocalOrders]);
+  }, [loadLocalOrders, verifyActiveKioskOrder]);
 
   useEffect(() => {
     fetchPendingOrders();
@@ -206,15 +262,39 @@ export function useKioskOrders() {
     try {
       bc = new BroadcastChannel("timpla_kiosk_channel");
       bc.onmessage = (msg) => {
-        if (msg.data?.type === "SYNC_PENDING_ORDERS" || msg.data?.type === "RESET_KIOSK_COUNTER") {
-          loadLocalOrders();
+        if (
+          msg.data?.type === "SYNC_PENDING_ORDERS" || 
+          msg.data?.type === "RESET_KIOSK_COUNTER" ||
+          msg.data?.type === "ACTIVE_ORDER_CLEARED" ||
+          msg.data?.action === "FINALIZE"
+        ) {
+          fetchPendingOrders();
         }
       };
     } catch (e) {}
 
+    // Supabase Realtime channel to listen for order updates/finalization across all devices
+    const realtimeChannel = supabase
+      .channel("public:orders:kiosk_active_sync")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "orders" },
+        () => {
+          fetchPendingOrders();
+        }
+      )
+      .subscribe();
+
+    // Fallback interval polling every 4 seconds
+    const interval = setInterval(() => {
+      fetchPendingOrders();
+    }, 4000);
+
     return () => {
       window.removeEventListener("storage", handleStorageChange);
       if (bc) bc.close();
+      if (realtimeChannel) supabase.removeChannel(realtimeChannel);
+      clearInterval(interval);
     };
   }, [fetchPendingOrders, loadLocalOrders]);
 

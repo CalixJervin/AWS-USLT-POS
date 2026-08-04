@@ -572,13 +572,25 @@ export function useTransactions() {
         const savedKiosk = localStorage.getItem("timpla_kiosk_pending_orders");
         if (savedKiosk) {
           const parsed: any[] = JSON.parse(savedKiosk);
-          const updated = parsed.map((o: any) => {
+          const updated = parsed.filter((o: any) => {
             if (o.id === id || (o.orderNumber && o.orderNumber === orderNumber)) {
-              return { ...o, paymentStatus: newPaymentStatus, status: dbStatus };
+              return dbStatus === "pending_counter";
             }
-            return o;
+            return true;
           });
           localStorage.setItem("timpla_kiosk_pending_orders", JSON.stringify(updated));
+        }
+
+        const activeKiosk = localStorage.getItem("timpla_active_kiosk_order");
+        if (activeKiosk) {
+          try {
+            const activeObj = JSON.parse(activeKiosk);
+            if (activeObj.id === id || (orderNumber && activeObj.orderNumber === orderNumber)) {
+              if (dbStatus !== "pending_counter") {
+                localStorage.removeItem("timpla_active_kiosk_order");
+              }
+            }
+          } catch (e) {}
         }
       } catch (e) {}
 

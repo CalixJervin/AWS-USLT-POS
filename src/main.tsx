@@ -5,11 +5,11 @@ import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from "rea
 import "./index.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { TooltipProvider } from "@/components/ui/tooltip"
-import AdminLayout from "@/mainLayout"
 import KioskLayout from "@/KioskLayout"
 import { AuthProvider, useAuth } from "@/hooks/use-auth"
 import { InventoryProvider } from "@/context/InventoryContext"
 
+const AdminLayout = lazy(() => import("@/mainLayout"))
 const KioskView = lazy(() => import("./kiosk/KioskView"))
 const AdminPOSView = lazy(() => import("./POS/AdminPOSView"))
 const Dashboard = lazy(() => import("./Admin-Dashboard"))

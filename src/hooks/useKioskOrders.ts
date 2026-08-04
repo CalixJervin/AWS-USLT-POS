@@ -206,7 +206,7 @@ export function useKioskOrders() {
     try {
       bc = new BroadcastChannel("timpla_kiosk_channel");
       bc.onmessage = (msg) => {
-        if (msg.data?.type === "SYNC_PENDING_ORDERS") {
+        if (msg.data?.type === "SYNC_PENDING_ORDERS" || msg.data?.type === "RESET_KIOSK_COUNTER") {
           loadLocalOrders();
         }
       };
@@ -219,11 +219,14 @@ export function useKioskOrders() {
   }, [fetchPendingOrders, loadLocalOrders]);
 
   const getNextOrderNumber = (): string => {
-    let currentCounter = 42;
+    let currentCounter = 1;
     try {
       const stored = localStorage.getItem(KIOSK_ORDER_COUNTER_KEY);
       if (stored) {
-        currentCounter = Number(stored);
+        const parsed = Number(stored);
+        if (!isNaN(parsed) && parsed > 0) {
+          currentCounter = parsed;
+        }
       }
     } catch (e) {}
 

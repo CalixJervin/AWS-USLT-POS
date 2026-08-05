@@ -135,6 +135,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (isPinValid) {
       const staffMember = staffList.find(s => s.id === staffId)
       if (staffMember) {
+        // Authenticate with Supabase Auth to issue a valid JWT for RLS policies
+        const email = `${staffId}@pos.local`
+        const authPassword = `staff_pin_${pin}`
+        try {
+          const { error: signInErr } = await supabase.auth.signInWithPassword({
+            email,
+            password: authPassword,
+          })
+          if (signInErr) {
+            // Register staff in Supabase Auth if account doesn't exist yet
+            await supabase.auth.signUp({
+              email,
+              password: authPassword,
+            })
+            await supabase.auth.signInWithPassword({
+              email,
+              password: authPassword,
+            })
+          }
+        } catch (authErr) {
+          console.warn("Supabase auth sync notice:", authErr)
+        }
+
         setUser(staffMember)
         setIsLocked(false)
         storage.setItem("timpla_current_user_id", staffId)
@@ -163,7 +186,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return login(user.id, pin)
   }, [user, login])
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    try {
+      await supabase.auth.signOut()
+    } catch (e) {
+      console.warn("Error signing out from Supabase Auth:", e)
+    }
     setUser(null)
     setIsLocked(false)
     storage.removeItem("timpla_current_user_id")
@@ -171,7 +199,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     storage.removeItem("timpla_is_locked")
   }, [])
 
-  const switchUser = useCallback(() => {
+  const switchUser = useCallback(async () => {
+    try {
+      await supabase.auth.signOut()
+    } catch (e) {}
     lock()
     setUser(null)
     storage.removeItem("timpla_current_user_id")

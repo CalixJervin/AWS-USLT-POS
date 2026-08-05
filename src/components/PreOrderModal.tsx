@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import { useGCashSettings } from "@/hooks/useGCashSettings";
 import { useMyPreOrders } from "@/components/MyPreOrdersModal";
+import { checkDeviceLockout, recordOrderAttempt } from "@/lib/rateLimiter";
 
 interface PreOrderModalProps {
   item: Product | null;
@@ -34,7 +35,7 @@ export function PreOrderModal({
   const [customerPhone, setCustomerPhone] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "gcash">("cash");
   const [gcashRefNumber, setGcashRefNumber] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [generatedOrderNum, setGeneratedOrderNum] = useState("");
 
@@ -63,7 +64,7 @@ export function PreOrderModal({
       setCustomerPhone("");
       setPaymentMethod("cash");
       setGcashRefNumber("");
-      setIsSubmitting(false);
+      setIsProcessing(false);
       setIsSuccess(false);
       setGeneratedOrderNum("");
     }
@@ -77,6 +78,15 @@ export function PreOrderModal({
                       isEmailValid;
 
   const handleSaveOrder = async (isPayLater: boolean) => {
+    // 1. Device Lockout check (10-minute timeout for 3 rapid orders)
+    const lockout = checkDeviceLockout();
+    if (lockout.isLocked) {
+      toast.error(`Device Lockout: 3 rapid orders detected. Please wait ${lockout.remainingMinutes} minute(s) before placing another order.`);
+      return;
+    }
+
+    if (isProcessing) return;
+
     if (!customerName.trim()) {
       toast.error("Please provide your full name.");
       return;
@@ -94,7 +104,14 @@ export function PreOrderModal({
       return;
     }
 
-    setIsSubmitting(true);
+    // 2. Record order attempt & check if 3rd attempt triggers 10-minute lockout
+    const attemptResult = recordOrderAttempt();
+    if (attemptResult.triggeredLockout) {
+      toast.error("Device Lockout: 3 rapid order attempts detected. Your device is timed out for 10 minutes to prevent order flooding.");
+      return;
+    }
+
+    setIsProcessing(true);
     const orderNum = `#PO-${Math.floor(1000 + Math.random() * 9000)}`;
     const newOrderId = `preorder-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
     const sizeName = isShirtProduct ? selectedSize : "Standard";
@@ -203,7 +220,9 @@ export function PreOrderModal({
       setGeneratedOrderNum(orderNum);
       setIsSuccess(true);
     } finally {
-      setIsSubmitting(false);
+      setTimeout(() => {
+        setIsProcessing(false);
+      }, 10000);
     }
   };
 
@@ -490,32 +509,42 @@ export function PreOrderModal({
         </div>
 
         {/* MODAL FOOTER - ALWAYS VISIBLE AT BOTTOM, NEVER LOCKED */}
-        {!isSuccess && (
-          <DialogFooter className="p-4 bg-[#1E2333] border-t border-[#232A3B] flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
-            {paymentMethod === "gcash" ? (
+        {!isSuccess && (() => {
+          const lockout = checkDeviceLockout();
+          const isLocked = lockout.isLocked;
+          return (
+            <DialogFooter className="p-4 bg-[#1E2333] border-t border-[#232A3B] flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
+              {paymentMethod === "gcash" ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => handleSaveOrder(true)}
+                  disabled={isProcessing || isLocked}
+                  className={`w-full sm:w-auto border-[#FF9900]/50 text-[#FF9900] hover:bg-[#FF9900]/10 hover:text-[#FF9900] font-bold text-xs sm:text-sm rounded-full h-11 px-5 transition-all ${
+                    isProcessing || isLocked ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+                  }`}
+                >
+                  {isLocked ? `Timed Out (${lockout.remainingMinutes}m)` : isProcessing ? "Processing..." : "Pay Later"}
+                </Button>
+              ) : (
+                <div />
+              )}
+
               <Button
                 type="button"
-                variant="outline"
-                onClick={() => handleSaveOrder(true)}
-                disabled={isSubmitting}
-                className="w-full sm:w-auto border-[#FF9900]/50 text-[#FF9900] hover:bg-[#FF9900]/10 hover:text-[#FF9900] font-bold text-xs sm:text-sm rounded-full h-11 px-5 cursor-pointer disabled:opacity-50 transition-all"
+                onClick={() => handleSaveOrder(false)}
+                disabled={isProcessing || isLocked || (paymentMethod === "gcash" && !gcashRefNumber.trim())}
+                className={`w-full sm:w-auto bg-[#E6007E] text-white hover:bg-[#FF1A96] font-black text-xs sm:text-sm px-6 rounded-full h-11 shadow-lg border border-[#00F2FE]/40 transition-all flex items-center justify-center gap-2 ${
+                  isProcessing || isLocked || (paymentMethod === "gcash" && !gcashRefNumber.trim())
+                    ? "opacity-50 cursor-not-allowed"
+                    : "cursor-pointer"
+                }`}
               >
-                Pay Later
+                {isLocked ? `Timed Out (${lockout.remainingMinutes}m)` : isProcessing ? "Processing..." : "Submit Pre-Order"}
               </Button>
-            ) : (
-              <div />
-            )}
-
-            <Button
-              type="button"
-              onClick={() => handleSaveOrder(false)}
-              disabled={isSubmitting || (paymentMethod === "gcash" && !gcashRefNumber.trim())}
-              className="w-full sm:w-auto bg-[#E6007E] text-white hover:bg-[#FF1A96] font-black text-xs sm:text-sm px-6 rounded-full h-11 shadow-lg border border-[#00F2FE]/40 cursor-pointer disabled:opacity-50 transition-all flex items-center justify-center gap-2"
-            >
-              {isSubmitting ? "Submitting..." : "Submit Pre-Order"}
-            </Button>
-          </DialogFooter>
-        )}
+            </DialogFooter>
+          );
+        })()}
       </DialogContent>
     </Dialog>
   );

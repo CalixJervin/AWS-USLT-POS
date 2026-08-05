@@ -246,7 +246,7 @@ function ConnectionBanner() {
             </span>
             <WifiOff className="h-4 w-4 text-[#FF3366] shrink-0" />
             <span className="truncate">
-              <strong className="text-[#FF3366] font-semibold">Connection Lost:</strong> Connection currently unavailable.
+              <strong className="text-[#FF3366] font-semibold">Connection Lost:</strong>
             </span>
           </div>
 

@@ -168,6 +168,11 @@ export function useTransactions() {
           return;
         }
 
+        // Cancelled orders should NEVER be logged into the transactions data table
+        if (rawStatus === "cancelled") {
+          return;
+        }
+
         // Primary Source of Truth: DB status column with normalized case handling
         let payStatus: string | undefined = undefined;
 

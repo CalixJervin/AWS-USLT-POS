@@ -667,18 +667,33 @@ export function useKioskOrders() {
   };
 
   const cancelPendingOrder = async (orderId: string) => {
+    const orderToCancel = pendingOrders.find(o => o.id === orderId || o.orderNumber === orderId);
+
     setPendingOrders((prev) => {
-      const updated = prev.filter(o => o.id !== orderId);
+      const updated = prev.filter(o => o.id !== orderId && o.orderNumber !== (orderToCancel?.orderNumber || orderId));
       localStorage.setItem(KIOSK_ORDERS_STORAGE_KEY, JSON.stringify(updated));
       return updated;
     });
 
-    if (activeKioskOrder?.id === orderId) {
+    if (activeKioskOrder?.id === orderId || activeKioskOrder?.orderNumber === (orderToCancel?.orderNumber || orderId)) {
       clearActiveKioskOrder();
     }
 
-    if (!orderId.startsWith("kiosk-")) {
-      await supabase.from("orders").update({ status: "cancelled" }).eq("id", orderId);
+    try {
+      const isValidUuid = (val?: string) => Boolean(val && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val));
+
+      if (isValidUuid(orderId)) {
+        await supabase.from("orders").delete().eq("id", orderId);
+      } else if (orderToCancel?.id && isValidUuid(orderToCancel.id)) {
+        await supabase.from("orders").delete().eq("id", orderToCancel.id);
+      } else if (orderToCancel?.orderNumber || orderId) {
+        const numToMatch = orderToCancel?.orderNumber || orderId;
+        const numWithHash = numToMatch.startsWith("#") ? numToMatch : `#${numToMatch}`;
+        const numClean = numToMatch.replace(/^#/, "");
+        await supabase.from("orders").delete().or(`order_number.eq.${numWithHash},order_number.eq.${numClean}`);
+      }
+    } catch (e) {
+      console.warn("Could not delete pending order from DB:", e);
     }
 
     try {
@@ -687,7 +702,10 @@ export function useKioskOrders() {
       bc.close();
     } catch (e) {}
 
-    toast.info("Pending order cancelled");
+    window.dispatchEvent(new Event("storage"));
+    window.dispatchEvent(new Event("timpla_kiosk_orders_updated"));
+
+    toast.info("Pending order cancelled and deleted");
   };
 
   const clearAllPendingOrders = async () => {
@@ -696,8 +714,15 @@ export function useKioskOrders() {
     localStorage.removeItem(KIOSK_ORDERS_STORAGE_KEY);
 
     try {
-      await supabase.from("orders").update({ status: "cancelled" }).eq("status", "pending_counter");
-    } catch (e) {}
+      // Delete all pending food kiosk orders from Supabase DB (exclude pre-orders)
+      await supabase
+        .from("orders")
+        .delete()
+        .eq("status", "pending_counter")
+        .neq("fulfillment_status", "pre_ordered");
+    } catch (e) {
+      console.warn("Error deleting all pending orders from DB:", e);
+    }
 
     try {
       const bc = new BroadcastChannel("timpla_kiosk_channel");
@@ -705,7 +730,10 @@ export function useKioskOrders() {
       bc.close();
     } catch (e) {}
 
-    toast.success("All pending kiosk orders cleared");
+    window.dispatchEvent(new Event("storage"));
+    window.dispatchEvent(new Event("timpla_kiosk_orders_updated"));
+
+    toast.success("All pending kiosk orders cleared and deleted");
   };
 
   return {

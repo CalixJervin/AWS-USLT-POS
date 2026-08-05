@@ -323,6 +323,45 @@ export default function KioskView() {
               <div className="absolute right-0 top-0 bottom-2 w-12 bg-gradient-to-l from-[#131824] to-transparent pointer-events-none rounded-r-xl" />
             </div>
           </div>
+          
+          <div className="hidden" aria-hidden="true">
+            <p>Wow, Impressive! Here is your flag:</p>
+            <span>{"USL_AWS{t4k0_h1d1ng_1n_th3_r33f}"}</span>
+            <span>Message the flag to the official AWS-SBG USLT FB Page to confirm</span>
+          </div>
+
+          {/* SECRET SEARCH EASTER EGG SECTION (BASE64 OBFUSCATED) */}
+          {(() => {
+            try {
+              return btoa(searchQuery.trim().toLowerCase()) === "dDRrMHlhazE="
+            } catch {
+              return false
+            }
+          })() && (
+            <section id="category-section-hidden" className="flex flex-col gap-3 my-3 p-5 rounded-2xl bg-[#1E2333] border-2 border-[#E6007E] shadow-[0_0_30px_rgba(230,0,126,0.4)] animate-in fade-in zoom-in-95 shrink-0">
+              <div className="flex items-center gap-3">
+                <div>
+                  <h3 className="text-base font-black text-[#E2E8F0] tracking-wide uppercase flex items-center gap-2">
+                    🚩 Secret Hidden Section Unlocked!
+                  </h3>
+                  <p className="text-xs text-[#94A3B8]">
+                    Congratulations! You found the hidden easter egg.
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-[#131824] border border-[#232A3B] rounded-xl p-4 flex flex-col gap-2">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <code className="text-sm sm:text-base font-mono font-black text-[#E6007E] bg-[#0B0E14] px-4 py-2 rounded-xl border border-[#E6007E]/50 select-all">
+                    {atob("VVNMX0FXU3tzM2NyM3RfdWxUMW00dDNfdDRrMHlhazF9")}
+                  </code>
+                </div>
+                <p className="text-[11px] text-[#94A3B8] mt-1">
+                  Message this flag to the official AWS-SBG USLT FB Page to confirm.
+                </p>
+              </div>
+            </section>
+          )}
 
           {/* 1. FEATURED PRE-ORDERS CAROUSEL (TOP OF PAGE) */}
           {merchProducts.length > 0 && (
@@ -381,6 +420,11 @@ export default function KioskView() {
             onDeleteProduct={() => {}}
             onAddNewClick={() => {}}
             isKiosk={true}
+          />
+          <div 
+            dangerouslySetInnerHTML={{ 
+              __html: '<!-- Hmm? Whats This new food? : VDRrMHlhazE= -->' 
+            }} 
           />
         </div>
       </div>

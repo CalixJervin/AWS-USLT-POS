@@ -201,12 +201,14 @@ CREATE TABLE IF NOT EXISTS public.order_items (
 - **Data Table Relabeled to "Transactions"**: Relabeled the default non-merchandise category tab, section title, and filter dropdown options in [`data-table.tsx`](file:///C:/Users/User/Desktop/AWS%20POS/Client-Project/src/components/data-table.tsx) from `"Foods"` / `"Foods Transactions"` to `"Transactions"`.
 - **Protected My Pre-Orders Persistence**: Enhanced `checkRemoteValidity` in [`MyPreOrdersModal.tsx`](file:///C:/Users/User/Desktop/AWS%20POS/Client-Project/src/components/MyPreOrdersModal.tsx) and added insert fallbacks in [`PreOrderModal.tsx`](file:///C:/Users/User/Desktop/AWS%20POS/Client-Project/src/components/PreOrderModal.tsx) to prevent accidental purging of local customer pre-orders when database schema warnings occur.
 - **Strict Paid-Only Sales Metrics**: Created exported `isPaidTransaction` guard in [`useTransactions.ts`](file:///C:/Users/User/Desktop/AWS%20POS/Client-Project/src/hooks/useTransactions.ts) and [`chart-area-interactive.tsx`](file:///C:/Users/User/Desktop/AWS%20POS/Client-Project/src/components/chart-area-interactive.tsx) so `Unpaid` (Pay Later) and pending orders are excluded from Total Sales and charts until their payment status is set to `Paid`.
+- **Network Connection Monitoring & Hidden Indicator**: Added [`ConnectionContext.tsx`](file:///C:/Users/User/Desktop/AWS%20POS/Client-Project/src/context/ConnectionContext.tsx) to monitor browser network and backend database status. Renders top `ConnectionBanner` and Sonner toast alerts with interactive "Retry" actions when connection drops. The `ConnectionStatusBadge` in [`site-header.tsx`](file:///C:/Users/User/Desktop/AWS%20POS/Client-Project/src/components/site-header.tsx) stays completely hidden while online and only reveals an `Offline` badge when an active connection problem occurs.
+- **Cross-Device Synchronized Sequential Order Numbers**: Updated `getNextOrderNumber` in [`useKioskOrders.ts`](file:///C:/Users/User/Desktop/AWS%20POS/Client-Project/src/hooks/useKioskOrders.ts#L301) to dynamically query Supabase `orders` for the highest existing `#XXX` counter. Ensures sequential order numbers (`#001`, `#002`, `#003`...) are synchronized globally across all customer kiosk devices and staff POS units without requiring database schema changes.
 
 ---
 
 ## 8. Instructions for AI Coding Assistants
 
-- Always inspect existing custom hooks (`useCart`, `useInventory`, `useKioskOrders`, `useGCashSettings`, `useMyPreOrders`, `useTransactions`) before creating new state logic.
+- Always inspect existing custom hooks (`useCart`, `useInventory`, `useKioskOrders`, `useGCashSettings`, `useMyPreOrders`, `useTransactions`, `useConnectionStatus`) before creating new state logic.
 - Run `npx tsc --noEmit` and `npm run build` after file edits to verify type safety and bundle compilation.
 - Maintain documentation integrity and preserve existing docstrings.
 

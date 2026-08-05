@@ -298,23 +298,76 @@ export function useKioskOrders() {
     };
   }, [fetchPendingOrders, loadLocalOrders]);
 
-  const getNextOrderNumber = (): string => {
-    let currentCounter = 1;
+  const getNextOrderNumber = async (): Promise<string> => {
+    let highestNum = 0;
+
+    // 1. Fetch recent orders from Supabase DB to find highest counter across all devices
     try {
-      const stored = localStorage.getItem(KIOSK_ORDER_COUNTER_KEY);
+      const { data, error } = await supabase
+        .from("orders")
+        .select("order_number")
+        .not("order_number", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(100);
+
+      if (!error && data && data.length > 0) {
+        for (const row of data) {
+          if (row.order_number) {
+            const match = row.order_number.match(/#?(\d+)/);
+            if (match && match[1]) {
+              const num = parseInt(match[1], 10);
+              if (!isNaN(num) && num > highestNum && num <= 999) {
+                highestNum = num;
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("Could not query latest order number from DB:", e);
+    }
+
+    // 2. Check local pending orders in case an order was recently created locally
+    try {
+      const stored = localStorage.getItem(KIOSK_ORDERS_STORAGE_KEY);
       if (stored) {
-        const parsed = Number(stored);
-        if (!isNaN(parsed) && parsed > 0) {
-          currentCounter = parsed;
+        const localParsed: PendingKioskOrder[] = JSON.parse(stored);
+        for (const o of localParsed) {
+          if (o.orderNumber) {
+            const match = o.orderNumber.match(/#?(\d+)/);
+            if (match && match[1]) {
+              const num = parseInt(match[1], 10);
+              if (!isNaN(num) && num > highestNum && num <= 999) {
+                highestNum = num;
+              }
+            }
+          }
         }
       }
     } catch (e) {}
 
-    const orderNum = `#${String(currentCounter).padStart(3, "0")}`;
-    const nextVal = currentCounter >= 999 ? 1 : currentCounter + 1;
-    localStorage.setItem(KIOSK_ORDER_COUNTER_KEY, String(nextVal));
+    // 3. Fallback check to local storage counter
+    try {
+      const storedCounter = localStorage.getItem(KIOSK_ORDER_COUNTER_KEY);
+      if (storedCounter) {
+        const parsed = Number(storedCounter);
+        if (!isNaN(parsed) && parsed > highestNum && parsed <= 999) {
+          highestNum = parsed - 1;
+        }
+      }
+    } catch (e) {}
 
-    return orderNum;
+    let nextNum = highestNum + 1;
+    if (nextNum > 999) nextNum = 1;
+
+    const orderNumStr = `#${String(nextNum).padStart(3, "0")}`;
+
+    // Cache the next number locally
+    try {
+      localStorage.setItem(KIOSK_ORDER_COUNTER_KEY, String(nextNum + 1 > 999 ? 1 : nextNum + 1));
+    } catch (e) {}
+
+    return orderNumStr;
   };
 
   const createPendingOrder = async (
@@ -328,7 +381,7 @@ export function useKioskOrders() {
       customerPhone?: string;
     }
   ): Promise<PendingKioskOrder> => {
-    const orderNumber = getNextOrderNumber();
+    const orderNumber = await getNextOrderNumber();
     const newOrderId = `kiosk-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
     const hasPreOrder = cart.some(i => i.isPreOrder);
 

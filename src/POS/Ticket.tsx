@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { motion, AnimatePresence } from "framer-motion";
+import { checkDeviceLockout, recordOrderAttempt } from "@/lib/rateLimiter";
 
 interface TicketSidebarProps {
   cart: CartItem[];
@@ -47,6 +48,7 @@ export function TicketSidebar({
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [amountReceived, setAmountReceived] = useState<number | "">("");
   const [isClearing, setIsClearing] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   
   const [paymentMethod, setPaymentMethod] = useState<"counter" | "cash" | "gcash">(
     isKiosk ? "counter" : "cash"
@@ -59,6 +61,7 @@ export function TicketSidebar({
     if (isCheckoutOpen) {
       setPaymentMethod(isKiosk ? "counter" : "cash");
       setAmountReceived("");
+      setIsProcessing(false);
     }
   }, [isCheckoutOpen, isKiosk]);
 
@@ -72,22 +75,47 @@ export function TicketSidebar({
       : (typeof amountReceived === "number" && amountReceived >= total);
 
   const handleCompleteTransaction = async () => {
-    if (!isSufficient) return;
-
-    if (isKiosk && onPayAtCounter) {
-      await onPayAtCounter(cart, subtotal, total, paymentMethod);
-      clearCart();
-      setIsCheckoutOpen(false);
-      if (onClose) onClose();
+    // 1. Device Lockout check (10-minute timeout for 3 rapid orders)
+    const lockout = checkDeviceLockout();
+    if (lockout.isLocked) {
+      toast.error(`Device Lockout: 3 rapid orders detected. Please wait ${lockout.remainingMinutes} minute(s) before placing another order.`);
       return;
     }
 
-    saveTransaction(cart, subtotal, paymentMethod === "counter" ? "cash" : paymentMethod);
-    clearCart();
-    setIsCheckoutOpen(false);
-    setAmountReceived("");
-    setPaymentMethod(isKiosk ? "counter" : "cash"); 
-    if (onClose) onClose();
+    if (isProcessing) return;
+    if (!isSufficient) return;
+
+    // 2. Record order attempt & check if 3rd attempt triggers 10-minute lockout
+    const attemptResult = recordOrderAttempt();
+    if (attemptResult.triggeredLockout) {
+      toast.error("Device Lockout: 3 rapid order attempts detected. Your device is timed out for 10 minutes to prevent order flooding.");
+      return;
+    }
+
+    setIsProcessing(true);
+
+    try {
+      if (isKiosk && onPayAtCounter) {
+        await onPayAtCounter(cart, subtotal, total, paymentMethod);
+        clearCart();
+        setIsCheckoutOpen(false);
+        if (onClose) onClose();
+        return;
+      }
+
+      saveTransaction(cart, subtotal, paymentMethod === "counter" ? "cash" : paymentMethod);
+      clearCart();
+      setIsCheckoutOpen(false);
+      setAmountReceived("");
+      setPaymentMethod(isKiosk ? "counter" : "cash"); 
+      if (onClose) onClose();
+    } catch (err) {
+      console.error("Error completing transaction:", err);
+    } finally {
+      setTimeout(() => {
+        setIsProcessing(false);
+      }, 10000);
+    }
   };
 
   return (
@@ -401,26 +429,36 @@ export function TicketSidebar({
             )}
 
           </div>
-          <DialogFooter className="sm:justify-end gap-2">
-            <Button 
-              className="cursor-pointer text-[#94A3B8] border-[#2D3448] hover:bg-[#282E42] hover:text-[#E2E8F0]"
-              variant="outline" 
-              onClick={() => {
-                setIsCheckoutOpen(false);
-                setAmountReceived("");
-                setPaymentMethod("cash");
-              }}
-            >
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleCompleteTransaction}
-              disabled={!isSufficient}
-              className="cursor-pointer bg-[#00F2FE] text-[#0B0E14] hover:bg-[#38F9FF] font-black px-6 rounded-full shadow-lg"
-            >
-              Confirm Payment
-            </Button>
-          </DialogFooter>
+          {(() => {
+            const lockout = checkDeviceLockout();
+            const isLocked = lockout.isLocked;
+            return (
+              <DialogFooter className="sm:justify-end gap-2">
+                <Button 
+                  className="cursor-pointer text-[#94A3B8] border-[#2D3448] hover:bg-[#282E42] hover:text-[#E2E8F0]"
+                  variant="outline" 
+                  onClick={() => {
+                    setIsCheckoutOpen(false);
+                    setAmountReceived("");
+                    setPaymentMethod("cash");
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handleCompleteTransaction}
+                  disabled={isProcessing || !isSufficient || isLocked}
+                  className={`bg-[#E6007E] text-white hover:bg-[#FF1A96] border border-[#00F2FE]/40 font-black px-6 rounded-full shadow-lg transition-all ${
+                    isProcessing || !isSufficient || isLocked
+                      ? "opacity-50 cursor-not-allowed"
+                      : "cursor-pointer"
+                  }`}
+                >
+                  {isLocked ? `Timed Out (${lockout.remainingMinutes}m)` : isProcessing ? "Processing..." : "Confirm Payment"}
+                </Button>
+              </DialogFooter>
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </div>

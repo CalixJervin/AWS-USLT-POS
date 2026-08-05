@@ -298,23 +298,76 @@ export function useKioskOrders() {
     };
   }, [fetchPendingOrders, loadLocalOrders]);
 
-  const getNextOrderNumber = (): string => {
-    let currentCounter = 1;
+  const getNextOrderNumber = async (): Promise<string> => {
+    let highestNum = 0;
+
+    // 1. Fetch recent orders from Supabase DB to find highest counter across all devices
     try {
-      const stored = localStorage.getItem(KIOSK_ORDER_COUNTER_KEY);
+      const { data, error } = await supabase
+        .from("orders")
+        .select("order_number")
+        .not("order_number", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(100);
+
+      if (!error && data && data.length > 0) {
+        for (const row of data) {
+          if (row.order_number) {
+            const match = row.order_number.match(/#?(\d+)/);
+            if (match && match[1]) {
+              const num = parseInt(match[1], 10);
+              if (!isNaN(num) && num > highestNum && num <= 999) {
+                highestNum = num;
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("Could not query latest order number from DB:", e);
+    }
+
+    // 2. Check local pending orders in case an order was recently created locally
+    try {
+      const stored = localStorage.getItem(KIOSK_ORDERS_STORAGE_KEY);
       if (stored) {
-        const parsed = Number(stored);
-        if (!isNaN(parsed) && parsed > 0) {
-          currentCounter = parsed;
+        const localParsed: PendingKioskOrder[] = JSON.parse(stored);
+        for (const o of localParsed) {
+          if (o.orderNumber) {
+            const match = o.orderNumber.match(/#?(\d+)/);
+            if (match && match[1]) {
+              const num = parseInt(match[1], 10);
+              if (!isNaN(num) && num > highestNum && num <= 999) {
+                highestNum = num;
+              }
+            }
+          }
         }
       }
     } catch (e) {}
 
-    const orderNum = `#${String(currentCounter).padStart(3, "0")}`;
-    const nextVal = currentCounter >= 999 ? 1 : currentCounter + 1;
-    localStorage.setItem(KIOSK_ORDER_COUNTER_KEY, String(nextVal));
+    // 3. Fallback check to local storage counter
+    try {
+      const storedCounter = localStorage.getItem(KIOSK_ORDER_COUNTER_KEY);
+      if (storedCounter) {
+        const parsed = Number(storedCounter);
+        if (!isNaN(parsed) && parsed > highestNum && parsed <= 999) {
+          highestNum = parsed - 1;
+        }
+      }
+    } catch (e) {}
 
-    return orderNum;
+    let nextNum = highestNum + 1;
+    if (nextNum > 999) nextNum = 1;
+
+    const orderNumStr = `#${String(nextNum).padStart(3, "0")}`;
+
+    // Cache the next number locally
+    try {
+      localStorage.setItem(KIOSK_ORDER_COUNTER_KEY, String(nextNum + 1 > 999 ? 1 : nextNum + 1));
+    } catch (e) {}
+
+    return orderNumStr;
   };
 
   const createPendingOrder = async (
@@ -328,7 +381,7 @@ export function useKioskOrders() {
       customerPhone?: string;
     }
   ): Promise<PendingKioskOrder> => {
-    const orderNumber = getNextOrderNumber();
+    const orderNumber = await getNextOrderNumber();
     const newOrderId = `kiosk-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
     const hasPreOrder = cart.some(i => i.isPreOrder);
 
@@ -614,18 +667,33 @@ export function useKioskOrders() {
   };
 
   const cancelPendingOrder = async (orderId: string) => {
+    const orderToCancel = pendingOrders.find(o => o.id === orderId || o.orderNumber === orderId);
+
     setPendingOrders((prev) => {
-      const updated = prev.filter(o => o.id !== orderId);
+      const updated = prev.filter(o => o.id !== orderId && o.orderNumber !== (orderToCancel?.orderNumber || orderId));
       localStorage.setItem(KIOSK_ORDERS_STORAGE_KEY, JSON.stringify(updated));
       return updated;
     });
 
-    if (activeKioskOrder?.id === orderId) {
+    if (activeKioskOrder?.id === orderId || activeKioskOrder?.orderNumber === (orderToCancel?.orderNumber || orderId)) {
       clearActiveKioskOrder();
     }
 
-    if (!orderId.startsWith("kiosk-")) {
-      await supabase.from("orders").update({ status: "cancelled" }).eq("id", orderId);
+    try {
+      const isValidUuid = (val?: string) => Boolean(val && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val));
+
+      if (isValidUuid(orderId)) {
+        await supabase.from("orders").delete().eq("id", orderId);
+      } else if (orderToCancel?.id && isValidUuid(orderToCancel.id)) {
+        await supabase.from("orders").delete().eq("id", orderToCancel.id);
+      } else if (orderToCancel?.orderNumber || orderId) {
+        const numToMatch = orderToCancel?.orderNumber || orderId;
+        const numWithHash = numToMatch.startsWith("#") ? numToMatch : `#${numToMatch}`;
+        const numClean = numToMatch.replace(/^#/, "");
+        await supabase.from("orders").delete().or(`order_number.eq.${numWithHash},order_number.eq.${numClean}`);
+      }
+    } catch (e) {
+      console.warn("Could not delete pending order from DB:", e);
     }
 
     try {
@@ -634,7 +702,10 @@ export function useKioskOrders() {
       bc.close();
     } catch (e) {}
 
-    toast.info("Pending order cancelled");
+    window.dispatchEvent(new Event("storage"));
+    window.dispatchEvent(new Event("timpla_kiosk_orders_updated"));
+
+    toast.info("Pending order cancelled and deleted");
   };
 
   const clearAllPendingOrders = async () => {
@@ -643,8 +714,15 @@ export function useKioskOrders() {
     localStorage.removeItem(KIOSK_ORDERS_STORAGE_KEY);
 
     try {
-      await supabase.from("orders").update({ status: "cancelled" }).eq("status", "pending_counter");
-    } catch (e) {}
+      // Delete all pending food kiosk orders from Supabase DB (exclude pre-orders)
+      await supabase
+        .from("orders")
+        .delete()
+        .eq("status", "pending_counter")
+        .neq("fulfillment_status", "pre_ordered");
+    } catch (e) {
+      console.warn("Error deleting all pending orders from DB:", e);
+    }
 
     try {
       const bc = new BroadcastChannel("timpla_kiosk_channel");
@@ -652,7 +730,10 @@ export function useKioskOrders() {
       bc.close();
     } catch (e) {}
 
-    toast.success("All pending kiosk orders cleared");
+    window.dispatchEvent(new Event("storage"));
+    window.dispatchEvent(new Event("timpla_kiosk_orders_updated"));
+
+    toast.success("All pending kiosk orders cleared and deleted");
   };
 
   return {

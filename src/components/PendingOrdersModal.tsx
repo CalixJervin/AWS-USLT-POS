@@ -190,11 +190,6 @@ export function PendingOrdersModal({
                           <div className="text-2xl font-black text-[#00F2FE] tracking-tight drop-shadow-[0_0_10px_rgba(0,242,254,0.3)]">
                             {order.orderNumber}
                           </div>
-                          {order.paymentMethod === "gcash" && (
-                            <span className="bg-[#E6007E]/20 text-[#E6007E] border border-[#E6007E]/40 text-[10px] font-black px-2 py-0.5 rounded-full flex items-center gap-1">
-                              <QrCode className="h-3 w-3" /> GCash
-                            </span>
-                          )}
                           {(order.fulfillmentStatus === "pre_ordered" || order.cart.some(i => i.isPreOrder)) && (
                             <span className="bg-[#00F2FE]/20 text-[#00F2FE] border border-[#00F2FE]/50 text-[10px] font-black px-2 py-0.5 rounded-full">
                               PRE-ORDER
@@ -220,6 +215,9 @@ export function PendingOrdersModal({
                         <span className="text-xs text-[#94A3B8] font-medium block">Total Due</span>
                         <span className="text-lg font-black text-[#E6007E]">
                           ₱{order.total.toFixed(2)}
+                        </span>
+                        <span className="text-[10px] font-bold text-[#94A3B8] uppercase block mt-0.5">
+                          Method: <span className="text-[#00F2FE] font-black">{order.paymentMethod === "gcash" ? "GCash" : (order.paymentMethod as string) === "pay_later" ? "Pay Later" : "Cash"}</span>
                         </span>
                       </div>
                     </div>

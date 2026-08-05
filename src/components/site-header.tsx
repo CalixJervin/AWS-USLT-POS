@@ -1,5 +1,6 @@
 import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
+import { ConnectionStatusBadge } from "@/context/ConnectionContext"
 
 interface SiteHeaderProps {
   children?: React.ReactNode
@@ -21,8 +22,13 @@ export function SiteHeader({ children, isKiosk = false }: SiteHeaderProps) {
         )}
         
         {/* We use justify-between so the Ticket sits on the left, and Search sits on the right */}
-        <div className="flex flex-1 items-center justify-between">
-          {children}
+        <div className="flex flex-1 items-center justify-between gap-3">
+          <div className="flex-1 flex items-center min-w-0">
+            {children}
+          </div>
+          <div className="flex items-center shrink-0">
+            <ConnectionStatusBadge />
+          </div>
         </div>
       </div>
     </header>

@@ -56,14 +56,12 @@ export function useMyPreOrders() {
       const localList: MyPreOrder[] = JSON.parse(saved);
       if (localList.length === 0) return;
 
-      const orderNums = localList.map(o => o.orderNumber).filter(Boolean);
       const dbIds = localList.map(o => o.id).filter(id => !id.startsWith("preorder-"));
+      if (dbIds.length === 0) return;
 
-      if (orderNums.length === 0 && dbIds.length === 0) return;
-
-      const { data: dbOrders, error } = await supabase
-        .from("orders")
-        .select("id, order_number");
+      const { data: dbOrders, error } = await supabase.rpc("verify_my_preorders", {
+        p_order_ids: dbIds
+      });
 
       if (error) {
         // Do not purge local preorders if DB query encounters an error
@@ -71,9 +69,9 @@ export function useMyPreOrders() {
       }
 
       if (dbOrders) {
-        const validDbIds = new Set(dbOrders.map(d => d.id));
+        const validDbIds = new Set((dbOrders as Array<{ id: string; order_number?: string }>).map(d => d.id));
         const validDbNums = new Set<string>();
-        dbOrders.forEach(d => {
+        (dbOrders as Array<{ id: string; order_number?: string }>).forEach(d => {
           if (d.order_number) {
             validDbNums.add(d.order_number);
             validDbNums.add(d.order_number.replace(/^#/, ''));

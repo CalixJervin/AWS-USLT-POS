@@ -1,4 +1,4 @@
-# 🏗️ Takopi / AWS POS System Architecture & Folder Directory Breakdown
+# 🏗️AWS POS System Architecture & Folder Directory Breakdown
 
 This document provides a comprehensive overview of the **Takopi / AWS POS** project architecture, its core design patterns, folder directory structure, component responsibilities, and database schema mappings.
 

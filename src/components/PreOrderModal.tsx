@@ -347,7 +347,7 @@ export function PreOrderModal({
                     type="text"
                     placeholder="Full Name (e.g., Juan Dela Cruz)"
                     value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
+                    onChange={(e) => setCustomerName(e.target.value.replace(/[^a-zA-Z\s.-]/g, ""))}
                     className="h-10 text-xs bg-[#1E2333] border-[#2D3448] text-[#E2E8F0] placeholder:text-[#64748B] focus-visible:ring-[#00F2FE]"
                   />
                   <div className="grid grid-cols-2 gap-2">
@@ -355,9 +355,10 @@ export function PreOrderModal({
                       type="tel"
                       inputMode="numeric"
                       pattern="[0-9]*"
+                      maxLength={11}
                       placeholder="Mobile # (0917...)"
                       value={customerPhone}
-                      onChange={(e) => setCustomerPhone(e.target.value.replace(/\D/g, ""))}
+                      onChange={(e) => setCustomerPhone(e.target.value.replace(/\D/g, "").slice(0, 11))}
                       className="h-10 text-xs bg-[#1E2333] border-[#2D3448] text-[#E2E8F0] placeholder:text-[#64748B] focus-visible:ring-[#00F2FE]"
                     />
                     <Input

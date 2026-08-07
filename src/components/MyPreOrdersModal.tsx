@@ -177,13 +177,26 @@ export function useMyPreOrders() {
         localStorage.setItem("timpla_kiosk_pending_orders", JSON.stringify(updatedKiosk));
       }
 
-      // 3. Remove from Supabase orders table by orderNumber and by ID
-      if (orderNumber) {
-        await supabase.from("orders").delete().eq("order_number", orderNumber);
-      }
-      if (orderId && !orderId.startsWith("preorder-") && !orderId.startsWith("kiosk-")) {
-        await supabase.from("orders").delete().eq("id", orderId);
-      }
+      // 3. Remove from Supabase orders table via secure RPC function
+      const isValidUuid = (val?: string) => Boolean(val && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val));
+      const targetUuid = isValidUuid(orderId) ? orderId : null;
+
+      try {
+        const { data: rpcRes, error: rpcErr } = await supabase.rpc("cancel_kiosk_order", {
+          p_order_id: targetUuid,
+          p_order_number: orderNumber
+        });
+        if (rpcErr || !rpcRes) {
+          if (orderNumber) {
+            const numWithHash = orderNumber.startsWith("#") ? orderNumber : `#${orderNumber}`;
+            const numClean = orderNumber.replace(/^#/, "");
+            await supabase.from("orders").delete().or(`order_number.eq.${numWithHash},order_number.eq.${numClean}`);
+          }
+          if (targetUuid) {
+            await supabase.from("orders").delete().eq("id", targetUuid);
+          }
+        }
+      } catch (e) {}
 
       // Broadcast changes so Data Table and all open tabs immediately update
       window.dispatchEvent(new Event("timpla_my_preorders_updated"));

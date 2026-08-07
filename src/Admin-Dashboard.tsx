@@ -4,6 +4,7 @@ import { useTransactions } from "./hooks/useTransactions"
 import { useInventory } from "./context/InventoryContext"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useAuth } from "@/hooks/use-auth"
+import { supabase } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -28,7 +29,7 @@ export default function Page() {
   const { user } = useAuth()
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false)
 
-  const handleResetKioskCounter = () => {
+  const handleResetKioskCounter = async () => {
     try {
       localStorage.removeItem("timpla_kiosk_order_counter")
 
@@ -39,6 +40,11 @@ export default function Page() {
       } catch (e) {
         console.warn("BroadcastChannel not supported", e)
       }
+
+      // Persist counter reset to Supabase app_settings so all physical devices reset counter
+      try {
+        await supabase.from("app_settings").upsert({ key: "kiosk_order_counter", value: { counter: 1, resetAt: new Date().toISOString() } }, { onConflict: "key" })
+      } catch (e) {}
 
       window.dispatchEvent(new Event("storage"))
       window.dispatchEvent(new Event("timpla_kiosk_counter_reset"))

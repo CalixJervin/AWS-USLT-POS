@@ -217,7 +217,7 @@ export function PendingOrdersModal({
                           ₱{order.total.toFixed(2)}
                         </span>
                         <span className="text-[10px] font-bold text-[#94A3B8] uppercase block mt-0.5">
-                          Method: <span className="text-[#00F2FE] font-black">{order.paymentMethod === "gcash" ? "GCash" : (order.paymentMethod as string) === "pay_later" ? "Pay Later" : "Cash"}</span>
+                          Method: <span className="text-[#00F2FE] font-black">{order.paymentMethod === "gcash" ? "GCash" : order.paymentMethod === "counter" ? "Cash" : (order.paymentMethod as string) === "pay_later" ? "Pay Later" : "Cash"}</span>
                         </span>
                       </div>
                     </div>

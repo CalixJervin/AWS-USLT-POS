@@ -134,7 +134,20 @@ export function useGCashSettings() {
       };
     } catch (e) {}
 
-    // Periodic sync from Supabase to keep all devices updated
+    // Realtime channel for instant cross-device GCash updates
+    const channelId = `gcash_sync_${Math.random().toString(36).substring(2, 9)}`;
+    const realtimeChannel = supabase
+      .channel(channelId)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "app_settings" },
+        () => {
+          fetchSupabaseGCashSettings();
+        }
+      )
+      .subscribe();
+
+    // Periodic fallback sync from Supabase to keep all devices updated
     const interval = setInterval(() => {
       fetchSupabaseGCashSettings();
     }, 15000);
@@ -142,6 +155,7 @@ export function useGCashSettings() {
     return () => {
       window.removeEventListener("storage", handleStorageChange);
       if (bc) bc.close();
+      if (realtimeChannel) supabase.removeChannel(realtimeChannel);
       clearInterval(interval);
     };
   }, [fetchSupabaseGCashSettings]);

@@ -370,12 +370,26 @@ export function useTransactions() {
       bc2.onmessage = () => fetchTransactions(false);
     } catch (e) {}
 
+    // Supabase Realtime subscription so Data Table auto-refreshes across devices on insert/update/delete
+    const channelId = `tx_sync_${Math.random().toString(36).substring(2, 9)}`;
+    const realtimeChannel = supabase
+      .channel(channelId)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "orders" },
+        () => {
+          fetchTransactions(false);
+        }
+      )
+      .subscribe();
+
     return () => {
       window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("timpla_my_preorders_updated", handleStorageChange);
       window.removeEventListener("timpla_kiosk_orders_updated", handleStorageChange);
       if (bc1) bc1.close();
       if (bc2) bc2.close();
+      if (realtimeChannel) supabase.removeChannel(realtimeChannel);
     };
   }, [fetchTransactions]);
 

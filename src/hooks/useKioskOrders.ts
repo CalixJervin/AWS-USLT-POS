@@ -197,7 +197,7 @@ export function useKioskOrders() {
             cart: items,
             subtotal: Number(o.total),
             total: Number(o.total),
-            paymentMethod: "counter",
+            paymentMethod: (o.payment_method === "gcash" ? "gcash" : o.payment_method === "cash" ? "cash" : "counter") as any,
             createdAt: o.created_at,
             status: "pending_counter",
             customerName: o.customer_name || undefined,
@@ -274,13 +274,30 @@ export function useKioskOrders() {
     } catch (e) {}
 
     // Supabase Realtime channel to listen for order updates/finalization across all devices
+    const channelId1 = `kiosk_active_sync_${Math.random().toString(36).substring(2, 9)}`;
     const realtimeChannel = supabase
-      .channel("public:orders:kiosk_active_sync")
+      .channel(channelId1)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "orders" },
         () => {
           fetchPendingOrders();
+        }
+      )
+      .subscribe();
+
+    // Supabase Realtime channel to listen for counter reset across all physical kiosk devices
+    const channelId2 = `kiosk_counter_sync_${Math.random().toString(36).substring(2, 9)}`;
+    const settingsRealtimeChannel = supabase
+      .channel(channelId2)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "app_settings" },
+        (payload: any) => {
+          if (payload.new?.key === "kiosk_order_counter") {
+            localStorage.removeItem(KIOSK_ORDER_COUNTER_KEY);
+            fetchPendingOrders();
+          }
         }
       )
       .subscribe();
@@ -294,6 +311,7 @@ export function useKioskOrders() {
       window.removeEventListener("storage", handleStorageChange);
       if (bc) bc.close();
       if (realtimeChannel) supabase.removeChannel(realtimeChannel);
+      if (settingsRealtimeChannel) supabase.removeChannel(settingsRealtimeChannel);
       clearInterval(interval);
     };
   }, [fetchPendingOrders, loadLocalOrders]);
@@ -422,6 +440,7 @@ export function useKioskOrders() {
         total,
         status: "pending_counter",
         order_number: orderNumber,
+        payment_method: paymentMethod,
         customer_name: customerDetails?.customerName || null,
         customer_email: customerDetails?.customerEmail || null,
         customer_phone: customerDetails?.customerPhone || null,
@@ -681,17 +700,24 @@ export function useKioskOrders() {
 
     try {
       const isValidUuid = (val?: string) => Boolean(val && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val));
+      const targetUuid = isValidUuid(orderId) ? orderId : (orderToCancel?.id && isValidUuid(orderToCancel.id) ? orderToCancel.id : null);
+      const targetNum = orderToCancel?.orderNumber || orderId;
 
-      if (isValidUuid(orderId)) {
-        await supabase.from("orders").delete().eq("id", orderId);
-      } else if (orderToCancel?.id && isValidUuid(orderToCancel.id)) {
-        await supabase.from("orders").delete().eq("id", orderToCancel.id);
-      } else if (orderToCancel?.orderNumber || orderId) {
-        const numToMatch = orderToCancel?.orderNumber || orderId;
-        const numWithHash = numToMatch.startsWith("#") ? numToMatch : `#${numToMatch}`;
-        const numClean = numToMatch.replace(/^#/, "");
-        await supabase.from("orders").delete().or(`order_number.eq.${numWithHash},order_number.eq.${numClean}`);
-      }
+      try {
+        const { data: rpcRes, error: rpcErr } = await supabase.rpc("cancel_kiosk_order", {
+          p_order_id: targetUuid,
+          p_order_number: targetNum
+        });
+        if (rpcErr || !rpcRes) {
+          if (targetUuid) {
+            await supabase.from("orders").delete().eq("id", targetUuid);
+          } else if (targetNum) {
+            const numWithHash = targetNum.startsWith("#") ? targetNum : `#${targetNum}`;
+            const numClean = targetNum.replace(/^#/, "");
+            await supabase.from("orders").delete().or(`order_number.eq.${numWithHash},order_number.eq.${numClean}`);
+          }
+        }
+      } catch (e) {}
     } catch (e) {
       console.warn("Could not delete pending order from DB:", e);
     }

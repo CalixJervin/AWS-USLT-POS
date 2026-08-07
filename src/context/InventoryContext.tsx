@@ -124,6 +124,16 @@ export const InventoryProvider = ({ children }: { children: ReactNode }) => {
         { event: '*', schema: 'public', table: 'categories' },
         () => fetchAll()
       )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'recipes' },
+        () => fetchAll()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'recipe_ingredients' },
+        () => fetchAll()
+      )
       .subscribe();
 
     return () => {

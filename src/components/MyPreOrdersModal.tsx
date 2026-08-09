@@ -394,7 +394,7 @@ export function MyPreOrdersModalButton({ buttonClassName }: MyPreOrdersModalButt
                               placeholder="13-digit Reference #"
                               value={currentRefInput}
                               onChange={(e) => setRefInputMap(prev => ({ ...prev, [ord.id]: e.target.value }))}
-                              className="h-9 text-xs bg-[#131824] border-[#2D3448] text-[#E2E8F0] placeholder:text-[#64748B]"
+                              className="h-9 text-base bg-[#131824] border-[#2D3448] text-[#E2E8F0] placeholder:text-[#64748B]"
                             />
                           </div>
 

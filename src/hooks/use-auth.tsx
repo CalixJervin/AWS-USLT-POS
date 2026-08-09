@@ -31,6 +31,7 @@ interface AuthContextType {
   deleteStaff: (staffId: string) => Promise<void>
   switchUser: () => void;
   verifyMasterPIN: (pin: string) => boolean
+  getLockoutRemaining: (staffId: string) => number
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -293,6 +294,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const verifyMasterPIN = useCallback((pin: string) => pin === MASTER_RECOVERY_PIN, [])
 
+  const getLockoutRemaining = useCallback((staffId: string): number => {
+    const lockoutKey = `lockout_${staffId}`
+    const lockoutUntil = storage.getItem(lockoutKey, null)
+    if (!lockoutUntil) return 0
+    const remaining = Math.ceil((parseInt(lockoutUntil) - Date.now()) / 1000)
+    return remaining > 0 ? remaining : 0
+  }, [])
+
   const contextValue = useMemo(() => ({ 
     user, 
     staffList, 
@@ -307,8 +316,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     updateStaff,
     deleteStaff,
     switchUser,
-    verifyMasterPIN
-  }), [user, staffList, isLocked, isInitialSetup, isLoading, login, logout, lock, unlock, addStaff, updateStaff, deleteStaff, switchUser, verifyMasterPIN])
+    verifyMasterPIN,
+    getLockoutRemaining
+  }), [user, staffList, isLocked, isInitialSetup, isLoading, login, logout, lock, unlock, addStaff, updateStaff, deleteStaff, switchUser, verifyMasterPIN, getLockoutRemaining])
 
   return (
     <AuthContext.Provider value={contextValue}>

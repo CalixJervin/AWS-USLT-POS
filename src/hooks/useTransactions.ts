@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useContext } from "react";
 import type { CartItem } from "./useCart";
 import { supabase } from "@/lib/supabase";
-import { useAuth } from "./use-auth";
-import { useInventory } from "@/context/InventoryContext";
+import { AuthContext } from "./use-auth";
+import { InventoryContext } from "@/context/InventoryContext";
 import { toast } from "sonner";
 
 export interface Transaction {
@@ -53,8 +53,10 @@ export function useTransactions() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [transactionItems, setTransactionItems] = useState<TransactionItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const { user } = useAuth();
-  const { refreshData } = useInventory();
+  const authContext = useContext(AuthContext);
+  const user = authContext?.user;
+  const invContext = useContext(InventoryContext);
+  const refreshData = invContext?.refreshData;
 
   const removeLocalOrders = (targetIds: string[], targetOrderNumbers: string[] = []) => {
     try {
@@ -341,8 +343,18 @@ export function useTransactions() {
         }
       });
 
-      setTransactions(deduplicated);
-      setTransactionItems(items);
+      setTransactions((prev) => {
+        if (JSON.stringify(prev) === JSON.stringify(deduplicated)) {
+          return prev;
+        }
+        return deduplicated;
+      });
+      setTransactionItems((prev) => {
+        if (JSON.stringify(prev) === JSON.stringify(items)) {
+          return prev;
+        }
+        return items;
+      });
     } catch (error) {
       console.error("Error fetching transactions:", error);
     } finally {
@@ -370,7 +382,7 @@ export function useTransactions() {
       bc2.onmessage = () => fetchTransactions(false);
     } catch (e) {}
 
-    // Supabase Realtime subscription so Data Table auto-refreshes across devices on insert/update/delete
+    // Supabase Realtime WebSocket subscription so Data Table auto-refreshes on DB changes
     const channelId = `tx_sync_${Math.random().toString(36).substring(2, 9)}`;
     const realtimeChannel = supabase
       .channel(channelId)
@@ -389,9 +401,9 @@ export function useTransactions() {
       window.removeEventListener("timpla_kiosk_orders_updated", handleStorageChange);
       if (bc1) bc1.close();
       if (bc2) bc2.close();
-      if (realtimeChannel) supabase.removeChannel(realtimeChannel);
+      supabase.removeChannel(realtimeChannel);
     };
-  }, [fetchTransactions]);
+  }, []);
 
   const saveTransaction = async (cart: CartItem[], total: number, _paymentMethod: "cash" | "gcash") => {
     try {
@@ -415,7 +427,7 @@ export function useTransactions() {
       if (rpcError) throw rpcError;
 
       await fetchTransactions();
-      await refreshData();
+      if (refreshData) await refreshData();
       toast.success("Transaction saved successfully");
     } catch (error: any) {
       console.error("Transaction error:", error);
@@ -448,7 +460,7 @@ export function useTransactions() {
       } catch (e) {}
 
       await fetchTransactions();
-      await refreshData();
+      if (refreshData) await refreshData();
       toast.success("Transaction deleted");
     } catch (error: any) {
       console.error("Error deleting transaction:", error);
@@ -483,7 +495,7 @@ export function useTransactions() {
       } catch (e) {}
 
       await fetchTransactions();
-      await refreshData();
+      if (refreshData) await refreshData();
       toast.success(`${ids.length} transaction(s) deleted`);
     } catch (error: any) {
       console.error("Error deleting transactions:", error);
@@ -517,7 +529,7 @@ export function useTransactions() {
 
       setTransactions([]);
       setTransactionItems([]);
-      await refreshData();
+      if (refreshData) await refreshData();
       toast.success("All transactions deleted");
     } catch (error: any) {
       console.error("Error clearing transactions:", error);

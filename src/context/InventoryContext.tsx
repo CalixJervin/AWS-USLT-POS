@@ -33,7 +33,7 @@ interface InventoryContextType {
   refreshData: () => Promise<void>;
 }
 
-const InventoryContext = createContext<InventoryContextType | undefined>(undefined);
+export const InventoryContext = createContext<InventoryContextType | undefined>(undefined);
 
 export const InventoryProvider = ({ children }: { children: ReactNode }) => {
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);

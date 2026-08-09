@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import type { Product } from "@/hooks/useCart"
 import { SiteHeader } from "@/components/site-header"
 
-import { useInventory } from "@/hooks/useInventory"
+import { useKiosk } from "@/context/KioskContext"
 import { useKioskOrders, type PendingKioskOrder } from "@/hooks/useKioskOrders"
 import { KioskOrderConfirmationModal } from "@/POS/KioskOrderConfirmationModal"
 import { PreOrderModal } from "@/components/PreOrderModal"
@@ -22,7 +22,7 @@ export default function KioskView() {
     clearCart, subtotal, total 
   } = useCart()
 
-  const { products: inventoryProducts, categories } = useInventory()
+  const { products: inventoryProducts, categories } = useKiosk()
 
   const {
     pendingOrders,

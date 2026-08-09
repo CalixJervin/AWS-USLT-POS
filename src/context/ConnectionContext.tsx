@@ -31,7 +31,7 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
   const [isBackendConnected, setIsBackendConnected] = useState<boolean>(true);
   const [isChecking, setIsChecking] = useState<boolean>(false);
-  const [lastChecked, setLastChecked] = useState<Date | null>(null);
+  const [lastChecked] = useState<Date | null>(null);
 
   // Keep track of whether we've notified of initial status
   const isInitialMount = useRef<boolean>(true);
@@ -45,14 +45,13 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
 
     // 1. Check browser network state first
     if (!navigator.onLine) {
-      setIsOnline(false);
-      setIsBackendConnected(false);
+      setIsOnline((prev) => (prev !== false ? false : prev));
+      setIsBackendConnected((prev) => (prev !== false ? false : prev));
       setIsChecking(false);
-      setLastChecked(new Date());
       return false;
     }
 
-    setIsOnline(true);
+    setIsOnline((prev) => (prev !== true ? true : prev));
 
     // 2. Ping Supabase REST endpoint with abort signal timeout
     try {
@@ -70,22 +69,12 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
       // PostgREST 404 or PGRST116 means backend answered
       const isSuccess = !error || error.code === "PGRST116" || error.code === "PGRST204";
 
-      if (isSuccess) {
-        setIsBackendConnected(true);
-        setLastChecked(new Date());
-        setIsChecking(false);
-        return true;
-      } else {
-        console.warn("[Connection Check] Supabase returned error:", error);
-        setIsBackendConnected(false);
-        setLastChecked(new Date());
-        setIsChecking(false);
-        return false;
-      }
+      setIsBackendConnected((prev) => (prev !== isSuccess ? isSuccess : prev));
+      setIsChecking(false);
+      return isSuccess;
     } catch (err: any) {
       console.warn("[Connection Check] Backend connection check failed:", err?.message || err);
-      setIsBackendConnected(false);
-      setLastChecked(new Date());
+      setIsBackendConnected((prev) => (prev !== false ? false : prev));
       setIsChecking(false);
       return false;
     }
@@ -158,7 +147,7 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
 
-    // Initial check
+    // Initial check on mount
     checkConnection().then((connected) => {
       wasConnectedRef.current = connected;
       if (!connected && isInitialMount.current) {
@@ -167,17 +156,7 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
       isInitialMount.current = false;
     });
 
-    // Periodic ping health check every 20 seconds
-    const interval = setInterval(() => {
-      checkConnection().then((connected) => {
-        if (wasConnectedRef.current !== connected) {
-          wasConnectedRef.current = connected;
-          notifyConnectionChange(connected);
-        }
-      });
-    }, 20000);
-
-    // Also re-check when tab regains focus
+    // Re-check connection when tab regains focus
     const handleFocus = () => {
       checkConnection().then((connected) => {
         if (wasConnectedRef.current !== connected) {
@@ -193,7 +172,6 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
       window.removeEventListener("focus", handleFocus);
-      clearInterval(interval);
     };
   }, [checkConnection, notifyConnectionChange]);
 

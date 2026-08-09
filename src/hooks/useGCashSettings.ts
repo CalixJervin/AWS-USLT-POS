@@ -113,6 +113,7 @@ export function useGCashSettings() {
   }, []);
 
   useEffect(() => {
+    // Initial fetch strictly once on mount
     fetchSupabaseGCashSettings();
 
     const handleStorageChange = (e: StorageEvent) => {
@@ -136,29 +137,25 @@ export function useGCashSettings() {
 
     // Realtime channel for instant cross-device GCash updates
     const channelId = `gcash_sync_${Math.random().toString(36).substring(2, 9)}`;
-    const realtimeChannel = supabase
+    const channel = supabase
       .channel(channelId)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "app_settings" },
-        () => {
-          fetchSupabaseGCashSettings();
+        (payload: any) => {
+          if (payload.new?.key === "gcash_settings" || payload.old?.key === "gcash_settings") {
+            fetchSupabaseGCashSettings();
+          }
         }
       )
       .subscribe();
 
-    // Periodic fallback sync from Supabase to keep all devices updated
-    const interval = setInterval(() => {
-      fetchSupabaseGCashSettings();
-    }, 15000);
-
     return () => {
       window.removeEventListener("storage", handleStorageChange);
       if (bc) bc.close();
-      if (realtimeChannel) supabase.removeChannel(realtimeChannel);
-      clearInterval(interval);
+      supabase.removeChannel(channel);
     };
-  }, [fetchSupabaseGCashSettings]);
+  }, []);
 
   return {
     gcashNumber: settings.gcashNumber,

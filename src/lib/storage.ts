@@ -11,14 +11,16 @@ export const calculateIngredientStatus = (currentStock: number, threshold: numbe
 export const storage = {
   // Staff
   getStaff: async () => {
-    const { data, error } = await supabase.from('staff').select('*');
+    const { data, error } = await supabase
+      .from('staff')
+      .select('id, name, role, avatar_color, can_manage_menu, can_manage_inventory');
     if (error) throw error;
-    return data.map(s => ({
+    return (data || []).map(s => ({
       id: s.id,
       name: s.name,
       role: s.role,
       avatarColor: s.avatar_color,
-      avatarInitials: s.name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2),
+      avatarInitials: (s.name || "").split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2),
       canManageMenu: s.can_manage_menu,
       canManageInventory: s.can_manage_inventory
     }));
@@ -244,6 +246,29 @@ export const storage = {
   saveStaff: () => {},
   clearAll: () => {
     sessionStorage.clear();
+  },
+
+  // App Settings static data helpers
+  getAppSettings: async (key?: string) => {
+    let query = supabase.from('app_settings').select('*');
+    if (key) {
+      query = query.eq('key', key);
+    }
+    const { data, error } = await query;
+    if (error) throw error;
+    return data;
+  },
+
+  getGCashSettings: async () => {
+    const { data, error } = await supabase
+      .from('app_settings')
+      .select('*')
+      .eq('key', 'gcash_settings')
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data?.value) return null;
+    return typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
   }
 };
 

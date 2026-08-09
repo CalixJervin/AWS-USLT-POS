@@ -67,40 +67,15 @@ export function useKioskOrders() {
         }
       }
 
-      // 2. Query Supabase DB for this specific order's status
-      let query = supabase.from("orders").select("id, status, order_number");
+      // 2. If order has a DB UUID and wasn't found in pending DB orders, it was finalized or cancelled
       if (isValidUuid(activeObj.id)) {
-        query = query.eq("id", activeObj.id);
-      } else if (activeObj.orderNumber) {
-        const numWithHash = activeObj.orderNumber.startsWith("#") ? activeObj.orderNumber : `#${activeObj.orderNumber}`;
-        const numClean = activeObj.orderNumber.replace(/^#/, "");
-        query = query.or(`order_number.eq.${numWithHash},order_number.eq.${numClean}`);
-      } else {
         return false;
       }
-
-      const { data: dbCheck, error } = await query;
-      if (error) return true; // Keep local on network/query error to prevent false clearing
-
-      if (dbCheck && dbCheck.length > 0) {
-        const dbStatus = dbCheck[0].status;
-        if (dbStatus === "pending_counter") {
-          return true;
-        } else {
-          // Order status is completed, cancelled, or paid -> finalized!
-          return false;
-        }
-      } else {
-        // If order has a DB UUID and wasn't found in DB, it was deleted
-        if (isValidUuid(activeObj.id)) {
-          return false;
-        }
-        // If temporary local kiosk order created very recently (< 60s), keep active until synced
-        if (activeObj.createdAt && (Date.now() - new Date(activeObj.createdAt).getTime() < 60000)) {
-          return true;
-        }
-        return false;
+      // If temporary local kiosk order created very recently (< 60s), keep active until synced
+      if (activeObj.createdAt && (Date.now() - new Date(activeObj.createdAt).getTime() < 60000)) {
+        return true;
       }
+      return false;
     } catch (e) {
       return true;
     }
@@ -207,9 +182,12 @@ export function useKioskOrders() {
           };
         });
 
-        // Update pendingOrders state with current pending DB orders
-        setPendingOrders(() => {
+        // Update pendingOrders state with current pending DB orders (prevent duplicate state triggers)
+        setPendingOrders((prev) => {
           localStorage.setItem(KIOSK_ORDERS_STORAGE_KEY, JSON.stringify(mapped));
+          if (JSON.stringify(prev) === JSON.stringify(mapped)) {
+            return prev;
+          }
           return mapped;
         });
 
@@ -249,6 +227,7 @@ export function useKioskOrders() {
   }, [loadLocalOrders, verifyActiveKioskOrder]);
 
   useEffect(() => {
+    // 1. Initial GET request to load current pending orders strictly once on mount
     fetchPendingOrders();
 
     const handleStorageChange = (e: StorageEvent) => {
@@ -273,9 +252,9 @@ export function useKioskOrders() {
       };
     } catch (e) {}
 
-    // Supabase Realtime channel to listen for order updates/finalization across all devices
+    // 2. Real-Time WebSocket connection for orders as defined in architecture
     const channelId1 = `kiosk_active_sync_${Math.random().toString(36).substring(2, 9)}`;
-    const realtimeChannel = supabase
+    const ordersChannel = supabase
       .channel(channelId1)
       .on(
         "postgres_changes",
@@ -286,9 +265,9 @@ export function useKioskOrders() {
       )
       .subscribe();
 
-    // Supabase Realtime channel to listen for counter reset across all physical kiosk devices
+    // 3. Real-Time WebSocket connection for kiosk counter reset
     const channelId2 = `kiosk_counter_sync_${Math.random().toString(36).substring(2, 9)}`;
-    const settingsRealtimeChannel = supabase
+    const settingsChannel = supabase
       .channel(channelId2)
       .on(
         "postgres_changes",
@@ -302,19 +281,14 @@ export function useKioskOrders() {
       )
       .subscribe();
 
-    // Fallback interval polling every 4 seconds
-    const interval = setInterval(() => {
-      fetchPendingOrders();
-    }, 4000);
-
+    // 4. Cleanup function to unsubscribe when component unmounts
     return () => {
       window.removeEventListener("storage", handleStorageChange);
       if (bc) bc.close();
-      if (realtimeChannel) supabase.removeChannel(realtimeChannel);
-      if (settingsRealtimeChannel) supabase.removeChannel(settingsRealtimeChannel);
-      clearInterval(interval);
+      supabase.removeChannel(ordersChannel);
+      supabase.removeChannel(settingsChannel);
     };
-  }, [fetchPendingOrders, loadLocalOrders]);
+  }, []);
 
   const getNextOrderNumber = async (): Promise<string> => {
     let highestNum = 0;

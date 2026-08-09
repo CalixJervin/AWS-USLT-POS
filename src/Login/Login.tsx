@@ -19,7 +19,8 @@ export default function LoginPage() {
     login, 
     unlock, 
     addStaff,
-    logout 
+    logout,
+    getLockoutRemaining 
   } = useAuth()
   
   const [view, setView] = useState<"onboarding" | "select" | "pin">("select")
@@ -28,6 +29,7 @@ export default function LoginPage() {
   const [isVerifying, setIsVerifying] = useState(false)
   const [isOnboarding, setIsOnboarding] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  const [lockoutTime, setLockoutTime] = useState(0)
 
   useEffect(() => {
     const checkMobile = () => {
@@ -60,19 +62,40 @@ export default function LoginPage() {
     }
   }, [isInitialSetup, user, isLocked, navigate])
 
+  // Live countdown timer for account lockout
+  useEffect(() => {
+    if (!selectedStaff || view !== "pin") {
+      setLockoutTime(0)
+      return
+    }
+
+    const checkLockout = () => {
+      const remaining = getLockoutRemaining(selectedStaff.id)
+      setLockoutTime(remaining)
+    }
+
+    checkLockout()
+    const timer = setInterval(checkLockout, 1000)
+    return () => clearInterval(timer)
+  }, [selectedStaff, view, getLockoutRemaining])
+
   const handleKeyPress = useCallback((num: string) => {
+    if (lockoutTime > 0 || isVerifying) return
     setPin(prev => {
       if (prev.length < 6) {
         return prev + num
       }
       return prev
     })
-  }, [])
+  }, [lockoutTime, isVerifying])
 
-  const handleDelete = useCallback(() => setPin(prev => prev.slice(0, -1)), [])
+  const handleDelete = useCallback(() => {
+    if (lockoutTime > 0 || isVerifying) return
+    setPin(prev => prev.slice(0, -1))
+  }, [lockoutTime, isVerifying])
 
   const handleLogin = useCallback(async () => {
-    if (!selectedStaff || pin.length < 4) return
+    if (!selectedStaff || pin.length < 4 || lockoutTime > 0) return
     
     setIsVerifying(true)
     try {
@@ -91,18 +114,20 @@ export default function LoginPage() {
       } else {
         toast.error(result.message)
         setPin("")
+        // Refresh remaining lockout status immediately
+        setLockoutTime(getLockoutRemaining(selectedStaff.id))
       }
     } catch (error) {
       toast.error("An unexpected error occurred during login")
     } finally {
       setIsVerifying(false)
     }
-  }, [selectedStaff, pin, isLocked, user, unlock, login, navigate])
+  }, [selectedStaff, pin, lockoutTime, isLocked, user, unlock, login, navigate, getLockoutRemaining])
 
   // Keyboard support for PIN pad
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (view !== "pin" || isVerifying) return
+      if (view !== "pin" || isVerifying || lockoutTime > 0) return
 
       // Handle numbers
       if (e.key >= "0" && e.key <= "9") {
@@ -122,7 +147,7 @@ export default function LoginPage() {
 
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [view, pin, handleKeyPress, handleDelete, handleLogin, isVerifying])
+  }, [view, pin, handleKeyPress, handleDelete, handleLogin, isVerifying, lockoutTime])
 
   // Auto-submit when PIN length is sufficient (assuming 4-6 digits)
   useEffect(() => {
@@ -296,24 +321,38 @@ export default function LoginPage() {
                   </Button>
                   <div className="text-center">
                     <span className="font-black text-xl text-[#E2E8F0]">Hi, {selectedStaff.name} 👋</span>
-                    <p className="text-xs text-[#94A3B8] mt-0.5">Enter your PIN to sign in</p>
+                    <p className="text-xs text-[#94A3B8] mt-0.5">
+                      {lockoutTime > 0 ? "Account temporarily locked" : "Enter your PIN to sign in"}
+                    </p>
                   </div>
                   <div className="w-10" />
                 </div>
 
-                {/* PIN DOTS WITH VIVID PINK GLOW */}
-                <div className="flex gap-4 mb-8">
-                  {[...Array(pin.length || 4)].map((_, i) => (
-                    <div 
-                      key={i} 
-                      className={`h-4 w-4 rounded-full transition-all duration-200 ${
-                        i < pin.length 
-                          ? "bg-[#E6007E] scale-110 shadow-[0_0_12px_#E6007E]" 
-                          : "bg-[#2D3448] border border-[#1E2333]"
-                      }`} 
-                    />
-                  ))}
-                </div>
+                {/* LOCKOUT ALERT BANNER WITH LIVE COUNTDOWN */}
+                {lockoutTime > 0 ? (
+                  <motion.div 
+                    initial={{ scale: 0.9, opacity: 0 }} 
+                    animate={{ scale: 1, opacity: 1 }} 
+                    className="w-full mb-6 p-4 rounded-2xl bg-[#FF3366]/15 border-2 border-[#FF3366]/50 flex items-center justify-center gap-3 text-[#FF3366] text-sm font-bold shadow-[0_0_20px_rgba(255,51,102,0.2)] animate-pulse"
+                  >
+                    <ShieldAlert className="h-5 w-5 shrink-0" />
+                    <span>Too many attempts. Try again in {lockoutTime}s</span>
+                  </motion.div>
+                ) : (
+                  /* PIN DOTS WITH VIVID PINK GLOW */
+                  <div className="flex gap-4 mb-8">
+                    {[...Array(pin.length || 4)].map((_, i) => (
+                      <div 
+                        key={i} 
+                        className={`h-4 w-4 rounded-full transition-all duration-200 ${
+                          i < pin.length 
+                            ? "bg-[#E6007E] scale-110 shadow-[0_0_12px_#E6007E]" 
+                            : "bg-[#2D3448] border border-[#1E2333]"
+                        }`} 
+                      />
+                    ))}
+                  </div>
+                )}
 
                 {/* NUMERIC KEYPAD WITH NEON BLUE BORDER HOVER */}
                 <div className="grid grid-cols-3 gap-3.5 w-full">
@@ -321,8 +360,9 @@ export default function LoginPage() {
                     <Button 
                       key={num} 
                       variant="outline" 
-                      onClick={() => handleKeyPress(num.toString())} 
-                      className="h-14 text-2xl font-black rounded-xl bg-[#1E2333] border-[#2D3448] text-[#E2E8F0] hover:border-[#00F2FE] hover:text-[#00F2FE] hover:bg-[#282E42] hover:shadow-[0_0_15px_rgba(0,242,254,0.3)] transition-all cursor-pointer"
+                      onClick={() => handleKeyPress(num.toString())}
+                      disabled={lockoutTime > 0 || isVerifying}
+                      className="h-14 text-2xl font-black rounded-xl bg-[#1E2333] border-[#2D3448] text-[#E2E8F0] hover:border-[#00F2FE] hover:text-[#00F2FE] hover:bg-[#282E42] hover:shadow-[0_0_15px_rgba(0,242,254,0.3)] transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:border-[#2D3448] disabled:hover:shadow-none"
                     >
                       {num}
                     </Button>
@@ -331,14 +371,16 @@ export default function LoginPage() {
                   <Button 
                     variant="outline" 
                     onClick={() => handleKeyPress("0")} 
-                    className="h-14 text-2xl font-black rounded-xl bg-[#1E2333] border-[#2D3448] text-[#E2E8F0] hover:border-[#00F2FE] hover:text-[#00F2FE] hover:bg-[#282E42] hover:shadow-[0_0_15px_rgba(0,242,254,0.3)] transition-all cursor-pointer"
+                    disabled={lockoutTime > 0 || isVerifying}
+                    className="h-14 text-2xl font-black rounded-xl bg-[#1E2333] border-[#2D3448] text-[#E2E8F0] hover:border-[#00F2FE] hover:text-[#00F2FE] hover:bg-[#282E42] hover:shadow-[0_0_15px_rgba(0,242,254,0.3)] transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:border-[#2D3448] disabled:hover:shadow-none"
                   >
                     0
                   </Button>
                   <Button 
                     variant="ghost" 
                     onClick={handleDelete} 
-                    className="h-14 rounded-xl text-[#FF3366] hover:bg-[#FF3366]/15 cursor-pointer"
+                    disabled={lockoutTime > 0 || isVerifying}
+                    className="h-14 rounded-xl text-[#FF3366] hover:bg-[#FF3366]/15 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
                   >
                     <Delete className="h-6 w-6" />
                   </Button>

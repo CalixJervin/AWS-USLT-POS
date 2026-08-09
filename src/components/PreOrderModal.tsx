@@ -348,7 +348,7 @@ export function PreOrderModal({
                     placeholder="Full Name (e.g., Juan Dela Cruz)"
                     value={customerName}
                     onChange={(e) => setCustomerName(e.target.value.replace(/[^a-zA-Z\s.-]/g, ""))}
-                    className="h-10 text-xs bg-[#1E2333] border-[#2D3448] text-[#E2E8F0] placeholder:text-[#64748B] focus-visible:ring-[#00F2FE]"
+                    className="h-10 text-base bg-[#1E2333] border-[#2D3448] text-[#E2E8F0] placeholder:text-[#64748B] focus-visible:ring-[#00F2FE]"
                   />
                   <div className="grid grid-cols-2 gap-2">
                     <Input
@@ -359,14 +359,14 @@ export function PreOrderModal({
                       placeholder="Mobile # (0917...)"
                       value={customerPhone}
                       onChange={(e) => setCustomerPhone(e.target.value.replace(/\D/g, "").slice(0, 11))}
-                      className="h-10 text-xs bg-[#1E2333] border-[#2D3448] text-[#E2E8F0] placeholder:text-[#64748B] focus-visible:ring-[#00F2FE]"
+                      className="h-10 text-base bg-[#1E2333] border-[#2D3448] text-[#E2E8F0] placeholder:text-[#64748B] focus-visible:ring-[#00F2FE]"
                     />
                     <Input
                       type="email"
                       placeholder="Email (e.g., name@domain.com)"
                       value={customerEmail}
                       onChange={(e) => setCustomerEmail(e.target.value)}
-                      className={`h-10 text-xs bg-[#1E2333] text-[#E2E8F0] placeholder:text-[#64748B] focus-visible:ring-[#00F2FE] ${!isEmailValid ? "border-[#FF3366] text-[#FF3366]" : "border-[#2D3448]"}`}
+                      className={`h-10 text-base bg-[#1E2333] text-[#E2E8F0] placeholder:text-[#64748B] focus-visible:ring-[#00F2FE] ${!isEmailValid ? "border-[#FF3366] text-[#FF3366]" : "border-[#2D3448]"}`}
                     />
                   </div>
                 </div>
@@ -484,7 +484,7 @@ export function PreOrderModal({
                       {/* GCASH REF NUMBER INPUT */}
                       <div className="flex flex-col gap-1.5 w-full text-left mt-1">
                         <label className="text-[11px] font-bold text-[#E2E8F0] flex items-center justify-between">
-                          <span>GCash Reference Number=</span>
+                          <span>GCash Reference Number</span>
                           <span className="text-[#FF3366] text-[10px] font-bold uppercase">(Required for GCash)</span>
                         </label>
                         <Input
@@ -492,7 +492,7 @@ export function PreOrderModal({
                           placeholder="Enter 13-digit Reference #"
                           value={gcashRefNumber}
                           onChange={(e) => setGcashRefNumber(e.target.value)}
-                          className="h-10 text-xs bg-[#131824] border-[#2D3448] text-[#E2E8F0] placeholder:text-[#64748B] focus-visible:ring-[#00F2FE]"
+                          className="h-10 text-base bg-[#131824] border-[#2D3448] text-[#E2E8F0] placeholder:text-[#64748B] focus-visible:ring-[#00F2FE]"
                         />
                       </div>
                     </div>

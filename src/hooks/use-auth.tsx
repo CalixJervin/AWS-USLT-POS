@@ -34,7 +34,7 @@ interface AuthContextType {
   getLockoutRemaining: (staffId: string) => number
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined)
+export const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 const MASTER_RECOVERY_PIN = "9999" // Hardcoded master recovery PIN
 const SHIFT_DURATION_MS = 8 * 60 * 60 * 1000

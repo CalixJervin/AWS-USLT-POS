@@ -75,6 +75,16 @@ export function TicketSidebar({
       : (typeof amountReceived === "number" && amountReceived >= total);
 
   const handleCompleteTransaction = async () => {
+    // 0. Stock Overflow Check
+    for (const item of cart) {
+      const maxAvailable = item.quantity !== undefined ? item.quantity : (item.inStock === false ? 0 : 999);
+      if (item.qty > maxAvailable) {
+        toast.error(`Cannot complete order: Only ${maxAvailable} left in stock for "${item.name}". Please adjust quantity.`);
+        updateQty(item.id, maxAvailable - item.qty);
+        return;
+      }
+    }
+
     // 1. Device Lockout check (10-minute timeout for 3 rapid orders)
     const lockout = checkDeviceLockout();
     if (lockout.isLocked) {

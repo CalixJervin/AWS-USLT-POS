@@ -86,7 +86,10 @@ export default function AdminPOSView() {
     inStock: p.inStock,
     variantId: p.variants[0]?.id as any,
     size: p.variants[0]?.size || "Regular",
-    isPreOrder: p.isPreOrder || p.type === "merch" || p.category.toLowerCase().includes("merch")
+    isPreOrder: p.isPreOrder || p.type === "merch" || p.category.toLowerCase().includes("merch"),
+    type: p.type,
+    quantity: p.quantity,
+    variants: p.variants
   })), [inventoryProducts])
 
   // 1. Top Carousel: ONLY items with category === "Merch" or type === "merch" or isPreOrder === true

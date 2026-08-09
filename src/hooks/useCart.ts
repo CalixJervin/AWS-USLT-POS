@@ -1,5 +1,5 @@
-// hooks/useCart.ts
 import { useState, useCallback, useMemo } from "react";
+import { toast } from "sonner";
 
 export interface Product {
   id: string;
@@ -11,6 +11,9 @@ export interface Product {
   size?: string;      // Added for Supabase
   inStock?: boolean;
   isPreOrder?: boolean;
+  type?: string;
+  quantity?: number;
+  variants?: any[];
 }
 
 export interface CartItem extends Product {
@@ -25,6 +28,15 @@ export function useCart() {
       const existingItem = prevCart.find(
         (item) => item.id === product.id && (item.size || "Regular") === (product.size || "Regular")
       );
+
+      const currentQty = existingItem ? existingItem.qty : 0;
+      const maxAvailable = product.quantity !== undefined ? product.quantity : (product.inStock === false ? 0 : 999);
+
+      if (currentQty + 1 > maxAvailable) {
+        toast.warning(`Cannot add more "${product.name}". Only ${maxAvailable} left in stock.`);
+        return prevCart;
+      }
+
       if (existingItem) {
         return prevCart.map((item) =>
           item.id === product.id && (item.size || "Regular") === (product.size || "Regular")
@@ -38,9 +50,18 @@ export function useCart() {
 
   const updateQty = useCallback((id: string, delta: number) => {
     setCart((prevCart) =>
-      prevCart.map((item) =>
-        item.id === id ? { ...item, qty: item.qty + delta } : item
-      )
+      prevCart.map((item) => {
+        if (item.id === id) {
+          const newQty = item.qty + delta;
+          const maxAvailable = item.quantity !== undefined ? item.quantity : (item.inStock === false ? 0 : 999);
+          if (delta > 0 && newQty > maxAvailable) {
+            toast.warning(`Maximum available stock reached for "${item.name}" (${maxAvailable} left).`);
+            return { ...item, qty: maxAvailable };
+          }
+          return { ...item, qty: newQty };
+        }
+        return item;
+      })
       .filter((item) => item.qty > 0)
     );
   }, []);

@@ -417,7 +417,7 @@ export function useTransactions() {
         quantity: item.qty
       }));
 
-      // Call the atomic stored procedure
+      // Call the atomic stored procedure to create order
       const { data: _orderId, error: rpcError } = await supabase.rpc('create_complete_order', {
         p_staff_id: user?.id,
         p_total: total,
@@ -426,8 +426,24 @@ export function useTransactions() {
 
       if (rpcError) throw rpcError;
 
+      // Deduct stock for ingredients and ready-made products
+      try {
+        await supabase.rpc("deduct_stock_on_sale", { p_order_items: rpcItems });
+      } catch (stockErr) {
+        console.warn("Stock deduction notice:", stockErr);
+      }
+
       await fetchTransactions();
       if (refreshData) await refreshData();
+
+      // Broadcast inventory sync to all open tabs immediately
+      try {
+        const bc = new BroadcastChannel("timpla_inventory_sync");
+        bc.postMessage({ type: "INVENTORY_UPDATED" });
+        bc.close();
+      } catch (e) {}
+
+      window.dispatchEvent(new Event("storage"));
       toast.success("Transaction saved successfully");
     } catch (error: any) {
       console.error("Transaction error:", error);

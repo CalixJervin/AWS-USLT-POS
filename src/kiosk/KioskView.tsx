@@ -87,7 +87,10 @@ export default function KioskView() {
     inStock: p.inStock,
     variantId: p.variants[0]?.id as any,
     size: p.variants[0]?.size || "Regular",
-    isPreOrder: p.isPreOrder || p.type === "merch" || p.category.toLowerCase().includes("merch")
+    isPreOrder: p.isPreOrder || p.type === "merch" || p.category.toLowerCase().includes("merch"),
+    type: p.type,
+    quantity: p.quantity,
+    variants: p.variants
   })), [inventoryProducts])
 
   // 1. Top Carousel: ONLY items with category === "Merch" or type === "merch" or isPreOrder === true
@@ -379,8 +382,10 @@ export default function KioskView() {
                 {merchProducts.map((merch) => (
                   <div
                     key={merch.id}
-                    onClick={() => setSelectedMerchProduct(merch)}
-                    className="min-w-[280px] sm:min-w-[320px] h-[160px] rounded-2xl bg-[#1E2333] border border-[#00F2FE]/40 hover:border-[#00F2FE] cursor-pointer snap-start relative overflow-hidden flex flex-col justify-between p-4 shadow-lg transition-all active:scale-[0.99] group shrink-0"
+                    onClick={() => merch.inStock !== false && setSelectedMerchProduct(merch)}
+                    className={`min-w-[280px] sm:min-w-[320px] h-[160px] rounded-2xl bg-[#1E2333] border border-[#00F2FE]/40 hover:border-[#00F2FE] cursor-pointer snap-start relative overflow-hidden flex flex-col justify-between p-4 shadow-lg transition-all active:scale-[0.99] group shrink-0 ${
+                      merch.inStock === false ? "opacity-45 pointer-events-none" : ""
+                    }`}
                   >
                     {/* Background image or gradient fallback */}
                     {merch.image ? (
@@ -394,8 +399,10 @@ export default function KioskView() {
                     )}
 
                     <div className="relative z-10 flex items-center justify-between">
-                      <span className="bg-[#E6007E] text-white text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider shadow-md">
-                        PRE-ORDER
+                      <span className={`text-white text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider shadow-md ${
+                        merch.inStock === false ? "bg-[#FF3366]" : "bg-[#E6007E]"
+                      }`}>
+                        {merch.inStock === false ? "OUT OF STOCK" : "PRE-ORDER"}
                       </span>
                       <span className="bg-[#131824]/90 backdrop-blur-md text-[#00F2FE] border border-[#00F2FE]/40 text-xs font-black px-2.5 py-1 rounded-full">
                         ₱{merch.price.toFixed(2)}

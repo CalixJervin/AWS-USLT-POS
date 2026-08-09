@@ -31,7 +31,7 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
   const [isBackendConnected, setIsBackendConnected] = useState<boolean>(true);
   const [isChecking, setIsChecking] = useState<boolean>(false);
-  const [lastChecked, setLastChecked] = useState<Date | null>(null);
+  const [lastChecked] = useState<Date | null>(null);
 
   // Keep track of whether we've notified of initial status
   const isInitialMount = useRef<boolean>(true);

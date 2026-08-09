@@ -173,6 +173,13 @@
     overflow: hidden;
     margin: 0;
     padding: 0;
+    touch-action: manipulation;
+    -webkit-text-size-adjust: 100%;
+  }
+  /* Prevent iOS Safari auto-zoom on input focus */
+  input, select, textarea {
+    font-size: 16px !important;
+    touch-action: manipulation;
   }
   body {
     @apply bg-[#0B0E14] text-[#E2E8F0];

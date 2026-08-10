@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Sparkles, X, ChevronRight, ChevronLeft, MessageSquare } from "lucide-react"
+import { X, ChevronRight, ChevronLeft } from "lucide-react"
 
 interface TakopiMascotHintProps {
   containerRef?: React.RefObject<HTMLElement | null>

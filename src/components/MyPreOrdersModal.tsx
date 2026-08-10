@@ -293,7 +293,10 @@ export function MyPreOrdersModalButton({ buttonClassName }: MyPreOrdersModalButt
       </Button>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="sm:max-w-lg bg-[#1E2333] border-[#2D3448] text-[#E2E8F0] p-0 overflow-hidden">
+        <DialogContent 
+          onOpenAutoFocus={(e) => e.preventDefault()}
+          className="sm:max-w-lg bg-[#1E2333] border-[#2D3448] text-[#E2E8F0] p-0 overflow-hidden"
+        >
           <DialogHeader className="p-5 bg-[#131824] border-b border-[#232A3B] flex flex-row items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2.5 rounded-xl bg-[#E6007E]/20 border border-[#E6007E]/40 text-[#E6007E]">

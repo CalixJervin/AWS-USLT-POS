@@ -228,7 +228,10 @@ export function PreOrderModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent className="sm:max-w-lg bg-[#131824] border-2 border-[#232A3B] text-[#E2E8F0] p-0 overflow-hidden rounded-2xl shadow-[0_0_50px_rgba(0,242,254,0.15)] flex flex-col max-h-[90vh] my-auto">
+      <DialogContent 
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        className="sm:max-w-lg bg-[#131824] border-2 border-[#232A3B] text-[#E2E8F0] p-0 overflow-hidden rounded-2xl shadow-[0_0_50px_rgba(0,242,254,0.15)] flex flex-col max-h-[90vh] my-auto"
+      >
         
         {/* MODAL HEADER - POS MATCHING DESIGN */}
         <DialogHeader className="p-4 sm:p-5 bg-[#1E2333] border-b border-[#232A3B] flex flex-row items-center justify-between space-y-0 shrink-0">

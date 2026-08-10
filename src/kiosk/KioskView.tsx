@@ -15,6 +15,7 @@ import { PreOrderModal } from "@/components/PreOrderModal"
 import { motion, AnimatePresence } from "framer-motion"
 
 import { MyPreOrdersModalButton } from "@/components/MyPreOrdersModal"
+import { TakopiMascotHint } from "@/components/TakopiMascotHint"
 
 export default function KioskView() {
   const { 
@@ -329,6 +330,12 @@ export default function KioskView() {
             </div>
           </div>
           
+          {/* EASY SECRET DOM HTML COMMENT */}
+          <div 
+            dangerouslySetInnerHTML={{ 
+              __html: '<!-- 🔍 SECRET #1 [EASY]: USL_AWS{t4k0_h1d1ng_1n_th3_r33f} - Congratulations on inspecting the Elements tab! -->' 
+            }} 
+          />
           <div className="hidden" aria-hidden="true">
             <p>Wow, Impressive! Here is your flag:</p>
             <span>{"USL_AWS{t4k0_h1d1ng_1n_th3_r33f}"}</span>
@@ -338,7 +345,8 @@ export default function KioskView() {
           {/* SECRET SEARCH EASTER EGG SECTION (BASE64 OBFUSCATED) */}
           {(() => {
             try {
-              return btoa(searchQuery.trim().toLowerCase()) === "dDRrMHlhazE="
+              const q = searchQuery.trim().toLowerCase()
+              return q === "t4k0yak1" || q === "vdrrmlhaze=" || btoa(q) === "dDRrMHlhazE=" || btoa(q) === "VDRrMHlhazE="
             } catch {
               return false
             }
@@ -533,6 +541,9 @@ export default function KioskView() {
         isOpen={!!selectedMerchProduct}
         onClose={() => setSelectedMerchProduct(null)}
       />
+
+      {/* TAKOPI MASCOT SECRET HINT SYSTEM (PEEKS AT VERY BOTTOM RIGHT) */}
+      <TakopiMascotHint containerRef={mainScrollRef} />
     </div>
   )
 }

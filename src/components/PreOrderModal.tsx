@@ -8,11 +8,11 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Package, Calendar, Sparkles, CheckCircle2, AlertTriangle, Store, QrCode, Copy } from "lucide-react";
+import { Package, Calendar, Sparkles, CheckCircle2, AlertTriangle, Store, QrCode, Download } from "lucide-react";
 import type { Product } from "@/hooks/useCart";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
-import { useGCashSettings } from "@/hooks/useGCashSettings";
+import { useGCashSettings, downloadGCashQrCode } from "@/hooks/useGCashSettings";
 import { useMyPreOrders } from "@/components/MyPreOrdersModal";
 import { checkDeviceLockout, recordOrderAttempt } from "@/lib/rateLimiter";
 
@@ -459,30 +459,19 @@ export function PreOrderModal({
                         )}
                       </div>
 
-                      {/* GCASH NUMBER DISPLAY */}
-                      <div className="w-full bg-[#131824] border border-[#2D3448] rounded-xl p-2.5 flex flex-col items-center gap-0.5">
-                        <span className="text-[10px] font-bold uppercase text-[#94A3B8] tracking-widest">
-                          GCash Account Number
-                        </span>
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-black text-base text-[#00F2FE] tracking-wide">
-                            {gcashSettings.gcashNumber || "0917-123-4567"}
-                          </span>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            type="button"
-                            className="h-6 w-6 text-[#94A3B8] hover:text-[#00F2FE] hover:bg-[#1E2333] cursor-pointer"
-                            onClick={() => {
-                              navigator.clipboard.writeText(gcashSettings.gcashNumber || "0917-123-4567");
-                              toast.success("GCash number copied to clipboard!");
-                            }}
-                            title="Copy Number"
-                          >
-                            <Copy className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </div>
+                      {/* DOWNLOAD QR BUTTON */}
+                      {gcashSettings.gcashQrImage && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => downloadGCashQrCode(gcashSettings.gcashQrImage)}
+                          className="w-full max-w-[180px] h-8 text-xs border-[#00F2FE]/50 text-[#00F2FE] hover:bg-[#00F2FE]/10 font-bold rounded-lg cursor-pointer flex items-center justify-center gap-1.5 transition-all"
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                          <span>Download QR Code</span>
+                        </Button>
+                      )}
 
                       {/* GCASH REF NUMBER INPUT */}
                       <div className="flex flex-col gap-1.5 w-full text-left mt-1">

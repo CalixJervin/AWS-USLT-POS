@@ -64,14 +64,14 @@ export function TakopiMascotHint({ containerRef }: TakopiMascotHintProps) {
       const el = containerRef.current
       const scrollPosition = el.scrollTop + el.clientHeight
       const targetBottom = el.scrollHeight
-      // Trigger when user is within 40px of absolute bottom
-      const atBottom = scrollPosition >= targetBottom - 40
+      // Trigger when user is at the bottom (within 60px for mobile & desktop accuracy)
+      const atBottom = Math.ceil(scrollPosition) >= targetBottom - 60
       setIsFullyAtBottom(atBottom)
     } else {
       const scrollY = window.scrollY || window.pageYOffset
       const windowHeight = window.innerHeight
       const docHeight = document.documentElement.scrollHeight
-      const atBottom = scrollY + windowHeight >= docHeight - 40
+      const atBottom = Math.ceil(scrollY + windowHeight) >= docHeight - 60
       setIsFullyAtBottom(atBottom)
     }
   }, [containerRef])

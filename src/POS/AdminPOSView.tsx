@@ -15,6 +15,7 @@ import { useInventory } from "@/hooks/useInventory"
 import { useKioskOrders } from "@/hooks/useKioskOrders"
 import { PendingOrdersModal } from "@/components/PendingOrdersModal"
 import { PreOrderModal } from "@/components/PreOrderModal"
+import { TakopiMascotHint } from "@/components/TakopiMascotHint"
 import { motion, AnimatePresence } from "framer-motion"
 
 function LiveClock() {
@@ -304,7 +305,7 @@ export default function AdminPOSView() {
         </div>
 
                {/* Scrollable Categories & Products Area */}
-        <div ref={mainScrollRef} className="flex-1 flex flex-col gap-4 px-4 pt-0 pb-[25vh] overflow-y-auto custom-scrollbar bg-[#0B0E14] relative overscroll-contain touch-pan-y">
+        <div ref={mainScrollRef} className="flex-1 flex flex-col gap-4 px-4 pt-0 pb-52 overflow-y-auto custom-scrollbar bg-[#0B0E14] relative overscroll-contain touch-pan-y">
           {/* STICKY CATEGORY NAVIGATION BAR */}
           <div className="sticky top-0 z-40 bg-[#0B0E14] -mx-4 px-4 py-2 border-b border-[#232A3B] shadow-md shrink-0">
             <div className="relative shrink-0">
@@ -508,6 +509,9 @@ export default function AdminPOSView() {
         isOpen={!!selectedMerchProduct}
         onClose={() => setSelectedMerchProduct(null)}
       />
+
+      {/* TAKOPI MASCOT HINT */}
+      <TakopiMascotHint containerRef={mainScrollRef} />
     </div>
   )
 }

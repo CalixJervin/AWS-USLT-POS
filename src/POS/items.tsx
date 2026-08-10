@@ -103,7 +103,6 @@ export const ProductItemGridSkeleton = () => (
     <div className="p-3.5 flex flex-col gap-2">
       <div className="h-4 bg-[#2D3448] rounded-md w-3/4" />
       <div className="h-4 bg-[#E6007E]/30 rounded-md w-1/2" />
-      <div className="h-3 bg-[#2D3448]/60 rounded-md w-1/3" />
     </div>
   </div>
 );
@@ -119,33 +118,63 @@ export const ProductItemListSkeleton = () => (
   </div>
 );
 
-export const ProductGridSkeleton = () => (
-  <div className="flex flex-col gap-8 w-full min-h-screen min-h-[800px]">
-    {/* Category Section 1 Skeleton (Grid) */}
-    <div className="flex flex-col gap-4">
-      <div className="border-b border-[#232A3B] pb-2">
-        <div className="h-6 bg-[#2D3448] rounded-md w-36 animate-pulse" />
+export const ProductGridSkeleton = ({ categories }: { categories?: string[] }) => {
+  // If categories are provided, render matching skeleton shapes in category order
+  if (categories && categories.length > 0) {
+    return (
+      <div className="flex flex-col gap-8 w-full pb-8">
+        {categories.map((catName) => {
+          const useGrid = isGridCategory(catName);
+          return (
+            <div key={catName} className="flex flex-col gap-4">
+              <div className="border-b border-[#232A3B] pb-2">
+                <div className="h-6 bg-[#2D3448] rounded-md w-36 animate-pulse" />
+              </div>
+              {useGrid ? (
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(130px,160px))] gap-4">
+                  {[...Array(4)].map((_, i) => (
+                    <ProductItemGridSkeleton key={i} />
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  <ProductItemListSkeleton />
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(130px,160px))] gap-4">
-        {[...Array(6)].map((_, i) => (
-          <ProductItemGridSkeleton key={i} />
-        ))}
-      </div>
-    </div>
+    );
+  }
 
-    {/* Category Section 2 Skeleton (List) */}
-    <div className="flex flex-col gap-4">
-      <div className="border-b border-[#232A3B] pb-2">
-        <div className="h-6 bg-[#2D3448] rounded-md w-44 animate-pulse" />
+  // Default layout: Long horizontal list skeleton APPEARS ONLY ONCE at TOP, followed by grid square skeletons
+  return (
+    <div className="flex flex-col gap-8 w-full pb-8">
+      {/* 1. Long horizontal list skeleton (APPEARS ONLY ONCE AT TOP) */}
+      <div className="flex flex-col gap-4">
+        <div className="border-b border-[#232A3B] pb-2">
+          <div className="h-6 bg-[#2D3448] rounded-md w-44 animate-pulse" />
+        </div>
+        <div className="flex flex-col gap-3">
+          <ProductItemListSkeleton />
+        </div>
       </div>
-      <div className="flex flex-col gap-3">
-        {[...Array(4)].map((_, i) => (
-          <ProductItemListSkeleton key={i} />
-        ))}
+
+      {/* 2. Grid card skeletons below */}
+      <div className="flex flex-col gap-4">
+        <div className="border-b border-[#232A3B] pb-2">
+          <div className="h-6 bg-[#2D3448] rounded-md w-36 animate-pulse" />
+        </div>
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(130px,160px))] gap-4">
+          {[...Array(6)].map((_, i) => (
+            <ProductItemGridSkeleton key={i} />
+          ))}
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 // Helper function to check whether a category should use 2-column grid or 1-column list format
 export const isGridCategory = (categoryName: string): boolean => {
@@ -208,12 +237,12 @@ export const ProductGrid = memo(({
   }, [products, categories]);
 
   if (isLoading) {
-    return <ProductGridSkeleton />;
+    return <ProductGridSkeleton categories={categories} />;
   }
 
   if (groupedProducts.length === 0) {
     return (
-      <div className="flex flex-col gap-8 w-full min-h-screen min-h-[800px]">
+      <div className="flex flex-col gap-8 w-full pb-8">
         <div className="flex flex-col items-center justify-center py-16 text-center bg-[#131824] rounded-2xl border border-[#232A3B] p-8 my-4">
           <p className="text-[#94A3B8] font-semibold text-base">No items found</p>
           <p className="text-[#64748B] text-xs mt-1">Try searching for a different keyword or adding products</p>
@@ -223,7 +252,7 @@ export const ProductGrid = memo(({
   }
 
   return (
-    <div className="flex flex-col gap-8 w-full min-h-screen min-h-[800px]">
+    <div className="flex flex-col gap-8 w-full pb-8">
       {groupedProducts.map(([categoryName, categoryItems]) => {
         const useGrid = isGridCategory(categoryName);
         const sectionId = `category-section-${encodeURIComponent(categoryName.toLowerCase().replace(/\s+/g, '-'))}`;

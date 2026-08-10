@@ -3,26 +3,24 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DialogFooter } from "@/components/ui/dialog";
-import { Trash2, Plus, ShieldAlert, Coffee, KeyRound, ArrowLeft, QrCode, Users, Upload, Image as ImageIcon, Check } from "lucide-react";
+import { Trash2, Plus, ShieldAlert, Coffee, KeyRound, ArrowLeft, QrCode, Users, Upload, Image as ImageIcon, Check, Download } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth, type Staff } from "@/hooks/use-auth";
-import { useGCashSettings } from "@/hooks/useGCashSettings";
+import { useGCashSettings, downloadGCashQrCode } from "@/hooks/useGCashSettings";
 
 export function AccountModal({ isOpen, onOpenChange }: { isOpen: boolean, onOpenChange: (o: boolean) => void }) {
   const { staffList, user, addStaff, deleteStaff, updateStaff } = useAuth();
-  const { gcashNumber, gcashQrImage, updateGCashSettings } = useGCashSettings();
+  const { gcashQrImage, updateGCashSettings } = useGCashSettings();
 
   const [activeTab, setActiveTab] = useState<"team" | "gcash">("team");
   const [view, setView] = useState<"list" | "add" | "edit">("list");
   
   // GCash settings state
-  const [inputGCashNumber, setInputGCashNumber] = useState(gcashNumber);
   const [inputGCashQrImage, setInputGCashQrImage] = useState(gcashQrImage);
 
   // Sync state when modal opens or settings update
   useEffect(() => {
     if (isOpen) {
-      setInputGCashNumber(gcashNumber);
       setInputGCashQrImage(gcashQrImage);
       if (user && user.role !== 'admin') {
         handleEditClick(user);
@@ -30,7 +28,7 @@ export function AccountModal({ isOpen, onOpenChange }: { isOpen: boolean, onOpen
         setView("list");
       }
     }
-  }, [isOpen, user, gcashNumber, gcashQrImage]);
+  }, [isOpen, user, gcashQrImage]);
 
   // States for Add Staff
   const [newName, setNewName] = useState("");
@@ -146,10 +144,9 @@ export function AccountModal({ isOpen, onOpenChange }: { isOpen: boolean, onOpen
 
   const handleSaveGCashSettings = () => {
     updateGCashSettings({
-      gcashNumber: inputGCashNumber.trim(),
       gcashQrImage: inputGCashQrImage.trim(),
     });
-    toast.success("GCash payment settings saved successfully!");
+    toast.success("GCash QR code settings saved successfully!");
   };
 
   return (
@@ -305,23 +302,7 @@ export function AccountModal({ isOpen, onOpenChange }: { isOpen: boolean, onOpen
           {/* TAB 2: GCASH SETTINGS (ADMIN ONLY) */}
           {user?.role === 'admin' && activeTab === "gcash" && view === "list" && (
             <div className="flex flex-col gap-5 pt-1">
-              <div className="flex flex-col gap-2">
-                <label className="text-xs font-bold uppercase text-[#94A3B8] tracking-wider">
-                  GCash Account Number
-                </label>
-                <Input
-                  type="text"
-                  placeholder="e.g. 0917-123-4567"
-                  value={inputGCashNumber}
-                  onChange={(e) => setInputGCashNumber(e.target.value)}
-                  className="bg-[#1E2333] border-[#2D3448] text-[#E2E8F0] font-bold text-base h-11 focus-visible:ring-[#E6007E]"
-                />
-                <span className="text-[11px] text-[#94A3B8]">
-                  This number will be shown to kiosk customers during GCash payment checkout.
-                </span>
-              </div>
-
-              <div className="flex flex-col gap-3 border-t border-[#232A3B] pt-4">
+              <div className="flex flex-col gap-3">
                 <label className="text-xs font-bold uppercase text-[#94A3B8] tracking-wider flex items-center gap-1.5">
                   <ImageIcon className="h-4 w-4 text-[#E6007E]" />
                   GCash QR Code Image
@@ -336,14 +317,24 @@ export function AccountModal({ isOpen, onOpenChange }: { isOpen: boolean, onOpen
                         alt="GCash QR Code Preview"
                         className="max-h-48 max-w-full object-contain rounded-lg border border-[#00F2FE]/30 bg-white p-2 shadow-md"
                       />
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setInputGCashQrImage("")}
-                        className="text-xs text-[#FF3366] hover:bg-[#FF3366]/10 cursor-pointer h-8 mt-1"
-                      >
-                        Remove QR Image
-                      </Button>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => downloadGCashQrCode(inputGCashQrImage)}
+                          className="text-xs border-[#00F2FE]/50 text-[#00F2FE] hover:bg-[#00F2FE]/10 cursor-pointer h-8"
+                        >
+                          <Download className="mr-1.5 h-3.5 w-3.5" /> Download QR
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setInputGCashQrImage("")}
+                          className="text-xs text-[#FF3366] hover:bg-[#FF3366]/10 cursor-pointer h-8"
+                        >
+                          Remove QR Image
+                        </Button>
+                      </div>
                     </div>
                   ) : (
                     <div className="flex flex-col items-center text-center gap-2 py-4">

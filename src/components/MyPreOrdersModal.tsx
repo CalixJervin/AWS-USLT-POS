@@ -8,9 +8,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Package, Trash2, CreditCard, AlertTriangle } from "lucide-react";
+import { Package, Trash2, CreditCard, AlertTriangle, Download } from "lucide-react";
 import { toast } from "sonner";
-import { useGCashSettings } from "@/hooks/useGCashSettings";
+import { useGCashSettings, downloadGCashQrCode } from "@/hooks/useGCashSettings";
 import { supabase } from "@/lib/supabase";
 
 export interface MyPreOrder {
@@ -376,15 +376,26 @@ export function MyPreOrdersModalButton({ buttonClassName }: MyPreOrdersModalButt
                         </Button>
                       ) : (
                         <div className="bg-[#1E2333] p-3 rounded-xl border border-[#00F2FE]/40 flex flex-col gap-3">
-                          <div className="text-center">
-                            <div className="text-[11px] font-bold text-[#94A3B8] uppercase">GCash Account Number</div>
-                            <div className="text-sm font-black text-[#00F2FE] tracking-wider">{gcashSettings.gcashNumber}</div>
+                          <div className="text-center flex flex-col items-center gap-2">
+                            <div className="text-[11px] font-bold text-[#94A3B8] uppercase">Scan QR Code to Pay via GCash</div>
                             {gcashSettings.gcashQrImage && (
-                              <img
-                                src={gcashSettings.gcashQrImage}
-                                alt="GCash QR Code"
-                                className="w-32 h-32 object-contain rounded-lg border border-[#00F2FE]/40 bg-white p-1 my-2 mx-auto"
-                              />
+                              <div className="flex flex-col items-center gap-2">
+                                <img
+                                  src={gcashSettings.gcashQrImage}
+                                  alt="GCash QR Code"
+                                  className="w-36 h-36 object-contain rounded-lg border border-[#00F2FE]/40 bg-white p-1 my-1 mx-auto"
+                                />
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => downloadGCashQrCode(gcashSettings.gcashQrImage)}
+                                  className="h-8 text-xs border-[#00F2FE]/50 text-[#00F2FE] hover:bg-[#00F2FE]/10 font-bold rounded-lg cursor-pointer flex items-center justify-center gap-1.5 transition-all"
+                                >
+                                  <Download className="h-3.5 w-3.5" />
+                                  <span>Download QR Code</span>
+                                </Button>
+                              </div>
                             )}
                           </div>
 

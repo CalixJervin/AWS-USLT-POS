@@ -2,14 +2,47 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 
 export interface GCashSettings {
-  gcashNumber: string;
+  gcashNumber?: string;
   gcashQrImage: string; // Base64 data URL or image URL
+}
+
+export async function downloadGCashQrCode(qrImageUrl: string, fileName = "gcash-qr-code.png") {
+  if (!qrImageUrl) return;
+  try {
+    if (qrImageUrl.startsWith("data:")) {
+      const link = document.createElement("a");
+      link.href = qrImageUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } else {
+      const response = await fetch(qrImageUrl);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(blobUrl);
+    }
+  } catch (err) {
+    const link = document.createElement("a");
+    link.href = qrImageUrl;
+    link.download = fileName;
+    link.target = "_blank";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
 }
 
 const GCASH_SETTINGS_KEY = "timpla_gcash_settings";
 
 const DEFAULT_SETTINGS: GCashSettings = {
-  gcashNumber: "0917-123-4567",
+  gcashNumber: "",
   gcashQrImage: "",
 };
 

@@ -22,7 +22,7 @@ export default function KioskView() {
     clearCart, subtotal, total 
   } = useCart()
 
-  const { products: inventoryProducts, categories } = useKiosk()
+  const { products: inventoryProducts, categories, isLoading } = useKiosk()
 
   const {
     pendingOrders,
@@ -427,6 +427,7 @@ export default function KioskView() {
             onDeleteProduct={() => {}}
             onAddNewClick={() => {}}
             isKiosk={true}
+            isLoading={isLoading}
           />
           <div 
             dangerouslySetInnerHTML={{ 
@@ -494,8 +495,8 @@ export default function KioskView() {
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 220 }}
-              className="relative w-full max-w-[420px] sm:w-[420px] h-full bg-[#131824] border-l border-[#232A3B] shadow-2xl overflow-hidden flex flex-col z-50"
+              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+              className="relative w-full max-w-[420px] sm:w-[420px] h-full bg-[#131824] border-l border-[#232A3B] shadow-2xl overflow-hidden flex flex-col z-50 will-change-transform transform-gpu"
             >
               <TicketSidebar 
                 cart={cart}

@@ -45,7 +45,8 @@ export default function AdminPOSView() {
     updateProduct, 
     deleteProduct,
     categories,
-    addCategory
+    addCategory,
+    isLoading
   } = useInventory()
 
   const {
@@ -392,6 +393,7 @@ export default function AdminPOSView() {
             onDeleteProduct={handleStageForDeletion}
             onAddNewClick={() => setIsAddModalOpen(true)}
             isKiosk={false}
+            isLoading={isLoading}
           />
         </div>
       </div>
@@ -467,8 +469,8 @@ export default function AdminPOSView() {
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 220 }}
-              className="relative w-full max-w-[420px] sm:w-[420px] h-full bg-[#131824] border-l border-[#232A3B] shadow-2xl overflow-hidden flex flex-col z-50"
+              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+              className="relative w-full max-w-[420px] sm:w-[420px] h-full bg-[#131824] border-l border-[#232A3B] shadow-2xl overflow-hidden flex flex-col z-50 will-change-transform transform-gpu"
             >
               <TicketSidebar 
                 cart={cart}

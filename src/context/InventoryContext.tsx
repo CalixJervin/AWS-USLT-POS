@@ -484,10 +484,34 @@ export const InventoryProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
+const defaultInventoryContext: InventoryContextType = {
+  ingredients: [],
+  recipes: [],
+  products: [],
+  categories: [],
+  sales: [],
+  isLoading: false,
+  addIngredient: async () => {},
+  updateIngredient: async () => {},
+  deleteIngredient: async () => {},
+  restockIngredient: async () => {},
+  addRecipe: async () => undefined,
+  updateRecipe: async () => {},
+  deleteRecipe: async () => {},
+  addProduct: async () => {},
+  updateProduct: async () => {},
+  restockProduct: async () => {},
+  deleteProduct: async () => {},
+  toggleProductStock: async () => {},
+  processSale: async () => {},
+  deductOfflineStock: () => {},
+  addCategory: async () => {},
+  deleteCategory: async () => {},
+  renameCategory: async () => {},
+  refreshData: async () => {},
+};
+
 export const useInventory = () => {
   const context = useContext(InventoryContext);
-  if (context === undefined) {
-    throw new Error('useInventory must be used within an InventoryProvider');
-  }
-  return context;
+  return context || defaultInventoryContext;
 };

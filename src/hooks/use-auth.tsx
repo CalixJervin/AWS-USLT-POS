@@ -63,26 +63,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [])
 
-  // Load staff and session on mount
+  // Load staff and session on mount (only for /login or /admin routes)
   useEffect(() => {
     const init = async () => {
-      setIsLoading(true)
-      const staff = await fetchStaff()
+      const path = typeof window !== "undefined" ? window.location.pathname : "";
+      // Public customer Kiosk view does NOT require staff data
+      if (path === "/" || path === "/kiosk") {
+        setIsLoading(false);
+        return;
+      }
+
+      setIsLoading(true);
+      const staff = await fetchStaff();
       
-      const currentUserId = storage.getItem("timpla_current_user_id", null)
-      const sessionExpiry = storage.getItem("timpla_session_expiry", null)
+      const currentUserId = storage.getItem("timpla_current_user_id", null);
+      const sessionExpiry = storage.getItem("timpla_session_expiry", null);
 
       if (currentUserId && sessionExpiry && parseInt(sessionExpiry) > Date.now()) {
-        const currentUser = staff.find((s: Staff) => s.id === currentUserId)
+        const currentUser = staff.find((s: Staff) => s.id === currentUserId);
         if (currentUser) {
-          setUser(currentUser)
-          setIsLocked(storage.getItem<string>("timpla_is_locked", "false") === "true")
+          setUser(currentUser);
+          setIsLocked(storage.getItem<string>("timpla_is_locked", "false") === "true");
         }
       }
-      setIsLoading(false)
-    }
-    init()
-  }, [fetchStaff])
+      setIsLoading(false);
+    };
+    init();
+  }, [fetchStaff]);
 
   const lock = useCallback(() => {
     setIsLocked(true)

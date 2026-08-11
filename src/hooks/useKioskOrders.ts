@@ -18,6 +18,10 @@ export interface PendingKioskOrder {
   customerEmail?: string;
   customerPhone?: string;
   fulfillmentStatus?: "pending" | "pre_ordered" | "in_production" | "ready_for_pickup" | "claimed";
+
+  // GCash Details
+  gcashRefNumber?: string;
+  gcashReceiptImage?: string;
 }
 
 const KIOSK_ORDERS_STORAGE_KEY = "timpla_kiosk_pending_orders";

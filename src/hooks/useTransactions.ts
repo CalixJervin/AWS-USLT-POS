@@ -19,6 +19,8 @@ export interface Transaction {
   customer_phone?: string;
   fulfillment_status?: string;
   is_pre_order?: boolean;
+  gcash_ref_number?: string;
+  gcash_receipt_url?: string;
 }
 
 export interface TransactionItem {
@@ -238,7 +240,9 @@ export function useTransactions() {
           customer_email: custEmail,
           customer_phone: custPhone,
           fulfillment_status: o.fulfillment_status || localMatch?.fulfillmentStatus || (isPreOrder ? "pre_ordered" : undefined),
-          is_pre_order: isPreOrder
+          is_pre_order: isPreOrder,
+          gcash_ref_number: o.gcash_ref_number || localMatch?.gcashRefNumber,
+          gcash_receipt_url: o.gcash_receipt_url || localMatch?.gcashReceiptImage
         });
 
         orderItems.forEach((item: any) => {
@@ -319,7 +323,9 @@ export function useTransactions() {
             customer_email: l.customerEmail,
             customer_phone: l.customerPhone,
             fulfillment_status: l.fulfillmentStatus || (isPO ? "pre_ordered" : "completed"),
-            is_pre_order: isPO
+            is_pre_order: isPO,
+            gcash_ref_number: l.gcashRefNumber,
+            gcash_receipt_url: l.gcashReceiptImage
           });
 
           if (l.cart) {

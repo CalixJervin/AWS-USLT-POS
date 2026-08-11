@@ -6,15 +6,17 @@ import DeleteProductModal from "@/POS/deleteProduct"
 import { AddCategoryModal } from "@/POS/addCategory"
 import { ProductGrid } from "@/POS/items"
 import { Input } from "@/components/ui/input"
-import { Plus, Search, ShoppingBag, Clock, Store } from "lucide-react"
+import { Plus, Search, ShoppingBag, Clock, Store, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button" 
 import type { Product } from "@/hooks/useCart"
 import { SiteHeader } from "@/components/site-header"
 
 import { useInventory } from "@/hooks/useInventory"
 import { useKioskOrders } from "@/hooks/useKioskOrders"
+import { useConnectionStatus } from "@/context/ConnectionContext"
 import { PendingOrdersModal } from "@/components/PendingOrdersModal"
 import { PreOrderModal } from "@/components/PreOrderModal"
+import { AdminOfflineModal } from "@/components/AdminOfflineModal"
 import { TakopiMascotHint } from "@/components/TakopiMascotHint"
 import { motion, AnimatePresence } from "framer-motion"
 
@@ -57,6 +59,12 @@ export default function AdminPOSView() {
     clearAllPendingOrders
   } = useKioskOrders()
 
+  const {
+    isConnected,
+    isForcedOffline,
+    pendingOfflineOrders
+  } = useConnectionStatus()
+
   const [isMobileTicketOpen, setIsMobileTicketOpen] = useState(false)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
@@ -74,6 +82,9 @@ export default function AdminPOSView() {
 
   // Pending Kiosk Orders modal state
   const [isPendingModalOpen, setIsPendingModalOpen] = useState(false)
+
+  // Admin Offline Orders modal state
+  const [isOfflineModalOpen, setIsOfflineModalOpen] = useState(false)
 
   // Pre-Order Modal State for Merch Banners
   const [selectedMerchProduct, setSelectedMerchProduct] = useState<Product | null>(null)
@@ -268,8 +279,33 @@ export default function AdminPOSView() {
               </span>
             </div>
 
-            {/* RIGHT SIDE: PENDING KIOSK, CLOCK, SEARCH */}
+            {/* RIGHT SIDE: OFFLINE MODE, PENDING KIOSK, CLOCK, SEARCH */}
             <div className="flex items-center gap-2 sm:gap-3 ml-auto">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsOfflineModalOpen(true)}
+                className={`relative flex items-center gap-1.5 rounded-full border px-2.5 sm:px-3.5 h-9 cursor-pointer font-bold text-xs shadow-sm shrink-0 transition-all ${
+                  isForcedOffline
+                    ? "bg-amber-500/15 border-amber-500/50 text-amber-300 hover:bg-amber-500/25"
+                    : !isConnected
+                    ? "bg-[#FF3366]/15 border-[#FF3366]/50 text-[#FF3366] hover:bg-[#FF3366]/25 animate-pulse"
+                    : pendingOfflineOrders.length > 0
+                    ? "bg-emerald-500/15 border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/25 animate-pulse"
+                    : "bg-[#1E2333] border-[#2D3448] text-[#94A3B8] hover:text-[#E2E8F0] hover:bg-[#282E42]"
+                }`}
+              >
+                <Zap className={`h-3.5 w-3.5 ${isForcedOffline || !isConnected ? "text-amber-400" : "text-[#94A3B8]"}`} />
+                <span className="hidden sm:inline">
+                  {isForcedOffline ? "Offline Mode" : !isConnected ? "Offline" : "Offline Sync"}
+                </span>
+                {pendingOfflineOrders.length > 0 && (
+                  <span className="bg-emerald-500 text-white text-[10px] font-black h-4 w-4 flex items-center justify-center rounded-full ml-0.5 animate-pulse">
+                    {pendingOfflineOrders.length}
+                  </span>
+                )}
+              </Button>
+
               <Button
                 variant="outline"
                 size="sm"
@@ -508,6 +544,12 @@ export default function AdminPOSView() {
         item={selectedMerchProduct}
         isOpen={!!selectedMerchProduct}
         onClose={() => setSelectedMerchProduct(null)}
+      />
+
+      {/* ADMIN OFFLINE MODE & SYNC MANAGER MODAL */}
+      <AdminOfflineModal
+        isOpen={isOfflineModalOpen}
+        onOpenChange={setIsOfflineModalOpen}
       />
 
       {/* TAKOPI MASCOT HINT */}

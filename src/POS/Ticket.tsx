@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, Minus, X, Coffee, Store, QrCode, Download } from "lucide-react"; 
+import { Plus, Trash2, Minus, X, Coffee, Store, QrCode, Download, Zap, WifiOff } from "lucide-react"; 
 import type { CartItem } from "@/hooks/useCart";
 import { useTransactions } from "@/hooks/useTransactions";
 import { useGCashSettings, downloadGCashQrCode } from "@/hooks/useGCashSettings";
+import { useConnectionStatus } from "@/context/ConnectionContext";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -55,6 +56,7 @@ export function TicketSidebar({
   );
   const { saveTransaction } = useTransactions();
   const { gcashQrImage } = useGCashSettings();
+  const { isConnected, isAdminOfflineMode } = useConnectionStatus();
 
   // Reset payment method whenever checkout opens or mode changes
   useEffect(() => {
@@ -75,6 +77,16 @@ export function TicketSidebar({
       : (typeof amountReceived === "number" && amountReceived >= total);
 
   const handleCompleteTransaction = async () => {
+    // Lock kiosk checkout if network connection is lost
+    if (isKiosk && !isConnected) {
+      toast.error("Kiosk System Offline", {
+        description: "Self-service checkout is unavailable while offline. Please place your order at the counter.",
+        duration: 5000,
+        icon: <WifiOff className="h-4 w-4 text-[#FF3366]" />
+      });
+      return;
+    }
+
     // 0. Stock Overflow Check
     for (const item of cart) {
       const maxAvailable = item.quantity !== undefined ? item.quantity : (item.inStock === false ? 0 : 999);
@@ -274,14 +286,28 @@ export function TicketSidebar({
         <div>
           <Button 
             className={`w-full font-black text-[15px] h-12 rounded-[10px] transition-all active:scale-[0.98] touch-manipulation ${
-              cart.length === 0 
-                ? "bg-[#1E2333] text-[#64748B] cursor-not-allowed pointer-events-none border border-[#2D3448]" 
+              cart.length === 0 || (isKiosk && !isConnected)
+                ? "bg-[#1E2333] text-[#64748B] cursor-not-allowed border border-[#2D3448]" 
                 : "bg-[#E6007E] text-white hover:bg-[#FF1A96] border border-[#00F2FE]/30 shadow-[0_0_15px_rgba(0,242,254,0.2)] cursor-pointer"
             }`}
-            onClick={() => setIsCheckoutOpen(true)}
+            onClick={() => {
+              if (isKiosk && !isConnected) {
+                toast.error("Kiosk System Offline", {
+                  description: "Self-service checkout is unavailable while offline. Please place your order at the counter.",
+                  duration: 5000,
+                  icon: <WifiOff className="h-4 w-4 text-[#FF3366]" />
+                });
+                return;
+              }
+              setIsCheckoutOpen(true);
+            }}
             disabled={cart.length === 0}
           >
-            {isKiosk ? `Checkout ₱${total.toFixed(2)}` : `Charge ₱${total.toFixed(2)}`}
+            {isKiosk && !isConnected
+              ? "Offline - Order at Counter"
+              : isKiosk 
+              ? `Checkout ₱${total.toFixed(2)}` 
+              : `Charge ₱${total.toFixed(2)}`}
           </Button>
         </div>
       </div>
@@ -289,11 +315,29 @@ export function TicketSidebar({
       <Dialog open={isCheckoutOpen} onOpenChange={setIsCheckoutOpen}>
         <DialogContent className="sm:max-w-md bg-[#1E2333] border-[#2D3448] text-[#E2E8F0]">
           <DialogHeader>
-            <DialogTitle className="text-[#E2E8F0] text-lg font-bold">
-              {isKiosk ? "Checkout - Select Payment Method" : "Complete Transaction"}
+            <DialogTitle className="text-[#E2E8F0] text-lg font-bold flex items-center justify-between">
+              <span>{isKiosk ? "Checkout - Select Payment Method" : "Complete Transaction"}</span>
+              {!isKiosk && isAdminOfflineMode && (
+                <span className="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2.5 py-0.5 rounded-full font-bold flex items-center gap-1">
+                  <Zap className="h-3 w-3 text-amber-400" />
+                  Offline Mode
+                </span>
+              )}
             </DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-6 py-4">
+
+            {isKiosk && !isConnected && (
+              <div className="bg-[#FF3366]/15 border border-[#FF3366]/40 text-[#E2E8F0] p-3.5 rounded-xl flex items-center gap-3 text-xs font-bold shadow-md">
+                <WifiOff className="h-5 w-5 text-[#FF3366] shrink-0" />
+                <div>
+                  <span className="text-[#FF3366] font-extrabold uppercase block">System Offline</span>
+                  <span className="text-[#94A3B8] font-medium text-[11px]">
+                    Self-service kiosk checkout is disabled due to network issues. Please order directly at the counter.
+                  </span>
+                </div>
+              </div>
+            )}
             
             <div className="flex justify-between items-center text-xl font-bold bg-[#131824] p-4 rounded-xl border border-[#232A3B]">
               <span className="text-[#94A3B8]">Total Due:</span>
@@ -447,14 +491,14 @@ export function TicketSidebar({
                 </Button>
                 <Button 
                   onClick={handleCompleteTransaction}
-                  disabled={isProcessing || !isSufficient || isLocked}
+                  disabled={isProcessing || !isSufficient || isLocked || (isKiosk && !isConnected)}
                   className={`bg-[#E6007E] text-white hover:bg-[#FF1A96] border border-[#00F2FE]/40 font-black px-6 rounded-full shadow-lg transition-all ${
-                    isProcessing || !isSufficient || isLocked
+                    isProcessing || !isSufficient || isLocked || (isKiosk && !isConnected)
                       ? "opacity-50 cursor-not-allowed"
                       : "cursor-pointer"
                   }`}
                 >
-                  {isLocked ? `Timed Out (${lockout.remainingMinutes}m)` : isProcessing ? "Processing..." : "Confirm Payment"}
+                  {isKiosk && !isConnected ? "Kiosk Offline" : isLocked ? `Timed Out (${lockout.remainingMinutes}m)` : isProcessing ? "Processing..." : "Confirm Payment"}
                 </Button>
               </DialogFooter>
             );

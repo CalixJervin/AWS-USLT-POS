@@ -120,17 +120,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { success: false, message: "Account locked. Try again later." }
     }
 
-    const { data: staffData, error } = await supabase
-      .from('staff')
-      .select('pin_hash')
-      .eq('id', staffId)
-      .single()
+    let pinHash: string | null = null
 
-    if (error || !staffData) {
-      return { success: false, message: "Staff member not found." }
+    try {
+      const { data: staffData, error } = await supabase
+        .from('staff')
+        .select('pin_hash')
+        .eq('id', staffId)
+        .single()
+
+      if (!error && staffData?.pin_hash) {
+        pinHash = staffData.pin_hash
+        try {
+          storage.setItem(`timpla_pin_hash_${staffId}`, pinHash)
+        } catch (e) {}
+      }
+    } catch (e) {
+      console.warn("Supabase PIN fetch failed, attempting offline fallback:", e)
     }
 
-    const isPinValid = await bcrypt.compare(pin, staffData.pin_hash)
+    if (!pinHash) {
+      pinHash = storage.getItem<string | null>(`timpla_pin_hash_${staffId}`, null)
+    }
+
+    if (!pinHash) {
+      return { success: false, message: "Network is offline and no cached credentials found for this account. Please connect online to log in." }
+    }
+
+    const isPinValid = await bcrypt.compare(pin, pinHash)
 
     if (isPinValid) {
       const staffMember = staffList.find(s => s.id === staffId)
@@ -285,7 +302,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       // Update current user if they edited themselves
       if (user && user.id === staffId) {
-        const updatedUser = (await storage.getStaff()).find(s => s.id === staffId)
+        const updatedUser = (await storage.getStaff()).find((s: any) => s.id === staffId)
         if (updatedUser) setUser(updatedUser)
 
         if (pin) {

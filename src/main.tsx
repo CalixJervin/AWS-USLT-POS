@@ -46,57 +46,51 @@ const ProtectedRoute = () => {
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <ConnectionProvider>
-      <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
-        <TooltipProvider>
-          <BrowserRouter>
-            <Suspense fallback={<div className="flex h-screen w-screen items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}>
-              <Routes>
-                
-                {/* DEFAULT KIOSK ROUTE (/) - PUBLIC CUSTOMER INTERFACE */}
-                <Route element={<KioskLayout />}>
-                  <Route path="/" element={<KioskView />} />
-                </Route>
-
-                {/* STAFF LOGIN ROUTE */}
-                <Route path="/login" element={
-                  <AuthProvider>
-                    <Login />
-                  </AuthProvider>
-                } />
-
-                {/* PROTECTED ADMIN POS SYSTEM (/admin) */}
-                <Route element={
-                  <AuthProvider>
-                    <ProtectedRoute />
-                  </AuthProvider>
-                }>
-                  <Route element={
-                    <InventoryProvider>
-                      <AdminLayout />
-                    </InventoryProvider>
-                  }>
-                    <Route path="/admin" element={<AdminPOSView />} />
-                    <Route path="/admin/dashboard" element={<Dashboard />} />
-                    <Route path="/admin/inventory" element={<InventoryPage />} />
-                    <Route path="/admin/menuManagement" element={<ManageMenuPage />} />
+    <BrowserRouter>
+      <AuthProvider>
+        <ConnectionProvider>
+          <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
+            <TooltipProvider>
+              <Suspense fallback={<div className="flex h-screen w-screen items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}>
+                <Routes>
+                  
+                  {/* DEFAULT KIOSK ROUTE (/) - PUBLIC CUSTOMER INTERFACE */}
+                  <Route element={<KioskLayout />}>
+                    <Route path="/" element={<KioskView />} />
                   </Route>
-                </Route>
 
-                {/* REDIRECT DEPRECATED / LEGACY ROUTES */}
-                <Route path="/kiosk" element={<Navigate to="/" replace />} />
-                <Route path="/dashboard" element={<Navigate to="/admin/dashboard" replace />} />
-                <Route path="/inventory" element={<Navigate to="/admin/inventory" replace />} />
-                <Route path="/menuManagement" element={<Navigate to="/admin/menuManagement" replace />} />
+                  {/* STAFF LOGIN ROUTE */}
+                  <Route path="/login" element={<Login />} />
 
-                {/* FALLBACK ROUTE TO KIOSK */}
-                <Route path="*" element={<Navigate to="/" replace />} />
+                  {/* PROTECTED ADMIN POS SYSTEM (/admin) */}
+                  <Route element={<ProtectedRoute />}>
+                    <Route element={
+                      <InventoryProvider>
+                        <AdminLayout />
+                      </InventoryProvider>
+                    }>
+                      <Route path="/admin" element={<AdminPOSView />} />
+                      <Route path="/admin/dashboard" element={<Dashboard />} />
+                      <Route path="/admin/inventory" element={<InventoryPage />} />
+                      <Route path="/admin/menuManagement" element={<ManageMenuPage />} />
+                    </Route>
+                  </Route>
 
-              </Routes>
-            </Suspense>
-          </BrowserRouter>
-        </TooltipProvider>
-      </ThemeProvider>
-    </ConnectionProvider>
+                  {/* REDIRECT DEPRECATED / LEGACY ROUTES */}
+                  <Route path="/kiosk" element={<Navigate to="/" replace />} />
+                  <Route path="/dashboard" element={<Navigate to="/admin/dashboard" replace />} />
+                  <Route path="/inventory" element={<Navigate to="/admin/inventory" replace />} />
+                  <Route path="/menuManagement" element={<Navigate to="/admin/menuManagement" replace />} />
+
+                  {/* FALLBACK ROUTE TO KIOSK */}
+                  <Route path="*" element={<Navigate to="/" replace />} />
+
+                </Routes>
+              </Suspense>
+            </TooltipProvider>
+          </ThemeProvider>
+        </ConnectionProvider>
+      </AuthProvider>
+    </BrowserRouter>
   </StrictMode>
 )

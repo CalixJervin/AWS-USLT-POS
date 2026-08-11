@@ -48,19 +48,13 @@ export default function LoginPage() {
   useEffect(() => {
     if (isInitialSetup) {
       setView("onboarding")
-    } else if (user && !isLocked) {
-      if (user.role === "admin") {
-        navigate("/admin/dashboard")
-      } else {
-        navigate("/admin")
-      }
-    } else if (isLocked && user) {
+    } else if (user) {
       setSelectedStaff(user)
       setView("pin")
     } else {
       setView("select")
     }
-  }, [isInitialSetup, user, isLocked, navigate])
+  }, [isInitialSetup, user])
 
   // Live countdown timer for account lockout
   useEffect(() => {

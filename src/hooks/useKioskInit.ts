@@ -49,9 +49,6 @@ export function useKioskInit() {
         }))
       }));
 
-      // Filter in-stock products for customer menu
-      const availableProducts = mappedProducts.filter(p => p.inStock !== false);
-
       // 2. Fetch Categories
       const cats = await storage.getCategories();
 
@@ -69,7 +66,7 @@ export function useKioskInit() {
         }
       });
 
-      setProducts(availableProducts);
+      setProducts(mappedProducts);
       setCategories(cats);
       setAppSettings(settingsObj);
     } catch (err) {
@@ -82,17 +79,27 @@ export function useKioskInit() {
   useEffect(() => {
     fetchKioskData();
 
+    // Broadcast channel listener for instant local sync when POS completes transactions or updates stock
+    let bc: BroadcastChannel | null = null;
+    try {
+      bc = new BroadcastChannel("timpla_inventory_sync");
+      bc.onmessage = () => fetchKioskData();
+    } catch (e) {}
+
     // Lightweight RealTime WebSocket subscription strictly for Kiosk updates
     const channelId = `kiosk_init_sync_${Math.random().toString(36).substring(2, 9)}`;
     const channel = supabase
       .channel(channelId)
       .on("postgres_changes", { event: "*", schema: "public", table: "products" }, () => fetchKioskData())
       .on("postgres_changes", { event: "*", schema: "public", table: "product_variants" }, () => fetchKioskData())
+      .on("postgres_changes", { event: "*", schema: "public", table: "ingredients" }, () => fetchKioskData())
+      .on("postgres_changes", { event: "*", schema: "public", table: "recipes" }, () => fetchKioskData())
       .on("postgres_changes", { event: "*", schema: "public", table: "categories" }, () => fetchKioskData())
       .on("postgres_changes", { event: "*", schema: "public", table: "app_settings" }, () => fetchKioskData())
       .subscribe();
 
     return () => {
+      if (bc) bc.close();
       supabase.removeChannel(channel);
     };
   }, []); // Strictly once on mount

@@ -640,6 +640,10 @@ export function useKioskOrders() {
         const bc = new BroadcastChannel("timpla_kiosk_channel");
         bc.postMessage({ type: "SYNC_PENDING_ORDERS", action: "FINALIZE", orderId, orderNumber: orderToFinalize.orderNumber });
         bc.close();
+
+        const bcInv = new BroadcastChannel("timpla_inventory_sync");
+        bcInv.postMessage({ type: "INVENTORY_UPDATED" });
+        bcInv.close();
       } catch (e) {}
 
       window.dispatchEvent(new Event("storage"));

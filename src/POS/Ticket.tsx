@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, Minus, X, Coffee, Store, QrCode, Copy } from "lucide-react"; 
+import { Plus, Trash2, Minus, X, Coffee, Store, QrCode, Download } from "lucide-react"; 
 import type { CartItem } from "@/hooks/useCart";
 import { useTransactions } from "@/hooks/useTransactions";
-import { useGCashSettings } from "@/hooks/useGCashSettings";
+import { useGCashSettings, downloadGCashQrCode } from "@/hooks/useGCashSettings";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -54,7 +54,7 @@ export function TicketSidebar({
     isKiosk ? "counter" : "cash"
   );
   const { saveTransaction } = useTransactions();
-  const { gcashNumber, gcashQrImage } = useGCashSettings();
+  const { gcashQrImage } = useGCashSettings();
 
   // Reset payment method whenever checkout opens or mode changes
   useEffect(() => {
@@ -75,6 +75,16 @@ export function TicketSidebar({
       : (typeof amountReceived === "number" && amountReceived >= total);
 
   const handleCompleteTransaction = async () => {
+    // 0. Stock Overflow Check
+    for (const item of cart) {
+      const maxAvailable = item.quantity !== undefined ? item.quantity : (item.inStock === false ? 0 : 999);
+      if (item.qty > maxAvailable) {
+        toast.error(`Cannot complete order: Only ${maxAvailable} left in stock for "${item.name}". Please adjust quantity.`);
+        updateQty(item.id, maxAvailable - item.qty);
+        return;
+      }
+    }
+
     // 1. Device Lockout check (10-minute timeout for 3 rapid orders)
     const lockout = checkDeviceLockout();
     if (lockout.isLocked) {
@@ -395,29 +405,19 @@ export function TicketSidebar({
                     )}
                   </div>
 
-                  {/* GCASH NUMBER DISPLAY */}
-                  <div className="w-full bg-[#1E2333] border border-[#2D3448] rounded-xl p-2.5 flex flex-col items-center gap-0.5">
-                    <span className="text-[10px] font-bold uppercase text-[#94A3B8] tracking-widest">
-                      GCash Account Number
-                    </span>
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-black text-base text-[#00F2FE] tracking-wide">
-                        {gcashNumber || "0917-123-4567"}
-                      </span>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 text-[#94A3B8] hover:text-[#00F2FE] hover:bg-[#131824] cursor-pointer"
-                        onClick={() => {
-                          navigator.clipboard.writeText(gcashNumber || "0917-123-4567");
-                          toast.success("GCash number copied to clipboard!");
-                        }}
-                        title="Copy Number"
-                      >
-                        <Copy className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </div>
+                  {/* DOWNLOAD QR BUTTON */}
+                  {gcashQrImage && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => downloadGCashQrCode(gcashQrImage)}
+                      className="w-full max-w-[190px] h-8 text-xs border-[#00F2FE]/50 text-[#00F2FE] hover:bg-[#00F2FE]/10 font-bold rounded-lg cursor-pointer flex items-center justify-center gap-1.5 transition-all"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                      <span>Download QR Code</span>
+                    </Button>
+                  )}
 
                   {isKiosk && (
                     <span className="text-[11px] text-[#94A3B8] italic mt-0.5">

@@ -130,8 +130,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { success: false, message: "Staff member not found." }
     }
 
-    const isMaster = pin === MASTER_RECOVERY_PIN
-    const isPinValid = isMaster || await bcrypt.compare(pin, staffData.pin_hash)
+    const isPinValid = await bcrypt.compare(pin, staffData.pin_hash)
 
     if (isPinValid) {
       const staffMember = staffList.find(s => s.id === staffId)
@@ -145,15 +144,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             password: authPassword,
           })
           if (signInErr) {
-            // Register staff in Supabase Auth if account doesn't exist yet
-            await supabase.auth.signUp({
+            // Attempt signUp only if the account doesn't exist yet in Supabase Auth
+            const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
               email,
               password: authPassword,
             })
-            await supabase.auth.signInWithPassword({
-              email,
-              password: authPassword,
-            })
+            if (!signUpErr && signUpData?.session) {
+              // Successfully signed up and logged in
+            } else if (!signUpErr && signUpData?.user) {
+              await supabase.auth.signInWithPassword({
+                email,
+                password: authPassword,
+              })
+            }
           }
         } catch (authErr) {
           console.warn("Supabase auth sync notice:", authErr)
@@ -284,6 +287,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (user && user.id === staffId) {
         const updatedUser = (await storage.getStaff()).find(s => s.id === staffId)
         if (updatedUser) setUser(updatedUser)
+
+        if (pin) {
+          try {
+            await supabase.auth.updateUser({ password: `staff_pin_${pin}` })
+          } catch (authErr) {
+            console.warn("Could not sync updated password with Supabase Auth:", authErr)
+          }
+        }
       }
 
       return { success: true, message: "Staff updated successfully." }

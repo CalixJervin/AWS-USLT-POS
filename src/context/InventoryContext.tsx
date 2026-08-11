@@ -101,6 +101,12 @@ export const InventoryProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     fetchAll();
 
+    let bc: BroadcastChannel | null = null;
+    try {
+      bc = new BroadcastChannel("timpla_inventory_sync");
+      bc.onmessage = () => fetchAll();
+    } catch (e) {}
+
     // Subscribe to Realtime changes
     const channel = supabase
       .channel('inventory-updates')
@@ -137,6 +143,7 @@ export const InventoryProvider = ({ children }: { children: ReactNode }) => {
       .subscribe();
 
     return () => {
+      if (bc) bc.close();
       supabase.removeChannel(channel);
     };
   }, [fetchAll]);

@@ -15,6 +15,7 @@ import { useInventory } from "@/hooks/useInventory"
 import { useKioskOrders } from "@/hooks/useKioskOrders"
 import { PendingOrdersModal } from "@/components/PendingOrdersModal"
 import { PreOrderModal } from "@/components/PreOrderModal"
+import { TakopiMascotHint } from "@/components/TakopiMascotHint"
 import { motion, AnimatePresence } from "framer-motion"
 
 function LiveClock() {
@@ -45,7 +46,8 @@ export default function AdminPOSView() {
     updateProduct, 
     deleteProduct,
     categories,
-    addCategory
+    addCategory,
+    isLoading
   } = useInventory()
 
   const {
@@ -86,7 +88,10 @@ export default function AdminPOSView() {
     inStock: p.inStock,
     variantId: p.variants[0]?.id as any,
     size: p.variants[0]?.size || "Regular",
-    isPreOrder: p.isPreOrder || p.type === "merch" || p.category.toLowerCase().includes("merch")
+    isPreOrder: p.isPreOrder || p.type === "merch" || p.category.toLowerCase().includes("merch"),
+    type: p.type,
+    quantity: p.quantity,
+    variants: p.variants
   })), [inventoryProducts])
 
   // 1. Top Carousel: ONLY items with category === "Merch" or type === "merch" or isPreOrder === true
@@ -300,7 +305,7 @@ export default function AdminPOSView() {
         </div>
 
                {/* Scrollable Categories & Products Area */}
-        <div ref={mainScrollRef} className="flex-1 flex flex-col gap-4 px-4 pt-0 pb-[25vh] overflow-y-auto custom-scrollbar bg-[#0B0E14] relative overscroll-contain touch-pan-y">
+        <div ref={mainScrollRef} className="flex-1 flex flex-col gap-4 px-4 pt-0 pb-52 overflow-y-auto custom-scrollbar bg-[#0B0E14] relative overscroll-contain touch-pan-y">
           {/* STICKY CATEGORY NAVIGATION BAR */}
           <div className="sticky top-0 z-40 bg-[#0B0E14] -mx-4 px-4 py-2 border-b border-[#232A3B] shadow-md shrink-0">
             <div className="relative shrink-0">
@@ -389,6 +394,7 @@ export default function AdminPOSView() {
             onDeleteProduct={handleStageForDeletion}
             onAddNewClick={() => setIsAddModalOpen(true)}
             isKiosk={false}
+            isLoading={isLoading}
           />
         </div>
       </div>
@@ -464,8 +470,8 @@ export default function AdminPOSView() {
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 220 }}
-              className="relative w-full max-w-[420px] sm:w-[420px] h-full bg-[#131824] border-l border-[#232A3B] shadow-2xl overflow-hidden flex flex-col z-50"
+              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+              className="relative w-full max-w-[420px] sm:w-[420px] h-full bg-[#131824] border-l border-[#232A3B] shadow-2xl overflow-hidden flex flex-col z-50 will-change-transform transform-gpu"
             >
               <TicketSidebar 
                 cart={cart}
@@ -503,6 +509,9 @@ export default function AdminPOSView() {
         isOpen={!!selectedMerchProduct}
         onClose={() => setSelectedMerchProduct(null)}
       />
+
+      {/* TAKOPI MASCOT HINT */}
+      <TakopiMascotHint containerRef={mainScrollRef} />
     </div>
   )
 }

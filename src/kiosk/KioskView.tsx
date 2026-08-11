@@ -15,6 +15,7 @@ import { PreOrderModal } from "@/components/PreOrderModal"
 import { motion, AnimatePresence } from "framer-motion"
 
 import { MyPreOrdersModalButton } from "@/components/MyPreOrdersModal"
+import { TakopiMascotHint } from "@/components/TakopiMascotHint"
 
 export default function KioskView() {
   const { 
@@ -22,7 +23,7 @@ export default function KioskView() {
     clearCart, subtotal, total 
   } = useCart()
 
-  const { products: inventoryProducts, categories } = useKiosk()
+  const { products: inventoryProducts, categories, isLoading } = useKiosk()
 
   const {
     pendingOrders,
@@ -87,7 +88,10 @@ export default function KioskView() {
     inStock: p.inStock,
     variantId: p.variants[0]?.id as any,
     size: p.variants[0]?.size || "Regular",
-    isPreOrder: p.isPreOrder || p.type === "merch" || p.category.toLowerCase().includes("merch")
+    isPreOrder: p.isPreOrder || p.type === "merch" || p.category.toLowerCase().includes("merch"),
+    type: p.type,
+    quantity: p.quantity,
+    variants: p.variants
   })), [inventoryProducts])
 
   // 1. Top Carousel: ONLY items with category === "Merch" or type === "merch" or isPreOrder === true
@@ -230,13 +234,15 @@ export default function KioskView() {
           <SiteHeader isKiosk={true}>
             {/* LOGO & TITLE */}
             <div className="flex items-center gap-2">
-              <img 
-                src="/takopi.jpg" 
-                alt="AWS Logo" 
-                className="w-7 h-7 sm:w-8 sm:h-8 object-cover rounded-full border border-[#00F2FE]/40 shadow-[0_0_10px_rgba(0,242,254,0.3)] shrink-0" 
-              />
+              <div className="relative w-7 h-7 sm:w-8 sm:h-8 rounded-full overflow-hidden border border-[#00F2FE]/40 shadow-[0_0_10px_rgba(0,242,254,0.3)] shrink-0 flex items-center justify-center">
+                <img 
+                  src="/takopi.jpg" 
+                  alt="AWS Logo" 
+                  className="w-full h-full object-cover scale-135" 
+                />
+              </div>
               <span className="text-sm sm:text-base font-black text-[#E2E8F0] tracking-tight">
-                AWS
+                AWS-SBG
               </span>
             </div>
 
@@ -259,7 +265,7 @@ export default function KioskView() {
         </div>
 
         {/* Scrollable Categories & Products Area */}
-        <div ref={mainScrollRef} className="flex-1 flex flex-col gap-4 px-4 pt-0 pb-[40vh] overflow-y-auto custom-scrollbar bg-[#0B0E14] relative overscroll-contain touch-pan-y">
+        <div ref={mainScrollRef} className="flex-1 flex flex-col gap-4 px-4 pt-0 pb-52 overflow-y-auto custom-scrollbar bg-[#0B0E14] relative overscroll-contain touch-pan-y">
           {/* PERSISTENT ACTIVE KIOSK ORDER BANNER */}
           {activeKioskOrder && (
             <div className="bg-[#1E2333] border border-[#00F2FE]/40 rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-3 shadow-lg shrink-0 animate-in fade-in">
@@ -324,6 +330,12 @@ export default function KioskView() {
             </div>
           </div>
           
+          {/* EASY SECRET DOM HTML COMMENT */}
+          <div 
+            dangerouslySetInnerHTML={{ 
+              __html: '<!-- 🔍 SECRET #1 [EASY]: USL_AWS{t4k0_h1d1ng_1n_th3_r33f} - Congratulations on inspecting the Elements tab! -->' 
+            }} 
+          />
           <div className="hidden" aria-hidden="true">
             <p>Wow, Impressive! Here is your flag:</p>
             <span>{"USL_AWS{t4k0_h1d1ng_1n_th3_r33f}"}</span>
@@ -333,7 +345,8 @@ export default function KioskView() {
           {/* SECRET SEARCH EASTER EGG SECTION (BASE64 OBFUSCATED) */}
           {(() => {
             try {
-              return btoa(searchQuery.trim().toLowerCase()) === "dDRrMHlhazE="
+              const q = searchQuery.trim().toLowerCase()
+              return q === "t4k0yak1" || q === "vdrrmlhaze=" || btoa(q) === "dDRrMHlhazE=" || btoa(q) === "VDRrMHlhazE="
             } catch {
               return false
             }
@@ -379,8 +392,10 @@ export default function KioskView() {
                 {merchProducts.map((merch) => (
                   <div
                     key={merch.id}
-                    onClick={() => setSelectedMerchProduct(merch)}
-                    className="min-w-[280px] sm:min-w-[320px] h-[160px] rounded-2xl bg-[#1E2333] border border-[#00F2FE]/40 hover:border-[#00F2FE] cursor-pointer snap-start relative overflow-hidden flex flex-col justify-between p-4 shadow-lg transition-all active:scale-[0.99] group shrink-0"
+                    onClick={() => merch.inStock !== false && setSelectedMerchProduct(merch)}
+                    className={`min-w-[280px] sm:min-w-[320px] h-[160px] rounded-2xl bg-[#1E2333] border border-[#00F2FE]/40 hover:border-[#00F2FE] cursor-pointer snap-start relative overflow-hidden flex flex-col justify-between p-4 shadow-lg transition-all active:scale-[0.99] group shrink-0 ${
+                      merch.inStock === false ? "opacity-45 pointer-events-none" : ""
+                    }`}
                   >
                     {/* Background image or gradient fallback */}
                     {merch.image ? (
@@ -394,8 +409,10 @@ export default function KioskView() {
                     )}
 
                     <div className="relative z-10 flex items-center justify-between">
-                      <span className="bg-[#E6007E] text-white text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider shadow-md">
-                        PRE-ORDER
+                      <span className={`text-white text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider shadow-md ${
+                        merch.inStock === false ? "bg-[#FF3366]" : "bg-[#E6007E]"
+                      }`}>
+                        {merch.inStock === false ? "OUT OF STOCK" : "PRE-ORDER"}
                       </span>
                       <span className="bg-[#131824]/90 backdrop-blur-md text-[#00F2FE] border border-[#00F2FE]/40 text-xs font-black px-2.5 py-1 rounded-full">
                         ₱{merch.price.toFixed(2)}
@@ -420,6 +437,7 @@ export default function KioskView() {
             onDeleteProduct={() => {}}
             onAddNewClick={() => {}}
             isKiosk={true}
+            isLoading={isLoading}
           />
           <div 
             dangerouslySetInnerHTML={{ 
@@ -487,8 +505,8 @@ export default function KioskView() {
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 220 }}
-              className="relative w-full max-w-[420px] sm:w-[420px] h-full bg-[#131824] border-l border-[#232A3B] shadow-2xl overflow-hidden flex flex-col z-50"
+              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+              className="relative w-full max-w-[420px] sm:w-[420px] h-full bg-[#131824] border-l border-[#232A3B] shadow-2xl overflow-hidden flex flex-col z-50 will-change-transform transform-gpu"
             >
               <TicketSidebar 
                 cart={cart}
@@ -523,6 +541,9 @@ export default function KioskView() {
         isOpen={!!selectedMerchProduct}
         onClose={() => setSelectedMerchProduct(null)}
       />
+
+      {/* TAKOPI MASCOT SECRET HINT SYSTEM (PEEKS AT VERY BOTTOM RIGHT) */}
+      <TakopiMascotHint containerRef={mainScrollRef} />
     </div>
   )
 }

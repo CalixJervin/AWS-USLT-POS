@@ -120,7 +120,10 @@ export function PendingOrdersModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl bg-[#131824] border-[#232A3B] text-[#E2E8F0] max-h-[90vh] flex flex-col p-0 overflow-hidden">
+      <DialogContent 
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        className="sm:max-w-2xl bg-[#131824] border-[#232A3B] text-[#E2E8F0] max-h-[90vh] flex flex-col p-0 overflow-hidden"
+      >
         
         {/* MODAL HEADER */}
         <DialogHeader className="p-5 border-b border-[#232A3B] bg-[#1E2333] flex flex-row items-center justify-between shrink-0">

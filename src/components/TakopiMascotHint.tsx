@@ -23,7 +23,7 @@ const HINTS: HintItem[] = [
     difficulty: "OVERVIEW",
     color: "from-[#00F2FE] to-[#4FACFE]",
     badgeBg: "bg-[#00F2FE]/20 text-[#00F2FE] border-[#00F2FE]/40",
-    text: "You found me all the way down here! Did you know this system holds forgotten secrets that gives out rewards? Only curious minds who look beyond what is visible will find them...",
+    text: "You found me all the way down here! Did you know this land holds forgotten secrets that gives out rewards? Only curious minds who look beyond what is visible will find them...",
   },
   {
     id: "1",

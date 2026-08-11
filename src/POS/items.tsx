@@ -39,9 +39,9 @@ const ProductItemGrid = memo(({ product, onAddToCart, isSelected }: ProductItemP
       </div>
 
       <div className="p-3.5 flex flex-col gap-1 shrink-0">
-        <span className="font-semibold text-sm text-[#E2E8F0] leading-tight truncate">{product.name}</span>
+        <span className="font-semibold text-xs sm:text-[13px] text-[#E2E8F0] leading-tight break-words whitespace-normal">{product.name}</span>
         <div className="flex flex-col">
-          <span className="text-base font-black text-[#E6007E] tracking-tight">₱{product.price.toFixed(2)}</span>
+          <span className="text-sm sm:text-base font-black text-[#E6007E] tracking-tight">₱{product.price.toFixed(2)}</span>
           <span className="text-[10px] text-[#94A3B8] font-medium uppercase tracking-wider">{product.category}</span>
         </div>
       </div>
@@ -63,8 +63,8 @@ const ProductItemList = memo(({ product, onAddToCart, isSelected }: ProductItemP
       } ${product.inStock === false ? "opacity-45 pointer-events-none" : ""}`}
     >
       <div className="flex flex-col gap-1 pr-3 min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <span className="font-semibold text-[15px] sm:text-[16px] text-[#E2E8F0] leading-tight truncate">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="font-semibold text-xs sm:text-sm text-[#E2E8F0] leading-tight break-words whitespace-normal">
             {product.name}
           </span>
           {product.inStock === false && (

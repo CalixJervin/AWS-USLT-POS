@@ -377,7 +377,7 @@ export default function AdminPOSView() {
                     </div>
 
                     <div className="relative z-10">
-                      <h4 className="text-base font-black text-white drop-shadow-md truncate">{merch.name}</h4>
+                      <h4 className="text-xs sm:text-sm font-bold text-white drop-shadow-md break-words whitespace-normal leading-snug">{merch.name}</h4>
                     </div>
                   </div>
                 ))}

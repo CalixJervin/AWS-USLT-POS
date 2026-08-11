@@ -219,8 +219,8 @@ export function TicketSidebar({
 
                   {/* Product Info */}
                   <div className="flex-1 min-w-0 flex flex-col justify-center">
-                    <div className="flex justify-between items-start text-[#E2E8F0] font-semibold text-[14px] gap-2">
-                      <span className="truncate leading-tight">{item.name}</span>
+                    <div className="flex justify-between items-start text-[#E2E8F0] font-semibold text-[13px] gap-2">
+                      <span className="break-words whitespace-normal leading-tight">{item.name}</span>
                       <span className="text-[#E6007E] font-bold shrink-0">₱{(item.price * item.qty).toFixed(2)}</span>
                     </div>
                     {item.size && item.size !== "Regular" && (

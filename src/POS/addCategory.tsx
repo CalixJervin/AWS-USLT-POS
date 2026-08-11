@@ -117,7 +117,7 @@ export function AddCategoryModal({
                         <img src={product.image} alt={product.name} className="h-full w-full object-cover" />
                       </div>
                       <div className="flex-1 flex flex-col min-w-0">
-                        <span className="text-sm font-bold text-[#E2E8F0] truncate leading-tight">{product.name}</span>
+                        <span className="text-xs font-bold text-[#E2E8F0] break-words whitespace-normal leading-tight">{product.name}</span>
                         <span className="text-[10px] font-bold text-[#E6007E] uppercase tracking-wide">{product.category}</span>
                       </div>
                       

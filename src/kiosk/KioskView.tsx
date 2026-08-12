@@ -3,7 +3,7 @@ import { TicketSidebar } from "@/POS/Ticket"
 import { useCart } from "@/hooks/useCart"
 import { ProductGrid } from "@/POS/items"
 import { Input } from "@/components/ui/input"
-import { Search, ShoppingBag, Store, WifiOff } from "lucide-react"
+import { Search, ShoppingBag, Store, WifiOff, Maximize2, Sparkles, Package } from "lucide-react"
 import { Button } from "@/components/ui/button" 
 import type { Product } from "@/hooks/useCart"
 import { SiteHeader } from "@/components/site-header"
@@ -15,6 +15,13 @@ import { KioskOrderConfirmationModal } from "@/POS/KioskOrderConfirmationModal"
 import { PreOrderModal } from "@/components/PreOrderModal"
 import { motion, AnimatePresence } from "framer-motion"
 import { toast } from "sonner"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"
 
 import { MyPreOrdersModalButton } from "@/components/MyPreOrdersModal"
 import { TakopiMascotHint } from "@/components/TakopiMascotHint"
@@ -88,6 +95,22 @@ export default function KioskView() {
 
   // Pre-Order Modal State for Merch Banners
   const [selectedMerchProduct, setSelectedMerchProduct] = useState<Product | null>(null)
+  const [inspectingImage, setInspectingImage] = useState<{ url: string; title: string } | null>(null)
+  const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const handlePointerDown = (url?: string, title?: string) => {
+    if (!url) return
+    holdTimerRef.current = setTimeout(() => {
+      setInspectingImage({ url, title: title || "Product Inspection" })
+    }, 350)
+  }
+
+  const handlePointerUp = () => {
+    if (holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current)
+      holdTimerRef.current = null
+    }
+  }
 
   // Map inventory products to POS structure
   const allProducts: Product[] = useMemo(() => inventoryProducts.map(p => ({
@@ -404,34 +427,59 @@ export default function KioskView() {
                   <div
                     key={merch.id}
                     onClick={() => merch.inStock !== false && setSelectedMerchProduct(merch)}
-                    className={`min-w-[280px] sm:min-w-[320px] h-[160px] rounded-2xl bg-[#1E2333] border border-[#00F2FE]/40 hover:border-[#00F2FE] cursor-pointer snap-start relative overflow-hidden flex flex-col justify-between p-4 shadow-lg transition-all active:scale-[0.99] group shrink-0 ${
-                      merch.inStock === false ? "opacity-45 pointer-events-none" : ""
+                    onPointerDown={() => handlePointerDown(merch.image, merch.name)}
+                    onPointerUp={handlePointerUp}
+                    onPointerLeave={handlePointerUp}
+                    className={`min-w-[250px] sm:min-w-[290px] h-[165px] rounded-2xl bg-[#1E2333] border border-[#00F2FE]/40 hover:border-[#00F2FE] cursor-pointer snap-start relative overflow-hidden flex flex-col justify-between p-3 shadow-lg transition-all active:scale-[0.99] group shrink-0 ${
+                      merch.inStock === false ? "opacity-50 pointer-events-none" : ""
                     }`}
                   >
-                    {/* Background image or gradient fallback */}
+                    {/* Background Image - FULL 100% VISIBILITY (NO DIMMING FILTER, NO BACKGROUND OVERLAY SHADOWS) */}
                     {merch.image ? (
                       <img 
                         src={merch.image} 
                         alt={merch.name} 
-                        className="absolute inset-0 w-full h-full object-cover opacity-35 group-hover:opacity-50 transition-opacity" 
+                        className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" 
                       />
                     ) : (
-                      <div className="absolute inset-0 bg-gradient-to-br from-[#E6007E]/25 via-transparent to-[#00F2FE]/15" />
+                      <div className="absolute inset-0 bg-gradient-to-br from-[#E6007E]/20 via-[#1E2333] to-[#00F2FE]/20 flex items-center justify-center">
+                        <Package className="h-11 w-11 text-[#94A3B8]" />
+                      </div>
                     )}
 
-                    <div className="relative z-10 flex items-center justify-between">
-                      <span className={`text-white text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider shadow-md ${
-                        merch.inStock === false ? "bg-[#FF3366]" : "bg-[#E6007E]"
-                      }`}>
+                    {/* Subtle bottom dark gradient overlay for text readability */}
+                    <div className="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-black/85 via-black/45 to-transparent pointer-events-none" />
+
+                    {/* TOP BAR: Clean PRE-ORDER Text (No Cylinder, No Blinking Dot!) + Hold to Inspect Button */}
+                    <div className="relative z-10 flex items-center justify-between w-full p-0.5">
+                      <span className="text-[#E6007E] text-[10px] font-black uppercase tracking-widest drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)]">
                         {merch.inStock === false ? "OUT OF STOCK" : "PRE-ORDER"}
                       </span>
-                      <span className="bg-[#131824]/90 backdrop-blur-md text-[#00F2FE] border border-[#00F2FE]/40 text-xs font-black px-2.5 py-1 rounded-full">
-                        ₱{merch.price.toFixed(2)}
-                      </span>
+
+                      {merch.image && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setInspectingImage({ url: merch.image!, title: merch.name });
+                          }}
+                          title="Click or Hold to Inspect Full Image"
+                          className="bg-black/70 hover:bg-black/90 text-[#00F2FE] p-1.5 rounded-full border border-[#00F2FE]/50 backdrop-blur-md transition-transform hover:scale-110 active:scale-95 cursor-pointer flex items-center gap-1 text-[10px] font-bold px-2.5 shadow-md"
+                        >
+                          <Maximize2 className="h-3 w-3 text-[#00F2FE]" />
+                          <span>Inspect</span>
+                        </button>
+                      )}
                     </div>
 
-                    <div className="relative z-10">
-                      <h4 className="text-xs sm:text-sm font-bold text-white drop-shadow-md break-words whitespace-normal leading-snug">{merch.name}</h4>
+                    {/* BOTTOM BAR: Product Name & Price directly on image (No Box Container!) */}
+                    <div className="relative z-10 mt-auto flex items-center justify-between gap-2 w-full px-0.5 py-0.5">
+                      <h4 className="text-xs sm:text-sm font-black text-white line-clamp-1 min-w-0 flex-1 drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)]" title={merch.name}>
+                        {merch.name}
+                      </h4>
+                      <span className="text-[#00F2FE] font-black text-sm sm:text-base shrink-0 drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)]">
+                        ₱{merch.price.toFixed(2)}
+                      </span>
                     </div>
                   </div>
                 ))}
@@ -552,6 +600,40 @@ export default function KioskView() {
         isOpen={!!selectedMerchProduct}
         onClose={() => setSelectedMerchProduct(null)}
       />
+
+      {/* FULL IMAGE INSPECTION LIGHTBOX MODAL (PRESS/HOLD OR CLICK TO INSPECT) */}
+      <Dialog open={!!inspectingImage} onOpenChange={(open) => !open && setInspectingImage(null)}>
+        <DialogContent className="bg-[#131824]/95 border-[#00F2FE]/40 text-[#E2E8F0] max-w-2xl p-4 rounded-2xl backdrop-blur-xl z-[99999]">
+          <DialogHeader className="flex flex-row items-center justify-between pb-2 border-b border-[#232A3B]">
+            <DialogTitle className="text-base sm:text-lg font-black text-[#E2E8F0] flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-[#E6007E]" />
+              <span>{inspectingImage?.title || "Product Inspection"}</span>
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="flex flex-col items-center justify-center p-2 relative max-h-[70vh] overflow-hidden">
+            {inspectingImage?.url && (
+              <img
+                src={inspectingImage.url}
+                alt={inspectingImage.title}
+                className="max-h-[65vh] w-auto max-w-full object-contain rounded-xl border border-[#00F2FE]/30 shadow-2xl"
+              />
+            )}
+          </div>
+
+          <DialogFooter className="sm:justify-between items-center gap-2 pt-2 border-t border-[#232A3B]">
+            <span className="text-xs text-[#94A3B8] italic">
+              Click outside or Close to exit preview
+            </span>
+            <Button
+              onClick={() => setInspectingImage(null)}
+              className="bg-[#E6007E] hover:bg-[#FF1A96] text-white font-bold text-xs rounded-xl px-4 cursor-pointer"
+            >
+              Close Inspection
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* TAKOPI MASCOT SECRET HINT SYSTEM (PEEKS AT VERY BOTTOM RIGHT) */}
       <TakopiMascotHint containerRef={mainScrollRef} />

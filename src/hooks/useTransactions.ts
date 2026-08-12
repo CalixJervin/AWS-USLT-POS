@@ -103,6 +103,11 @@ export function useTransactions() {
   };
 
   const fetchTransactions = useCallback(async (showLoading = false) => {
+    const isKioskPath = typeof window !== "undefined" && (window.location.pathname === "/" || window.location.pathname === "/kiosk");
+    if (isKioskPath) {
+      setIsLoading(false);
+      return;
+    }
     if (showLoading) setIsLoading(true);
     let orders: any[] = [];
     try {
@@ -341,10 +346,16 @@ export function useTransactions() {
             });
           }
         } else {
-          // Enrich existing DB entry with local contact details if missing
+          // Enrich existing DB entry with local contact details and GCash payment info if missing
           if (!existingTx.customer_name && l.customerName) existingTx.customer_name = l.customerName;
           if (!existingTx.customer_email && l.customerEmail) existingTx.customer_email = l.customerEmail;
           if (!existingTx.customer_phone && l.customerPhone) existingTx.customer_phone = l.customerPhone;
+          if (!existingTx.gcash_ref_number && (l.gcashRefNumber || l.gcash_ref_number)) {
+            existingTx.gcash_ref_number = l.gcashRefNumber || l.gcash_ref_number;
+          }
+          if (!existingTx.gcash_receipt_url && (l.gcashReceiptImage || l.gcash_receipt_url)) {
+            existingTx.gcash_receipt_url = l.gcashReceiptImage || l.gcash_receipt_url;
+          }
         }
       });
 
@@ -412,7 +423,9 @@ export function useTransactions() {
             customer_email: preferTx.customer_email || secondary.customer_email,
             customer_phone: preferTx.customer_phone || secondary.customer_phone,
             fulfillment_status: preferTx.fulfillment_status || secondary.fulfillment_status,
-            is_pre_order: preferTx.is_pre_order || secondary.is_pre_order
+            is_pre_order: preferTx.is_pre_order || secondary.is_pre_order,
+            gcash_ref_number: preferTx.gcash_ref_number || secondary.gcash_ref_number,
+            gcash_receipt_url: preferTx.gcash_receipt_url || secondary.gcash_receipt_url
           };
         }
       });
@@ -437,6 +450,12 @@ export function useTransactions() {
   }, []);
 
   useEffect(() => {
+    const isKioskPath = typeof window !== "undefined" && (window.location.pathname === "/" || window.location.pathname === "/kiosk");
+    if (isKioskPath) {
+      setIsLoading(false);
+      return;
+    }
+
     fetchTransactions(true);
 
     const handleStorageChange = () => {
@@ -791,7 +810,7 @@ export function useTransactions() {
 
     const isShirtExport = categoryLabel === "Shirt Pre-orders" || txsToExport.some(t => t.is_pre_order);
 
-    const baseHeaders = ["Order ID", "Date", "Time", "Items Count", "Items Summary", "Total Amount (PHP)", "Payment Status"];
+    const baseHeaders = ["Order ID", "Date", "Time", "Items Count", "Items Summary", "Total Amount (PHP)", "Payment Status", "GCash Ref Number", "GCash Receipt Screenshot"];
     const headers = isShirtExport 
       ? [...baseHeaders, "Customer Name", "Phone Number", "Email Address", "Fulfillment Status"]
       : baseHeaders;
@@ -814,6 +833,12 @@ export function useTransactions() {
       const custEmail = t.customer_email || localMatch?.customerEmail || "";
       const fulStatus = t.fulfillment_status || localMatch?.fulfillmentStatus || (t.is_pre_order ? "pre_ordered" : "completed");
 
+      const gcashRef = t.gcash_ref_number || localMatch?.gcashRefNumber || localMatch?.gcash_ref_number || "";
+      const rawReceipt = t.gcash_receipt_url || localMatch?.gcashReceiptImage || localMatch?.gcash_receipt_url || "";
+      const gcashReceipt = rawReceipt 
+        ? (rawReceipt.startsWith("data:") ? "Screenshot Attached (Base64)" : rawReceipt)
+        : "";
+
       const baseRow = [
         t.order_id,
         dateStr,
@@ -821,7 +846,9 @@ export function useTransactions() {
         itemsCount,
         `"${itemsSummary.replace(/"/g, '""')}"`,
         t.total_amount.toFixed(2),
-        t.payment_method ? t.payment_method.toUpperCase() : "COMPLETED"
+        t.payment_method ? t.payment_method.toUpperCase() : "COMPLETED",
+        `"${gcashRef.replace(/"/g, '""')}"`,
+        `"${gcashReceipt.replace(/"/g, '""')}"`
       ];
 
       if (isShirtExport) {

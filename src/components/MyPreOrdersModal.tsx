@@ -347,7 +347,7 @@ export function useMyPreOrders() {
         try {
           const numWithHash = orderNumber.startsWith("#") ? orderNumber : `#${orderNumber}`;
           const numClean = orderNumber.replace(/^#/, "");
-          await supabase
+          const { error } = await supabase
             .from("orders")
             .update({
               payment_method: "gcash",
@@ -356,6 +356,18 @@ export function useMyPreOrders() {
               gcash_receipt_url: receiptImage || null
             })
             .or(`order_number.eq.${numWithHash},order_number.eq.${numClean}`);
+
+          if (error) {
+            console.warn("Supabase update gcash info notice:", error.message);
+            // Fallback update without gcash columns if missing in DB schema
+            await supabase
+              .from("orders")
+              .update({
+                payment_method: "gcash",
+                status: "verifying"
+              })
+              .or(`order_number.eq.${numWithHash},order_number.eq.${numClean}`);
+          }
         } catch (e) {}
       };
       updateSupabase();

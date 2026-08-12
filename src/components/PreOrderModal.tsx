@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Package, Calendar, Sparkles, CheckCircle2, AlertTriangle, Store, QrCode, Download} from "lucide-react";
+import { Package, Calendar, Sparkles, CheckCircle2, AlertTriangle, Store, QrCode, Download, Upload, Trash2, CreditCard } from "lucide-react";
 import type { Product } from "@/hooks/useCart";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
@@ -35,6 +35,8 @@ export function PreOrderModal({
   const [customerPhone, setCustomerPhone] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "gcash">("cash");
   const [gcashRefNumber, setGcashRefNumber] = useState("");
+  const [gcashReceiptImage, setGcashReceiptImage] = useState<string>("");
+  const [viewReceiptUrl, setViewReceiptUrl] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [generatedOrderNum, setGeneratedOrderNum] = useState("");
@@ -64,11 +66,56 @@ export function PreOrderModal({
       setCustomerPhone("");
       setPaymentMethod("cash");
       setGcashRefNumber("");
+      setGcashReceiptImage("");
+      setViewReceiptUrl(null);
       setIsProcessing(false);
       setIsSuccess(false);
       setGeneratedOrderNum("");
     }
   }, [isOpen, item, isShirtProduct]);
+
+  const handleReceiptFileChange = (file: File) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please upload an image file (PNG, JPG, JPEG, etc.).");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let width = img.width;
+        let height = img.height;
+        const MAX_SIZE = 800;
+
+        if (width > height) {
+          if (width > MAX_SIZE) {
+            height = Math.round((height * MAX_SIZE) / width);
+            width = MAX_SIZE;
+          }
+        } else {
+          if (height > MAX_SIZE) {
+            width = Math.round((width * MAX_SIZE) / height);
+            height = MAX_SIZE;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL("image/jpeg", 0.8);
+          setGcashReceiptImage(dataUrl);
+          toast.success("GCash receipt screenshot attached!");
+        }
+      };
+      img.src = e.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
 
   if (!item) return null;
 
@@ -99,9 +146,15 @@ export function PreOrderModal({
       toast.error("Please provide a valid email address (e.g., name@domain.com).");
       return;
     }
-    if (!isPayLater && paymentMethod === "gcash" && !gcashRefNumber.trim()) {
-      toast.error("Please provide your GCash reference number.");
-      return;
+    if (!isPayLater && paymentMethod === "gcash") {
+      if (!gcashRefNumber.trim()) {
+        toast.error("Please provide your GCash reference number.");
+        return;
+      }
+      if (!gcashReceiptImage) {
+        toast.error("Please attach a screenshot of your GCash receipt.");
+        return;
+      }
     }
 
     // 2. Record order attempt & check if 3rd attempt triggers 10-minute lockout
@@ -137,6 +190,7 @@ export function PreOrderModal({
       paymentMethod: finalPaymentMethod,
       paymentStatus: finalPaymentStatus,
       gcashRefNumber: isPayLater ? "" : gcashRefNumber.trim(),
+      gcashReceiptImage: isPayLater ? undefined : gcashReceiptImage,
       createdAt: new Date().toISOString()
     });
 
@@ -158,7 +212,9 @@ export function PreOrderModal({
         customer_email: customerEmail.trim() || null,
         customer_phone: customerPhone.trim() || null,
         fulfillment_status: "pre_ordered",
-        payment_method: finalPaymentMethod
+        payment_method: finalPaymentMethod,
+        gcash_ref_number: isPayLater ? null : (paymentMethod === "gcash" ? gcashRefNumber.trim() : null),
+        gcash_receipt_url: isPayLater ? null : (paymentMethod === "gcash" ? gcashReceiptImage : null)
       };
 
       let dbOrder: any = null;
@@ -171,9 +227,11 @@ export function PreOrderModal({
 
       if (resWithAllFields.error) {
         console.warn("Supabase full pre-order insert notice:", resWithAllFields.error.message);
-        // Fallback without order_number and payment_method if columns are missing
+        // Fallback without order_number, payment_method, gcash fields if columns are missing in DB schema
         delete orderPayload.order_number;
         delete orderPayload.payment_method;
+        delete orderPayload.gcash_ref_number;
+        delete orderPayload.gcash_receipt_url;
         resWithAllFields = await supabase
           .from("orders")
           .insert(orderPayload)
@@ -487,6 +545,63 @@ export function PreOrderModal({
                           className="h-10 text-base bg-[#131824] border-[#2D3448] text-[#E2E8F0] placeholder:text-[#64748B] focus-visible:ring-[#00F2FE]"
                         />
                       </div>
+
+                      {/* RECEIPT SCREENSHOT ATTACHMENT (REQUIRED) */}
+                      <div className="flex flex-col gap-1.5 w-full text-left mt-1">
+                        <label className="text-[11px] font-bold text-[#E2E8F0] flex items-center justify-between">
+                          <span>Attach GCash Receipt Screenshot</span>
+                          <span className="text-[#FF3366] text-[10px] font-bold uppercase">(Required for GCash)</span>
+                        </label>
+
+                        {gcashReceiptImage ? (
+                          <div className="relative bg-[#131824] border border-[#00F2FE]/50 rounded-xl p-2.5 flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2.5 overflow-hidden">
+                              <img
+                                src={gcashReceiptImage}
+                                alt="Receipt Screenshot"
+                                onClick={() => setViewReceiptUrl(gcashReceiptImage)}
+                                className="w-12 h-12 object-cover rounded-lg border border-[#00F2FE]/40 cursor-pointer hover:scale-105 transition-transform"
+                              />
+                              <div className="flex flex-col text-left">
+                                <span className="text-xs font-bold text-[#E2E8F0]">Receipt Screenshot</span>
+                                <button
+                                  type="button"
+                                  onClick={() => setViewReceiptUrl(gcashReceiptImage)}
+                                  className="text-[11px] text-[#00F2FE] font-medium underline text-left cursor-pointer"
+                                >
+                                  Click to view full image
+                                </button>
+                              </div>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setGcashReceiptImage("")}
+                              className="h-8 w-8 text-[#FF3366] hover:bg-[#FF3366]/10 rounded-lg shrink-0 cursor-pointer"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <label className="bg-[#131824] border border-dashed border-[#00F2FE]/40 hover:border-[#00F2FE] rounded-xl p-3 flex flex-col items-center justify-center gap-1.5 cursor-pointer transition-all">
+                            <Upload className="h-5 w-5 text-[#00F2FE]" />
+                            <div className="text-center">
+                              <span className="text-xs font-bold text-[#00F2FE]">Upload GCash Receipt Screenshot <span className="text-[#FF3366]">*</span></span>
+                              <div className="text-[10px] text-[#64748B]">PNG, JPG, or JPEG up to 10MB</div>
+                            </div>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) handleReceiptFileChange(file);
+                              }}
+                            />
+                          </label>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -505,6 +620,7 @@ export function PreOrderModal({
         {!isSuccess && (() => {
           const lockout = checkDeviceLockout();
           const isLocked = lockout.isLocked;
+          const isGcashIncomplete = paymentMethod === "gcash" && (!gcashRefNumber.trim() || !gcashReceiptImage);
           return (
             <DialogFooter className="p-4 bg-[#1E2333] border-t border-[#232A3B] flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
               {paymentMethod === "gcash" ? (
@@ -526,9 +642,9 @@ export function PreOrderModal({
               <Button
                 type="button"
                 onClick={() => handleSaveOrder(false)}
-                disabled={isProcessing || isLocked || (paymentMethod === "gcash" && !gcashRefNumber.trim())}
+                disabled={isProcessing || isLocked || isGcashIncomplete}
                 className={`w-full sm:w-auto bg-[#E6007E] text-white hover:bg-[#FF1A96] font-black text-xs sm:text-sm px-6 rounded-full h-11 shadow-lg border border-[#00F2FE]/40 transition-all flex items-center justify-center gap-2 ${
-                  isProcessing || isLocked || (paymentMethod === "gcash" && !gcashRefNumber.trim())
+                  isProcessing || isLocked || isGcashIncomplete
                     ? "opacity-50 cursor-not-allowed"
                     : "cursor-pointer"
                 }`}
@@ -539,6 +655,38 @@ export function PreOrderModal({
           );
         })()}
       </DialogContent>
+
+      {/* LIGHTBOX RECEIPT SCREENSHOT PREVIEW DIALOG */}
+      <Dialog open={Boolean(viewReceiptUrl)} onOpenChange={(open) => { if (!open) setViewReceiptUrl(null); }}>
+        <DialogContent className="sm:max-w-xl bg-[#131824] border-[#00F2FE]/40 text-[#E2E8F0] p-5 rounded-2xl shadow-2xl flex flex-col items-center gap-4">
+          <DialogHeader className="w-full flex flex-row items-center justify-between border-b border-[#232A3B] pb-3">
+            <DialogTitle className="text-base font-extrabold text-[#E2E8F0] flex items-center gap-2">
+              <CreditCard className="h-5 w-5 text-[#00F2FE]" />
+              GCash Receipt Screenshot
+            </DialogTitle>
+          </DialogHeader>
+
+          {viewReceiptUrl && (
+            <div className="w-full flex flex-col items-center gap-3">
+              <img
+                src={viewReceiptUrl}
+                alt="Submitted GCash Receipt"
+                className="max-h-[65vh] w-auto object-contain rounded-xl border border-[#232A3B] bg-black/40 shadow-lg"
+              />
+              <div className="flex gap-2 w-full justify-end pt-2 border-t border-[#232A3B]">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setViewReceiptUrl(null)}
+                  className="text-xs font-bold border-[#2D3448] text-[#E2E8F0] hover:bg-[#1E2333] h-9 px-4 rounded-xl cursor-pointer"
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }

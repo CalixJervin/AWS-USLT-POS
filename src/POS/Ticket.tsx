@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, Minus, X, Coffee, Store, Zap, WifiOff, AlertTriangle } from "lucide-react"; 
+import { Plus, Trash2, Minus, X, Coffee, Store, Zap, WifiOff } from "lucide-react"; 
 import type { CartItem } from "@/hooks/useCart";
 import { useTransactions } from "@/hooks/useTransactions";
 import { useConnectionStatus } from "@/context/ConnectionContext";
@@ -29,7 +29,7 @@ interface TicketSidebarProps {
     cart: CartItem[], 
     subtotal: number, 
     total: number, 
-    paymentMethod?: "counter" | "cash" | "gcash",
+    paymentMethod?: "counter" | "cash",
     customerDetails?: { customerName?: string; customerEmail?: string; customerPhone?: string }
   ) => Promise<void>;
 }
@@ -46,20 +46,22 @@ export function TicketSidebar({
   onPayAtCounter
 }: TicketSidebarProps) {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [customerName, setCustomerName] = useState("");
   const [amountReceived, setAmountReceived] = useState<number | "">("");
   const [isClearing, setIsClearing] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   
-  const [paymentMethod, setPaymentMethod] = useState<"counter" | "cash" | "gcash">(
+  const [paymentMethod, setPaymentMethod] = useState<"counter" | "cash">(
     isKiosk ? "counter" : "cash"
   );
   const { saveTransaction } = useTransactions();
   const { isConnected, isAdminOfflineMode } = useConnectionStatus();
 
-  // Reset payment method whenever checkout opens or mode changes
+  // Reset fields whenever checkout opens or mode changes
   useEffect(() => {
     if (isCheckoutOpen) {
       setPaymentMethod(isKiosk ? "counter" : "cash");
+      setCustomerName("");
       setAmountReceived("");
       setIsProcessing(false);
     }
@@ -69,8 +71,6 @@ export function TicketSidebar({
   
   const isSufficient = 
     paymentMethod === "counter" 
-      ? true 
-      : paymentMethod === "gcash" 
       ? true 
       : (typeof amountReceived === "number" && amountReceived >= total);
 
@@ -82,6 +82,11 @@ export function TicketSidebar({
         duration: 5000,
         icon: <WifiOff className="h-4 w-4 text-[#FF3366]" />
       });
+      return;
+    }
+
+    if (!customerName.trim()) {
+      toast.error("Please enter your name for order confirmation.");
       return;
     }
 
@@ -115,18 +120,20 @@ export function TicketSidebar({
     setIsProcessing(true);
 
     try {
+      const trimmedName = customerName.trim();
       if (isKiosk && onPayAtCounter) {
-        await onPayAtCounter(cart, subtotal, total, paymentMethod);
+        await onPayAtCounter(cart, subtotal, total, paymentMethod, { customerName: trimmedName });
         clearCart();
         setIsCheckoutOpen(false);
         if (onClose) onClose();
         return;
       }
 
-      saveTransaction(cart, subtotal, paymentMethod === "counter" ? "cash" : paymentMethod);
+      await saveTransaction(cart, subtotal, paymentMethod === "counter" ? "cash" : paymentMethod, trimmedName);
       clearCart();
       setIsCheckoutOpen(false);
       setAmountReceived("");
+      setCustomerName("");
       setPaymentMethod(isKiosk ? "counter" : "cash"); 
       if (onClose) onClose();
     } catch (err) {
@@ -314,7 +321,7 @@ export function TicketSidebar({
         <DialogContent className="sm:max-w-md bg-[#1E2333] border-[#2D3448] text-[#E2E8F0]">
           <DialogHeader>
             <DialogTitle className="text-[#E2E8F0] text-lg font-bold flex items-center justify-between">
-              <span>{isKiosk ? "Checkout - Select Payment Method" : "Complete Transaction"}</span>
+              <span>{isKiosk ? "Place Order - Kiosk Checkout" : "Place Order"}</span>
               {!isKiosk && isAdminOfflineMode && (
                 <span className="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2.5 py-0.5 rounded-full font-bold flex items-center gap-1">
                   <Zap className="h-3 w-3 text-amber-400" />
@@ -337,72 +344,27 @@ export function TicketSidebar({
               </div>
             )}
             
+            {/* CUSTOMER NAME FOR ORDER CONFIRMATION */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold uppercase text-[#00F2FE] tracking-wider flex items-center justify-between">
+                <span>Customer Name</span>
+                <span className="text-[#FF3366] text-[10px] font-bold uppercase">(Required)</span>
+              </label>
+              <Input 
+                type="text" 
+                autoFocus
+                placeholder="Enter customer name (e.g. Juan Dela Cruz)"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value.replace(/[^a-zA-Z\s.-]/g, ""))}
+                className="h-11 text-base bg-[#131824] border-[#2D3448] text-[#E2E8F0] placeholder:text-[#64748B] focus-visible:ring-[#00F2FE]"
+              />
+            </div>
+
             <div className="flex justify-between items-center text-xl font-bold bg-[#131824] p-4 rounded-xl border border-[#232A3B]">
               <span className="text-[#94A3B8]">Total Due:</span>
               <span className="text-[#E6007E] text-2xl font-black">₱{total.toFixed(2)}</span>
             </div>
 
-            <div className="flex flex-col gap-3">
-              <label className="text-xs font-bold uppercase text-[#94A3B8] tracking-wider">Payment Method</label>
-              <div className="grid grid-cols-2 gap-2 p-1 bg-[#131824] rounded-lg border border-[#232A3B]">
-                {isKiosk ? (
-                  <>
-                    <Button
-                      variant="ghost"
-                      onClick={() => setPaymentMethod("counter")}
-                      className={`rounded-md cursor-pointer font-bold text-xs ${paymentMethod === "counter" ? "bg-[#E6007E] text-white border border-[#00F2FE]/40 shadow-sm font-black" : "text-[#94A3B8] hover:text-[#E2E8F0]"}`}
-                    >
-                      Pay at Counter
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      onClick={() => {
-                        toast.error("Sorry, it is unavailable right now", {
-                          description: "GCash payment is currently unavailable. Please select Pay at Counter."
-                        });
-                        setPaymentMethod("gcash");
-                      }}
-                      className={`rounded-md cursor-pointer font-bold text-xs relative ${paymentMethod === "gcash" ? "bg-[#FF3366]/20 text-[#FF3366] border border-[#FF3366]/50 font-black" : "text-[#94A3B8] hover:text-[#E2E8F0]"}`}
-                    >
-                      <div className="flex items-center gap-1">
-                        <span>GCash</span>
-                        <span className="text-[9px] bg-[#FF3366]/30 text-[#FF3366] px-1 py-0.5 rounded font-mono uppercase font-bold">
-                          Unavailable
-                        </span>
-                      </div>
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <Button
-                      variant="ghost"
-                      onClick={() => setPaymentMethod("cash")}
-                      className={`rounded-md cursor-pointer font-bold text-xs ${paymentMethod === "cash" ? "bg-[#E6007E] text-white border border-[#00F2FE]/40 shadow-sm font-black" : "text-[#94A3B8] hover:text-[#E2E8F0]"}`}
-                    >
-                      Cash
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      onClick={() => {
-                        toast.error("Sorry, it is unavailable right now", {
-                          description: "GCash payment is currently unavailable for food & drinks. Please select Cash."
-                        });
-                        setPaymentMethod("gcash");
-                      }}
-                      className={`rounded-md cursor-pointer font-bold text-xs relative ${paymentMethod === "gcash" ? "bg-[#FF3366]/20 text-[#FF3366] border border-[#FF3366]/50 font-black" : "text-[#94A3B8] hover:text-[#E2E8F0]"}`}
-                    >
-                      <div className="flex items-center gap-1">
-                        <span>GCash</span>
-                        <span className="text-[9px] bg-[#FF3366]/30 text-[#FF3366] px-1 py-0.5 rounded font-mono uppercase font-bold">
-                          Unavailable
-                        </span>
-                      </div>
-                    </Button>
-                  </>
-                )}
-              </div>
-            </div>
-            
             {paymentMethod === "counter" ? (
               <motion.div 
                 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
@@ -411,10 +373,10 @@ export function TicketSidebar({
                 <Store className="h-8 w-8 text-[#00F2FE]" />
                 <span className="font-black text-base text-[#00F2FE]">Pay at Counter (Cash / Split Tender)</span>
                 <span className="text-xs text-[#94A3B8]">
-                  Clicking confirm will generate your Order Number (e.g. #042) to state at the counter.
+                  Placing your order will generate your Order Number (e.g. #042) to state at the counter.
                 </span>
               </motion.div>
-            ) : paymentMethod === "cash" ? (
+            ) : (
               <motion.div 
                 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
                 className="flex flex-col gap-6"
@@ -423,7 +385,6 @@ export function TicketSidebar({
                   <label className="text-xs font-bold uppercase text-[#94A3B8] tracking-wider">Amount Received (₱)</label>
                   <Input 
                     type="number" 
-                    autoFocus
                     placeholder="0.00"
                     value={amountReceived}
                     onChange={(e) => setAmountReceived(e.target.value ? Number(e.target.value) : "")}
@@ -438,30 +399,13 @@ export function TicketSidebar({
                   </span>
                 </div>
               </motion.div>
-            ) : (
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-                className="bg-[#131824] p-5 rounded-xl flex flex-col items-center justify-center gap-3 border border-[#FF3366]/40 text-center"
-              >
-                <div className="p-3 bg-[#FF3366]/10 rounded-full border border-[#FF3366]/30 text-[#FF3366]">
-                  <AlertTriangle className="h-8 w-8 text-[#FF3366]" />
-                </div>
-                <div className="flex flex-col items-center gap-1">
-                  <span className="font-black text-base text-[#FF3366]">
-                    GCash Payment Unavailable
-                  </span>
-                  <span className="text-xs text-[#94A3B8] max-w-xs font-medium">
-                    Sorry, it is unavailable right now. Please pay using {isKiosk ? "Pay at Counter" : "Cash"}.
-                  </span>
-                </div>
-              </motion.div>
             )}
 
           </div>
           {(() => {
             const lockout = checkDeviceLockout();
             const isLocked = lockout.isLocked;
-            const isGcashDisabled = paymentMethod === "gcash";
+            const isNameEmpty = !customerName.trim();
             return (
               <DialogFooter className="sm:justify-end gap-2">
                 <Button 
@@ -469,6 +413,7 @@ export function TicketSidebar({
                   variant="outline" 
                   onClick={() => {
                     setIsCheckoutOpen(false);
+                    setCustomerName("");
                     setAmountReceived("");
                     setPaymentMethod(isKiosk ? "counter" : "cash");
                   }}
@@ -477,22 +422,20 @@ export function TicketSidebar({
                 </Button>
                 <Button 
                   onClick={handleCompleteTransaction}
-                  disabled={isProcessing || !isSufficient || isLocked || (isKiosk && !isConnected) || isGcashDisabled}
+                  disabled={isProcessing || !isSufficient || isLocked || (isKiosk && !isConnected) || isNameEmpty}
                   className={`bg-[#E6007E] text-white hover:bg-[#FF1A96] border border-[#00F2FE]/40 font-black px-6 rounded-full shadow-lg transition-all ${
-                    isProcessing || !isSufficient || isLocked || (isKiosk && !isConnected) || isGcashDisabled
+                    isProcessing || !isSufficient || isLocked || (isKiosk && !isConnected) || isNameEmpty
                       ? "opacity-50 cursor-not-allowed"
                       : "cursor-pointer"
                   }`}
                 >
-                  {isGcashDisabled 
-                    ? "Unavailable" 
-                    : isKiosk && !isConnected 
+                  {isKiosk && !isConnected 
                     ? "Kiosk Offline" 
                     : isLocked 
                     ? `Timed Out (${lockout.remainingMinutes}m)` 
                     : isProcessing 
                     ? "Processing..." 
-                    : "Confirm Payment"}
+                    : "Place Order"}
                 </Button>
               </DialogFooter>
             );

@@ -505,10 +505,15 @@ export function useTransactions() {
     };
   }, []);
 
-  const saveTransaction = async (cart: CartItem[], total: number, _paymentMethod: "cash" | "gcash") => {
+  const saveTransaction = async (
+    cart: CartItem[], 
+    total: number, 
+    _paymentMethod: "cash" | "gcash", 
+    customerName?: string
+  ) => {
     // If Admin Offline Mode is active, save locally without making network calls
     if (isAdminOfflineMode) {
-      saveAdminOfflineOrder(cart, total, _paymentMethod);
+      saveAdminOfflineOrder(cart, total, _paymentMethod, customerName);
       if (deductOfflineStock) {
         deductOfflineStock(cart);
       }
@@ -537,6 +542,15 @@ export function useTransactions() {
 
       if (rpcError) throw rpcError;
 
+      // Update customer_name on created order if provided
+      if (_orderId && customerName) {
+        try {
+          await supabase.from('orders').update({ customer_name: customerName }).eq('id', _orderId);
+        } catch (custErr) {
+          console.warn("Notice updating customer name on order:", custErr);
+        }
+      }
+
       // Deduct stock for ingredients and ready-made products
       try {
         await supabase.rpc("deduct_stock_on_sale", { p_order_items: rpcItems });
@@ -559,7 +573,7 @@ export function useTransactions() {
     } catch (error: any) {
       console.warn("Server upload error during saveTransaction, storing offline:", error);
       // Fallback to Admin Offline order saving if server connection drops
-      saveAdminOfflineOrder(cart, total, _paymentMethod);
+      saveAdminOfflineOrder(cart, total, _paymentMethod, customerName);
       if (deductOfflineStock) {
         deductOfflineStock(cart);
       }

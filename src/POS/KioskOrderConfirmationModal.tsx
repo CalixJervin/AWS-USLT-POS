@@ -59,7 +59,7 @@ export function KioskOrderConfirmationModal({
 
             <div className="flex flex-col gap-1">
               <h2 className="text-xl sm:text-2xl font-black text-[#E2E8F0] mt-2">
-                Thank You for Your Order!
+                Thank You for Your Order{order.customerName ? `, ${order.customerName}!` : "!"}
               </h2>
               <p className="text-sm text-[#94A3B8]">
                 {order.paymentMethod === "gcash"

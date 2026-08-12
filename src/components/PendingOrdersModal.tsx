@@ -48,6 +48,8 @@ export function PendingOrdersModal({
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedOrder, setSelectedOrder] = useState<PendingKioskOrder | null>(null);
   const [viewReceiptUrl, setViewReceiptUrl] = useState<string | null>(null);
+  const [isConfirmingClearAll, setIsConfirmingClearAll] = useState(false);
+  const [isClearingAll, setIsClearingAll] = useState(false);
 
   // Finalization state
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "gcash" | "split">("cash");
@@ -121,7 +123,13 @@ export function PendingOrdersModal({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+    <Dialog open={isOpen} onOpenChange={(open) => {
+      if (!open) {
+        setIsConfirmingClearAll(false);
+        setIsClearingAll(false);
+      }
+      onOpenChange(open);
+    }}>
       <DialogContent 
         onOpenAutoFocus={(e) => e.preventDefault()}
         className="sm:max-w-2xl bg-[#131824] border-[#232A3B] text-[#E2E8F0] max-h-[90vh] flex flex-col p-0 overflow-hidden"
@@ -144,14 +152,46 @@ export function PendingOrdersModal({
           </div>
 
           {pendingOrders.length > 0 && onClearAllOrders && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onClearAllOrders}
-              className="text-xs font-semibold text-[#64748B] hover:text-[#FF3366] hover:bg-[#FF3366]/10 mr-6"
-            >
-              Clear All Pending
-            </Button>
+            !isConfirmingClearAll ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsConfirmingClearAll(true)}
+                className="text-xs font-semibold text-[#64748B] hover:text-[#FF3366] hover:bg-[#FF3366]/10 mr-6 cursor-pointer transition-all"
+              >
+                Clear All Pending
+              </Button>
+            ) : (
+              <div className="flex items-center gap-2 mr-6 animate-in fade-in duration-150">
+                <span className="text-xs text-[#FF3366] font-bold">Are you sure?</span>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  disabled={isClearingAll}
+                  onClick={async () => {
+                    setIsClearingAll(true);
+                    try {
+                      await onClearAllOrders();
+                    } finally {
+                      setIsClearingAll(false);
+                      setIsConfirmingClearAll(false);
+                    }
+                  }}
+                  className="h-7 text-xs bg-[#FF3366] hover:bg-[#FF3366]/90 text-white font-bold px-3 rounded-lg cursor-pointer transition-all shadow-md shadow-[#FF3366]/20"
+                >
+                  {isClearingAll ? "Clearing..." : "Yes, Clear All"}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={isClearingAll}
+                  onClick={() => setIsConfirmingClearAll(false)}
+                  className="h-7 text-xs text-[#94A3B8] hover:text-white hover:bg-[#232A3B] px-2.5 rounded-lg cursor-pointer"
+                >
+                  Cancel
+                </Button>
+              </div>
+            )
           )}
         </DialogHeader>
 

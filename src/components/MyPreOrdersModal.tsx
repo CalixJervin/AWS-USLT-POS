@@ -576,7 +576,7 @@ export function MyPreOrdersModalButton({ buttonClassName }: MyPreOrdersModalButt
                                 <img
                                   src={gcashSettings.gcashQrImage}
                                   alt="GCash QR Code"
-                                  className="w-36 h-36 object-contain rounded-lg border border-[#00F2FE]/40 bg-white p-1 my-1 mx-auto"
+                                  className="w-full max-w-[280px] h-auto max-h-[380px] object-contain rounded-xl border border-[#00F2FE]/40 bg-white p-1.5 my-1 mx-auto shadow-md"
                                 />
                                 <Button
                                   type="button"

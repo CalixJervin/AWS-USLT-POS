@@ -21,6 +21,7 @@ export interface AdminOfflineOrder {
   paymentStatus: string;
   status: string;
   createdAt: string;
+  customerName?: string;
   cart: {
     id: string;
     variantId?: string;
@@ -49,7 +50,8 @@ export interface ConnectionContextType {
   saveAdminOfflineOrder: (
     cart: any[],
     total: number,
-    paymentMethod?: "cash" | "gcash" | "counter"
+    paymentMethod?: "cash" | "gcash" | "counter",
+    customerName?: string
   ) => AdminOfflineOrder;
   syncOfflineAdminOrders: () => Promise<{ success: number; failed: number }>;
   clearOfflineAdminOrders: () => void;
@@ -137,7 +139,8 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
   const saveAdminOfflineOrder = useCallback((
     cart: any[],
     total: number,
-    paymentMethod: "cash" | "gcash" | "counter" = "cash"
+    paymentMethod: "cash" | "gcash" | "counter" = "cash",
+    customerName?: string
   ): AdminOfflineOrder => {
     const offlineId = `admin-offline-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
     const orderNumber = `#OFFLINE-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -150,6 +153,7 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
       paymentStatus: "Paid",
       status: "completed",
       createdAt: new Date().toISOString(),
+      customerName: customerName?.trim() || undefined,
       cart: cart.map((i) => ({
         id: i.id,
         variantId: i.variantId,

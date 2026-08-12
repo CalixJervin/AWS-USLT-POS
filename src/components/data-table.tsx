@@ -338,6 +338,60 @@ export function DataTable() {
       },
     },
     {
+      id: "gcash_info",
+      header: "GCash / Ref Info",
+      cell: ({ row }) => {
+        const refNum = row.original.gcash_ref_number;
+        const receiptUrl = row.original.gcash_receipt_url;
+
+        if (!refNum && !receiptUrl) {
+          if (row.original.payment_status === "Unpaid") {
+            return <span className="text-[#FF9900] text-xs font-semibold italic">Unpaid (No Ref/Receipt)</span>;
+          }
+          return <span className="text-[#64748B] text-xs italic">N/A</span>;
+        }
+
+        return (
+          <div className="flex items-center gap-2 py-1 max-w-[220px]">
+            {receiptUrl ? (
+              <img
+                src={receiptUrl}
+                alt="Receipt Screenshot"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setViewReceiptModalUrl(receiptUrl);
+                }}
+                className="w-10 h-10 object-cover rounded-lg border-2 border-[#00F2FE]/60 cursor-pointer hover:scale-110 transition-transform shrink-0 shadow-md"
+                title="Click to view full screenshot"
+              />
+            ) : null}
+            <div className="flex flex-col text-xs min-w-0">
+              {refNum ? (
+                <span className="font-mono font-bold text-[#00F2FE] text-xs truncate" title={refNum}>
+                  Ref: {refNum}
+                </span>
+              ) : (
+                <span className="text-[#94A3B8] text-[11px]">No Ref #</span>
+              )}
+              {receiptUrl ? (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setViewReceiptModalUrl(receiptUrl);
+                  }}
+                  className="text-[10px] text-[#00F2FE] hover:underline text-left font-semibold flex items-center gap-1 cursor-pointer mt-0.5"
+                >
+                  <Eye className="size-3 text-[#00F2FE]" />
+                  View Screenshot
+                </button>
+              ) : null}
+            </div>
+          </div>
+        );
+      },
+    },
+    {
       accessorKey: "items_summary",
       header: "Items",
       cell: ({ row }) => (
@@ -409,9 +463,10 @@ export function DataTable() {
     setColumnVisibility((prev) => ({
       ...prev,
       payment_method: !isMobile,
-      customer_name: transactionCategory !== "foods",
+      customer_name: true,
+      gcash_info: true,
     }))
-  }, [isMobile, transactionCategory])
+  }, [isMobile])
 
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []

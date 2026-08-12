@@ -92,8 +92,6 @@ export function useKioskInit() {
       .channel(channelId)
       .on("postgres_changes", { event: "*", schema: "public", table: "products" }, () => fetchKioskData())
       .on("postgres_changes", { event: "*", schema: "public", table: "product_variants" }, () => fetchKioskData())
-      .on("postgres_changes", { event: "*", schema: "public", table: "ingredients" }, () => fetchKioskData())
-      .on("postgres_changes", { event: "*", schema: "public", table: "recipes" }, () => fetchKioskData())
       .on("postgres_changes", { event: "*", schema: "public", table: "categories" }, () => fetchKioskData())
       .on("postgres_changes", { event: "*", schema: "public", table: "app_settings" }, () => fetchKioskData())
       .subscribe();

@@ -45,6 +45,12 @@ export const InventoryProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchAll = useCallback(async () => {
+    const isKioskPath = typeof window !== "undefined" && (window.location.pathname === "/" || window.location.pathname === "/kiosk");
+    if (isKioskPath) {
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     try {
       const [ings, recs, prods, sals, cats] = await Promise.all([
@@ -100,6 +106,12 @@ export const InventoryProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   useEffect(() => {
+    const isKioskPath = typeof window !== "undefined" && (window.location.pathname === "/" || window.location.pathname === "/kiosk");
+    if (isKioskPath) {
+      setIsLoading(false);
+      return;
+    }
+
     fetchAll();
 
     let bc: BroadcastChannel | null = null;

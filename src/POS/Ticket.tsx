@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, Minus, X, Coffee, Store, QrCode, Download, Zap, WifiOff } from "lucide-react"; 
+import { Plus, Trash2, Minus, X, Coffee, Store, Zap, WifiOff, AlertTriangle } from "lucide-react"; 
 import type { CartItem } from "@/hooks/useCart";
 import { useTransactions } from "@/hooks/useTransactions";
-import { useGCashSettings, downloadGCashQrCode } from "@/hooks/useGCashSettings";
 import { useConnectionStatus } from "@/context/ConnectionContext";
 import { toast } from "sonner";
 import {
@@ -55,7 +54,6 @@ export function TicketSidebar({
     isKiosk ? "counter" : "cash"
   );
   const { saveTransaction } = useTransactions();
-  const { gcashQrImage } = useGCashSettings();
   const { isConnected, isAdminOfflineMode } = useConnectionStatus();
 
   // Reset payment method whenever checkout opens or mode changes
@@ -358,10 +356,20 @@ export function TicketSidebar({
                     </Button>
                     <Button
                       variant="ghost"
-                      onClick={() => setPaymentMethod("gcash")}
-                      className={`rounded-md cursor-pointer font-bold text-xs ${paymentMethod === "gcash" ? "bg-[#E6007E] text-white border border-[#00F2FE]/40 shadow-sm font-black" : "text-[#94A3B8] hover:text-[#E2E8F0]"}`}
+                      onClick={() => {
+                        toast.error("Sorry, it is unavailable right now", {
+                          description: "GCash payment is currently unavailable. Please select Pay at Counter."
+                        });
+                        setPaymentMethod("gcash");
+                      }}
+                      className={`rounded-md cursor-pointer font-bold text-xs relative ${paymentMethod === "gcash" ? "bg-[#FF3366]/20 text-[#FF3366] border border-[#FF3366]/50 font-black" : "text-[#94A3B8] hover:text-[#E2E8F0]"}`}
                     >
-                      GCash
+                      <div className="flex items-center gap-1">
+                        <span>GCash</span>
+                        <span className="text-[9px] bg-[#FF3366]/30 text-[#FF3366] px-1 py-0.5 rounded font-mono uppercase font-bold">
+                          Unavailable
+                        </span>
+                      </div>
                     </Button>
                   </>
                 ) : (
@@ -375,10 +383,20 @@ export function TicketSidebar({
                     </Button>
                     <Button
                       variant="ghost"
-                      onClick={() => setPaymentMethod("gcash")}
-                      className={`rounded-md cursor-pointer font-bold text-xs ${paymentMethod === "gcash" ? "bg-[#E6007E] text-white border border-[#00F2FE]/40 shadow-sm font-black" : "text-[#94A3B8] hover:text-[#E2E8F0]"}`}
+                      onClick={() => {
+                        toast.error("Sorry, it is unavailable right now", {
+                          description: "GCash payment is currently unavailable for food & drinks. Please select Cash."
+                        });
+                        setPaymentMethod("gcash");
+                      }}
+                      className={`rounded-md cursor-pointer font-bold text-xs relative ${paymentMethod === "gcash" ? "bg-[#FF3366]/20 text-[#FF3366] border border-[#FF3366]/50 font-black" : "text-[#94A3B8] hover:text-[#E2E8F0]"}`}
                     >
-                      GCash
+                      <div className="flex items-center gap-1">
+                        <span>GCash</span>
+                        <span className="text-[9px] bg-[#FF3366]/30 text-[#FF3366] px-1 py-0.5 rounded font-mono uppercase font-bold">
+                          Unavailable
+                        </span>
+                      </div>
                     </Button>
                   </>
                 )}
@@ -423,51 +441,18 @@ export function TicketSidebar({
             ) : (
               <motion.div 
                 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-                className="bg-[#131824] p-4 rounded-xl flex flex-col items-center justify-center gap-3 border border-[#E6007E]/40"
+                className="bg-[#131824] p-5 rounded-xl flex flex-col items-center justify-center gap-3 border border-[#FF3366]/40 text-center"
               >
-                <div className="flex flex-col items-center gap-2 w-full text-center">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-[#94A3B8]">
-                    Scan QR Code to Pay via GCash
+                <div className="p-3 bg-[#FF3366]/10 rounded-full border border-[#FF3366]/30 text-[#FF3366]">
+                  <AlertTriangle className="h-8 w-8 text-[#FF3366]" />
+                </div>
+                <div className="flex flex-col items-center gap-1">
+                  <span className="font-black text-base text-[#FF3366]">
+                    GCash Payment Unavailable
                   </span>
-
-                  {/* QR CODE CONTAINER WITH IMAGE OR PLACEHOLDER */}
-                  <div className="w-full max-w-[190px] aspect-square bg-[#1E2333] border-2 border-dashed border-[#00F2FE]/50 rounded-2xl p-2.5 flex flex-col items-center justify-center gap-2 shadow-[0_0_20px_rgba(0,242,254,0.15)] my-1 relative overflow-hidden">
-                    {gcashQrImage ? (
-                      <img
-                        src={gcashQrImage}
-                        alt="GCash QR Code"
-                        className="w-full h-full object-contain rounded-lg bg-white p-1"
-                      />
-                    ) : (
-                      <div className="flex flex-col items-center justify-center gap-2 text-center p-2">
-                        <div className="p-3 bg-[#131824] rounded-full border border-[#00F2FE]/40 text-[#00F2FE]">
-                          <QrCode className="h-10 w-10 animate-pulse" />
-                        </div>
-                        <span className="text-[11px] font-bold text-[#E2E8F0]">GCash QR Code</span>
-                        <span className="text-[10px] text-[#94A3B8]">Placeholder Code</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* DOWNLOAD QR BUTTON */}
-                  {gcashQrImage && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => downloadGCashQrCode(gcashQrImage)}
-                      className="w-full max-w-[190px] h-8 text-xs border-[#00F2FE]/50 text-[#00F2FE] hover:bg-[#00F2FE]/10 font-bold rounded-lg cursor-pointer flex items-center justify-center gap-1.5 transition-all"
-                    >
-                      <Download className="h-3.5 w-3.5" />
-                      <span>Download QR Code</span>
-                    </Button>
-                  )}
-
-                  {isKiosk && (
-                    <span className="text-[11px] text-[#94A3B8] italic mt-0.5">
-                      Clicking Confirm Payment will issue your Order Number.
-                    </span>
-                  )}
+                  <span className="text-xs text-[#94A3B8] max-w-xs font-medium">
+                    Sorry, it is unavailable right now. Please pay using {isKiosk ? "Pay at Counter" : "Cash"}.
+                  </span>
                 </div>
               </motion.div>
             )}
@@ -476,6 +461,7 @@ export function TicketSidebar({
           {(() => {
             const lockout = checkDeviceLockout();
             const isLocked = lockout.isLocked;
+            const isGcashDisabled = paymentMethod === "gcash";
             return (
               <DialogFooter className="sm:justify-end gap-2">
                 <Button 
@@ -484,21 +470,29 @@ export function TicketSidebar({
                   onClick={() => {
                     setIsCheckoutOpen(false);
                     setAmountReceived("");
-                    setPaymentMethod("cash");
+                    setPaymentMethod(isKiosk ? "counter" : "cash");
                   }}
                 >
                   Cancel
                 </Button>
                 <Button 
                   onClick={handleCompleteTransaction}
-                  disabled={isProcessing || !isSufficient || isLocked || (isKiosk && !isConnected)}
+                  disabled={isProcessing || !isSufficient || isLocked || (isKiosk && !isConnected) || isGcashDisabled}
                   className={`bg-[#E6007E] text-white hover:bg-[#FF1A96] border border-[#00F2FE]/40 font-black px-6 rounded-full shadow-lg transition-all ${
-                    isProcessing || !isSufficient || isLocked || (isKiosk && !isConnected)
+                    isProcessing || !isSufficient || isLocked || (isKiosk && !isConnected) || isGcashDisabled
                       ? "opacity-50 cursor-not-allowed"
                       : "cursor-pointer"
                   }`}
                 >
-                  {isKiosk && !isConnected ? "Kiosk Offline" : isLocked ? `Timed Out (${lockout.remainingMinutes}m)` : isProcessing ? "Processing..." : "Confirm Payment"}
+                  {isGcashDisabled 
+                    ? "Unavailable" 
+                    : isKiosk && !isConnected 
+                    ? "Kiosk Offline" 
+                    : isLocked 
+                    ? `Timed Out (${lockout.remainingMinutes}m)` 
+                    : isProcessing 
+                    ? "Processing..." 
+                    : "Confirm Payment"}
                 </Button>
               </DialogFooter>
             );

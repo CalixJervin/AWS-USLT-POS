@@ -83,7 +83,8 @@ import {
   AlertTriangle,
   Utensils,
   Shirt,
-  Filter
+  Filter,
+  Eye
 } from "lucide-react"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { format } from "date-fns"
@@ -103,6 +104,8 @@ export interface TransactionRow {
   customer_phone?: string
   fulfillment_status?: string
   is_pre_order?: boolean
+  gcash_ref_number?: string
+  gcash_receipt_url?: string
 }
 
 // Create a separate component for the drag handle
@@ -196,7 +199,9 @@ export function DataTable() {
         customer_email: t.customer_email,
         customer_phone: t.customer_phone,
         fulfillment_status: t.fulfillment_status,
-        is_pre_order: t.is_pre_order
+        is_pre_order: t.is_pre_order,
+        gcash_ref_number: t.gcash_ref_number,
+        gcash_receipt_url: t.gcash_receipt_url
       }
     })
   }, [transactions, transactionItems])
@@ -416,6 +421,7 @@ export function DataTable() {
     pageIndex: 0,
     pageSize: 10,
   })
+  const [viewReceiptModalUrl, setViewReceiptModalUrl] = React.useState<string | null>(null)
 
   // Switch Category & Reset Product Filter
   const handleCategoryChange = (cat: "foods" | "merch" | "all") => {
@@ -814,6 +820,32 @@ export function DataTable() {
               </div>
             </div>
 
+            {/* GCASH DETAILS & RECEIPT SCREENSHOT */}
+            {(selectedTransaction?.gcash_ref_number || selectedTransaction?.gcash_receipt_url) && (
+              <div className="p-3 bg-[#E8DFD3]/50 rounded-xl space-y-2 border border-[#D4C9BB]">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase text-[#9E8E7E]">GCash Verification Info</span>
+                  {selectedTransaction.gcash_receipt_url && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setViewReceiptModalUrl(selectedTransaction.gcash_receipt_url!)}
+                      className="h-7 text-xs border-[#6B5B4E] text-[#1C1412] hover:bg-[#6B5B4E]/10 font-bold rounded-lg flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Eye className="size-3.5" />
+                      <span>View Screenshot</span>
+                    </Button>
+                  )}
+                </div>
+                {selectedTransaction.gcash_ref_number && (
+                  <p className="text-xs font-mono font-bold text-[#1C1412]">
+                    Ref #: <span className="text-blue-700 font-extrabold">{selectedTransaction.gcash_ref_number}</span>
+                  </p>
+                )}
+              </div>
+            )}
+
             {/* Items List */}
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-xs font-bold uppercase text-[#9E8E7E] tracking-wider">
@@ -999,6 +1031,37 @@ export function DataTable() {
         </DialogContent>
       </Dialog>
 
+      {/* GCASH RECEIPT SCREENSHOT LIGHTBOX */}
+      <Dialog open={Boolean(viewReceiptModalUrl)} onOpenChange={(open) => { if (!open) setViewReceiptModalUrl(null); }}>
+        <DialogContent className="sm:max-w-xl bg-[#131824] border-[#00F2FE]/40 text-[#E2E8F0] p-5 rounded-2xl shadow-2xl flex flex-col items-center gap-4">
+          <DialogHeader className="w-full flex flex-row items-center justify-between border-b border-[#232A3B] pb-3">
+            <DialogTitle className="text-base font-extrabold text-[#E2E8F0] flex items-center gap-2">
+              <CreditCard className="h-5 w-5 text-[#00F2FE]" />
+              GCash Receipt Screenshot
+            </DialogTitle>
+          </DialogHeader>
+
+          {viewReceiptModalUrl && (
+            <div className="w-full flex flex-col items-center gap-3">
+              <img
+                src={viewReceiptModalUrl}
+                alt="Submitted GCash Receipt"
+                className="max-h-[65vh] w-auto object-contain rounded-xl border border-[#232A3B] bg-black/40 shadow-lg"
+              />
+              <div className="flex gap-2 w-full justify-end pt-2 border-t border-[#232A3B]">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setViewReceiptModalUrl(null)}
+                  className="text-xs font-bold border-[#2D3448] text-[#E2E8F0] hover:bg-[#1E2333] h-9 px-4 rounded-xl cursor-pointer"
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

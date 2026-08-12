@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Package, Calendar, Sparkles, CheckCircle2, AlertTriangle, Store, QrCode, Download } from "lucide-react";
+import { Package, Calendar, Sparkles, CheckCircle2, AlertTriangle, Store, QrCode, Download} from "lucide-react";
 import type { Product } from "@/hooks/useCart";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";

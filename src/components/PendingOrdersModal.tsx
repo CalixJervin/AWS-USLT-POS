@@ -18,7 +18,9 @@ import {
   Split, 
   Trash2, 
   Receipt,
-  Coffee
+  Coffee,
+  Eye,
+  CreditCard
 } from "lucide-react";
 import type { PendingKioskOrder } from "@/hooks/useKioskOrders";
 import { motion, AnimatePresence } from "framer-motion";
@@ -46,6 +48,7 @@ export function PendingOrdersModal({
 }: PendingOrdersModalProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedOrder, setSelectedOrder] = useState<PendingKioskOrder | null>(null);
+  const [viewReceiptUrl, setViewReceiptUrl] = useState<string | null>(null);
 
   // Finalization state
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "gcash" | "split">("cash");
@@ -211,6 +214,29 @@ export function PendingOrdersModal({
                               {order.customerPhone && <span>📞 {order.customerPhone}</span>}
                               {order.customerEmail && <span>✉️ {order.customerEmail}</span>}
                             </div>
+                          </div>
+                        )}
+
+                        {(order.gcashRefNumber || order.gcashReceiptImage) && (
+                          <div className="mt-2 bg-[#131824] p-2.5 rounded-xl border border-[#00F2FE]/40 flex items-center justify-between gap-2 text-xs">
+                            <div className="flex flex-col">
+                              <span className="text-[10px] uppercase font-bold text-[#94A3B8]">GCash Payment Info</span>
+                              {order.gcashRefNumber && (
+                                <span className="font-mono font-bold text-[#00F2FE] text-xs">Ref #: {order.gcashRefNumber}</span>
+                              )}
+                            </div>
+                            {order.gcashReceiptImage && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setViewReceiptUrl(order.gcashReceiptImage!)}
+                                className="h-7 text-[11px] border-[#00F2FE]/50 text-[#00F2FE] hover:bg-[#00F2FE]/10 font-bold rounded-lg flex items-center gap-1.5 cursor-pointer"
+                              >
+                                <Eye className="h-3.5 w-3.5" />
+                                <span>Receipt</span>
+                              </Button>
+                            )}
                           </div>
                         )}
                       </div>
@@ -474,6 +500,38 @@ export function PendingOrdersModal({
           </DialogContent>
         </Dialog>
       )}
+
+      {/* LIGHTBOX RECEIPT SCREENSHOT PREVIEW DIALOG */}
+      <Dialog open={Boolean(viewReceiptUrl)} onOpenChange={(open) => { if (!open) setViewReceiptUrl(null); }}>
+        <DialogContent className="sm:max-w-xl bg-[#131824] border-[#00F2FE]/40 text-[#E2E8F0] p-5 rounded-2xl shadow-2xl flex flex-col items-center gap-4">
+          <DialogHeader className="w-full flex flex-row items-center justify-between border-b border-[#232A3B] pb-3">
+            <DialogTitle className="text-base font-extrabold text-[#E2E8F0] flex items-center gap-2">
+              <CreditCard className="h-5 w-5 text-[#00F2FE]" />
+              GCash Receipt Screenshot
+            </DialogTitle>
+          </DialogHeader>
+
+          {viewReceiptUrl && (
+            <div className="w-full flex flex-col items-center gap-3">
+              <img
+                src={viewReceiptUrl}
+                alt="Submitted GCash Receipt"
+                className="max-h-[65vh] w-auto object-contain rounded-xl border border-[#232A3B] bg-black/40 shadow-lg"
+              />
+              <div className="flex gap-2 w-full justify-end pt-2 border-t border-[#232A3B]">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setViewReceiptUrl(null)}
+                  className="text-xs font-bold border-[#2D3448] text-[#E2E8F0] hover:bg-[#1E2333] h-9 px-4 rounded-xl cursor-pointer"
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }

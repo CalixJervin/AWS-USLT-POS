@@ -8,127 +8,175 @@ export const calculateIngredientStatus = (currentStock: number, threshold: numbe
   return 'good';
 };
 
+const CACHE_KEYS = {
+  STAFF: 'timpla_cache_staff',
+  INGREDIENTS: 'timpla_cache_ingredients',
+  RECIPES: 'timpla_cache_recipes',
+  PRODUCTS: 'timpla_cache_products',
+  SALES: 'timpla_cache_sales',
+  CATEGORIES: 'timpla_cache_categories',
+};
+
 export const storage = {
   // Staff
   getStaff: async () => {
-    const { data, error } = await supabase
-      .from('staff')
-      .select('id, name, role, avatar_color, can_manage_menu, can_manage_inventory');
-    if (error) throw error;
-    return (data || []).map(s => ({
-      id: s.id,
-      name: s.name,
-      role: s.role,
-      avatarColor: s.avatar_color,
-      avatarInitials: (s.name || "").split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2),
-      canManageMenu: s.can_manage_menu,
-      canManageInventory: s.can_manage_inventory
-    }));
+    try {
+      const { data, error } = await supabase
+        .from('staff')
+        .select('id, name, role, avatar_color, can_manage_menu, can_manage_inventory');
+      if (error) throw error;
+      const mapped = (data || []).map(s => ({
+        id: s.id,
+        name: s.name,
+        role: s.role,
+        avatarColor: s.avatar_color,
+        avatarInitials: (s.name || "").split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2),
+        canManageMenu: s.can_manage_menu,
+        canManageInventory: s.can_manage_inventory
+      }));
+      try { localStorage.setItem(CACHE_KEYS.STAFF, JSON.stringify(mapped)); } catch (e) {}
+      return mapped;
+    } catch (e) {
+      console.warn("Using offline cached staff data:", e);
+      const cached = localStorage.getItem(CACHE_KEYS.STAFF);
+      return cached ? JSON.parse(cached) : [];
+    }
   },
 
   // Ingredients
   getIngredients: async (): Promise<Ingredient[]> => {
-    const { data, error } = await supabase
-      .from('ingredients')
-      .select('*, restock_logs(*)')
-      .order('created_at', { ascending: true });
-    if (error) throw error;
-    
-    return (data || []).map(i => ({
-      id: i.id,
-      name: i.name,
-      unit: i.unit as any,
-      currentStock: Number(i.current_stock),
-      lowStockThreshold: Number(i.low_stock_threshold),
-      costPerUnit: i.cost_per_unit ? Number(i.cost_per_unit) : null,
-      supplier: i.supplier,
-      restockLog: (i.restock_logs || [])
-        .filter((l: any) => l.ingredient_id === i.id)
-        .map((l: any) => ({
-          date: l.created_at,
-          quantityAdded: Number(l.quantity_added),
-          supplier: l.supplier,
-          notes: l.notes
-        })),
-      status: calculateIngredientStatus(Number(i.current_stock), Number(i.low_stock_threshold))
-    }));
+    try {
+      const { data, error } = await supabase
+        .from('ingredients')
+        .select('*, restock_logs(*)')
+        .order('created_at', { ascending: true });
+      if (error) throw error;
+      
+      const mapped = (data || []).map(i => ({
+        id: i.id,
+        name: i.name,
+        unit: i.unit as any,
+        currentStock: Number(i.current_stock),
+        lowStockThreshold: Number(i.low_stock_threshold),
+        costPerUnit: i.cost_per_unit ? Number(i.cost_per_unit) : null,
+        supplier: i.supplier,
+        restockLog: (i.restock_logs || [])
+          .filter((l: any) => l.ingredient_id === i.id)
+          .map((l: any) => ({
+            date: l.created_at,
+            quantityAdded: Number(l.quantity_added),
+            supplier: l.supplier,
+            notes: l.notes
+          })),
+        status: calculateIngredientStatus(Number(i.current_stock), Number(i.low_stock_threshold))
+      }));
+      try { localStorage.setItem(CACHE_KEYS.INGREDIENTS, JSON.stringify(mapped)); } catch (e) {}
+      return mapped;
+    } catch (e) {
+      console.warn("Using offline cached ingredients data:", e);
+      const cached = localStorage.getItem(CACHE_KEYS.INGREDIENTS);
+      return cached ? JSON.parse(cached) : [];
+    }
   },
 
   // Recipes
   getRecipes: async (): Promise<Recipe[]> => {
-    const { data, error } = await supabase
-      .from('recipes')
-      .select('*, recipe_ingredients(*)')
-      .order('created_at', { ascending: true });
-    if (error) throw error;
-    
-    return (data || []).map(r => ({
-      id: r.id,
-      name: r.name,
-      yield: r.yield,
-      ingredients: (r.recipe_ingredients || []).map((ri: any) => ({
-        ingredientId: ri.ingredient_id,
-        quantity: Number(ri.quantity)
-      }))
-    }));
+    try {
+      const { data, error } = await supabase
+        .from('recipes')
+        .select('*, recipe_ingredients(*)')
+        .order('created_at', { ascending: true });
+      if (error) throw error;
+      
+      const mapped = (data || []).map(r => ({
+        id: r.id,
+        name: r.name,
+        yield: r.yield,
+        ingredients: (r.recipe_ingredients || []).map((ri: any) => ({
+          ingredientId: ri.ingredient_id,
+          quantity: Number(ri.quantity)
+        }))
+      }));
+      try { localStorage.setItem(CACHE_KEYS.RECIPES, JSON.stringify(mapped)); } catch (e) {}
+      return mapped;
+    } catch (e) {
+      console.warn("Using offline cached recipes data:", e);
+      const cached = localStorage.getItem(CACHE_KEYS.RECIPES);
+      return cached ? JSON.parse(cached) : [];
+    }
   },
 
   // Products
   getProducts: async (): Promise<Product[]> => {
-    const { data, error } = await supabase
-      .from('products')
-      .select('*, product_variants(*), restock_logs(*)')
-      .order('created_at', { ascending: true });
-    if (error) throw error;
-    
-    return (data || []).map(p => ({
-      id: p.id,
-      name: p.name,
-      category: p.category,
-      type: p.type as any,
-      image: p.image_url,
-      inStock: p.in_stock,
-      availability: p.availability as any,
-      quantity: p.quantity ? Number(p.quantity) : undefined,
-      lowStockThreshold: p.low_stock_threshold ? Number(p.low_stock_threshold) : undefined,
-      variants: (p.product_variants || []).map((v: any) => ({
-        id: v.id,
-        size: v.size,
-        price: Number(v.price),
-        recipeId: v.recipe_id
-      })),
-      restockLog: (p.restock_logs || [])
-        .filter((l: any) => l.product_id === p.id)
-        .map((l: any) => ({
-          date: l.created_at,
-          quantityAdded: Number(l.quantity_added),
-          supplier: l.supplier,
-          notes: l.notes
-        }))
-    }));
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*, product_variants(*), restock_logs(*)')
+        .order('created_at', { ascending: true });
+      if (error) throw error;
+      
+      const mapped = (data || []).map(p => ({
+        id: p.id,
+        name: p.name,
+        category: p.category,
+        type: p.type as any,
+        image: p.image_url,
+        inStock: p.in_stock,
+        availability: p.availability as any,
+        quantity: p.quantity ? Number(p.quantity) : undefined,
+        lowStockThreshold: p.low_stock_threshold ? Number(p.low_stock_threshold) : undefined,
+        variants: (p.product_variants || []).map((v: any) => ({
+          id: v.id,
+          size: v.size,
+          price: Number(v.price),
+          recipeId: v.recipe_id
+        })),
+        restockLog: (p.restock_logs || [])
+          .filter((l: any) => l.product_id === p.id)
+          .map((l: any) => ({
+            date: l.created_at,
+            quantityAdded: Number(l.quantity_added),
+            supplier: l.supplier,
+            notes: l.notes
+          }))
+      }));
+      try { localStorage.setItem(CACHE_KEYS.PRODUCTS, JSON.stringify(mapped)); } catch (e) {}
+      return mapped;
+    } catch (e) {
+      console.warn("Using offline cached products data:", e);
+      const cached = localStorage.getItem(CACHE_KEYS.PRODUCTS);
+      return cached ? JSON.parse(cached) : [];
+    }
   },
 
   // Sales/Transactions
   getSales: async (): Promise<Sale[]> => {
-    const { data, error } = await supabase
-      .from('orders')
-      .select('*, order_items(*)');
-    if (error) throw error;
-    
-    const sales: Sale[] = [];
-    (data || []).forEach(order => {
-      (order.order_items || []).forEach((item: any) => {
-        sales.push({
-          id: item.id,
-          date: order.created_at,
-          productId: item.product_id,
-          variantIndex: 0, // Simplified as order_items stores variant_id
-          quantity: item.quantity,
-          totalPrice: Number(item.price) * item.quantity
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*, order_items(*)');
+      if (error) throw error;
+      
+      const sales: Sale[] = [];
+      (data || []).forEach(order => {
+        (order.order_items || []).forEach((item: any) => {
+          sales.push({
+            id: item.id,
+            date: order.created_at,
+            productId: item.product_id,
+            variantIndex: 0, // Simplified as order_items stores variant_id
+            quantity: item.quantity,
+            totalPrice: Number(item.price) * item.quantity
+          });
         });
       });
-    });
-    return sales;
+      try { localStorage.setItem(CACHE_KEYS.SALES, JSON.stringify(sales)); } catch (e) {}
+      return sales;
+    } catch (e) {
+      console.warn("Using offline cached sales data:", e);
+      const cached = localStorage.getItem(CACHE_KEYS.SALES);
+      return cached ? JSON.parse(cached) : [];
+    }
   },
 
   // Image Upload
@@ -191,7 +239,14 @@ export const storage = {
       console.warn("Could not fetch product categories", e);
     }
 
-    return Array.from(new Set(catNames));
+    const uniqueCats = Array.from(new Set(catNames));
+    if (uniqueCats.length > 0) {
+      try { localStorage.setItem(CACHE_KEYS.CATEGORIES, JSON.stringify(uniqueCats)); } catch (e) {}
+      return uniqueCats;
+    } else {
+      const cached = localStorage.getItem(CACHE_KEYS.CATEGORIES);
+      return cached ? JSON.parse(cached) : [];
+    }
   },
 
   addCategory: async (name: string): Promise<void> => {

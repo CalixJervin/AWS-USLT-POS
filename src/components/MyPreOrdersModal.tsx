@@ -8,7 +8,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Package, Trash2, CreditCard, AlertTriangle, Download } from "lucide-react";
+import { Package, Trash2, CreditCard, AlertTriangle, Download, Upload, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { useGCashSettings, downloadGCashQrCode } from "@/hooks/useGCashSettings";
 import { supabase } from "@/lib/supabase";
@@ -25,6 +25,7 @@ export interface MyPreOrder {
   paymentMethod: "cash" | "gcash" | "pay_later";
   paymentStatus: "Unpaid" | "Pending Verification" | "Paid" | "Cash Pending";
   gcashRefNumber?: string;
+  gcashReceiptImage?: string;
   createdAt: string;
 }
 
@@ -68,26 +69,53 @@ export function useMyPreOrders() {
         return;
       }
 
-      if (dbOrders) {
-        const validDbIds = new Set((dbOrders as Array<{ id: string; order_number?: string }>).map(d => d.id));
-        const validDbNums = new Set<string>();
-        (dbOrders as Array<{ id: string; order_number?: string }>).forEach(d => {
+      if (dbOrders && Array.isArray(dbOrders)) {
+        const dbStatusMap = new Map<string, { status: string; orderNumber?: string }>();
+        (dbOrders as Array<{ id: string; order_number?: string; status?: string }>).forEach(d => {
+          const st = d.status || "completed";
+          if (d.id) dbStatusMap.set(d.id, { status: st, orderNumber: d.order_number });
           if (d.order_number) {
-            validDbNums.add(d.order_number);
-            validDbNums.add(d.order_number.replace(/^#/, ''));
-            validDbNums.add(`#${d.order_number.replace(/^#/, '')}`);
+            const clean = d.order_number.replace(/^#/, '');
+            dbStatusMap.set(clean, { status: st, orderNumber: d.order_number });
+            dbStatusMap.set(`#${clean}`, { status: st, orderNumber: d.order_number });
           }
         });
 
-        const updated = localList.filter(o => {
-          // Always keep local preorders with temporary IDs
-          if (o.id && o.id.startsWith("preorder-")) return true;
-          if (validDbIds.has(o.id)) return true;
-          if (o.orderNumber && (validDbNums.has(o.orderNumber) || validDbNums.has(o.orderNumber.replace(/^#/, '')))) return true;
-          return false;
-        });
+        let changed = false;
 
-        if (updated.length !== localList.length) {
+        const updated = localList
+          .filter(o => {
+            // Always keep local preorders with temporary IDs
+            if (o.id && o.id.startsWith("preorder-")) return true;
+            if (dbStatusMap.has(o.id)) return true;
+            if (o.orderNumber && dbStatusMap.has(o.orderNumber)) return true;
+            if (o.orderNumber && dbStatusMap.has(o.orderNumber.replace(/^#/, ''))) return true;
+            return false;
+          })
+          .map(o => {
+            const dbMatch = dbStatusMap.get(o.id) || (o.orderNumber ? dbStatusMap.get(o.orderNumber) || dbStatusMap.get(o.orderNumber.replace(/^#/, '')) : null);
+            if (dbMatch && dbMatch.status) {
+              const raw = dbMatch.status.toLowerCase();
+              let targetStatus: MyPreOrder["paymentStatus"] = o.paymentStatus;
+              if (raw === "completed" || raw === "paid") {
+                targetStatus = "Paid";
+              } else if (raw === "verifying") {
+                targetStatus = "Pending Verification";
+              } else if (raw === "pending_counter") {
+                targetStatus = "Cash Pending";
+              } else if (raw === "unpaid") {
+                targetStatus = "Unpaid";
+              }
+
+              if (targetStatus !== o.paymentStatus) {
+                changed = true;
+                return { ...o, paymentStatus: targetStatus };
+              }
+            }
+            return o;
+          });
+
+        if (changed || updated.length !== localList.length) {
           localStorage.setItem(MY_PREORDERS_KEY, JSON.stringify(updated));
           setOrders(updated);
         }
@@ -125,6 +153,23 @@ export function useMyPreOrders() {
             localStorage.setItem(MY_PREORDERS_KEY, JSON.stringify(updated));
             setOrders(updated);
           }
+        } else if (msg.data?.type === "PREORDER_PAYMENT_STATUS_UPDATED") {
+          const targetId = msg.data.orderId;
+          const targetNum = msg.data.orderNumber;
+          const newStatus = msg.data.paymentStatus || "Paid";
+
+          const saved = localStorage.getItem(MY_PREORDERS_KEY);
+          if (saved) {
+            const existing: MyPreOrder[] = JSON.parse(saved);
+            const updated = existing.map(o => {
+              if ((targetId && o.id === targetId) || (targetNum && o.orderNumber === targetNum)) {
+                return { ...o, paymentStatus: newStatus as any };
+              }
+              return o;
+            });
+            localStorage.setItem(MY_PREORDERS_KEY, JSON.stringify(updated));
+            setOrders(updated);
+          }
         } else {
           reloadOrders();
           checkRemoteValidity();
@@ -132,10 +177,50 @@ export function useMyPreOrders() {
       };
     } catch (e) {}
 
+    // Subscribe to Supabase Realtime changes on orders table for instant multi-device updates
+    const channelId = `orders_my_preorders_${Math.random().toString(36).substring(2, 9)}`;
+    const realtimeChannel = supabase
+      .channel(channelId)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "orders" },
+        (payload) => {
+          const updatedRow = payload.new;
+          if (updatedRow) {
+            const saved = localStorage.getItem(MY_PREORDERS_KEY);
+            if (saved) {
+              const existing: MyPreOrder[] = JSON.parse(saved);
+              const matches = existing.some(
+                (o) => o.id === updatedRow.id || (o.orderNumber && o.orderNumber === updatedRow.order_number)
+              );
+              if (matches) {
+                let newPayStatus: MyPreOrder["paymentStatus"] = "Paid";
+                const raw = (updatedRow.status || "").toLowerCase();
+                if (raw === "completed" || raw === "paid") newPayStatus = "Paid";
+                else if (raw === "verifying") newPayStatus = "Pending Verification";
+                else if (raw === "pending_counter") newPayStatus = "Cash Pending";
+                else if (raw === "unpaid") newPayStatus = "Unpaid";
+
+                const updatedList = existing.map((o) => {
+                  if (o.id === updatedRow.id || (o.orderNumber && o.orderNumber === updatedRow.order_number)) {
+                    return { ...o, paymentStatus: newPayStatus };
+                  }
+                  return o;
+                });
+                localStorage.setItem(MY_PREORDERS_KEY, JSON.stringify(updatedList));
+                setOrders(updatedList);
+              }
+            }
+          }
+        }
+      )
+      .subscribe();
+
     return () => {
       window.removeEventListener("storage", handleUpdate);
       window.removeEventListener("timpla_my_preorders_updated", handleUpdate);
       if (bc) bc.close();
+      supabase.removeChannel(realtimeChannel);
     };
   }, [checkRemoteValidity]);
 
@@ -218,7 +303,7 @@ export function useMyPreOrders() {
     }
   };
 
-  const updatePaymentInfo = (orderNumber: string, refNumber: string) => {
+  const updatePaymentInfo = (orderNumber: string, refNumber: string, receiptImage?: string) => {
     try {
       const saved = localStorage.getItem(MY_PREORDERS_KEY);
       if (!saved) return;
@@ -229,7 +314,8 @@ export function useMyPreOrders() {
             ...o,
             paymentMethod: "gcash" as const,
             paymentStatus: "Pending Verification" as const,
-            gcashRefNumber: refNumber
+            gcashRefNumber: refNumber,
+            gcashReceiptImage: receiptImage || o.gcashReceiptImage
           };
         }
         return o;
@@ -247,7 +333,8 @@ export function useMyPreOrders() {
               ...o,
               paymentMethod: "gcash",
               paymentStatus: "Pending Verification",
-              gcashRefNumber: refNumber
+              gcashRefNumber: refNumber,
+              gcashReceiptImage: receiptImage || o.gcashReceiptImage
             };
           }
           return o;
@@ -255,9 +342,27 @@ export function useMyPreOrders() {
         localStorage.setItem("timpla_kiosk_pending_orders", JSON.stringify(updatedKiosk));
       }
 
+      // If online, update Supabase orders table so admin pos can view receipt screenshot!
+      const updateSupabase = async () => {
+        try {
+          const numWithHash = orderNumber.startsWith("#") ? orderNumber : `#${orderNumber}`;
+          const numClean = orderNumber.replace(/^#/, "");
+          await supabase
+            .from("orders")
+            .update({
+              payment_method: "gcash",
+              status: "verifying",
+              gcash_ref_number: refNumber,
+              gcash_receipt_url: receiptImage || null
+            })
+            .or(`order_number.eq.${numWithHash},order_number.eq.${numClean}`);
+        } catch (e) {}
+      };
+      updateSupabase();
+
       window.dispatchEvent(new Event("timpla_my_preorders_updated"));
       window.dispatchEvent(new Event("storage"));
-      toast.success(`Payment reference submitted for ${orderNumber}!`);
+      toast.success(`Payment reference and receipt submitted for ${orderNumber}!`);
     } catch (e) {
       toast.error("Failed to update payment.");
     }
@@ -276,6 +381,53 @@ export function MyPreOrdersModalButton({ buttonClassName }: MyPreOrdersModalButt
   const [isOpen, setIsOpen] = useState(false);
   const [payingOrderId, setPayingOrderId] = useState<string | null>(null);
   const [refInputMap, setRefInputMap] = useState<Record<string, string>>({});
+  const [receiptFileMap, setReceiptFileMap] = useState<Record<string, string>>({});
+  const [viewReceiptUrl, setViewReceiptUrl] = useState<string | null>(null);
+
+  const [confirmCancelOrder, setConfirmCancelOrder] = useState<{ id: string; orderNumber: string; itemName: string } | null>(null);
+
+  const handleReceiptFileChange = (orderId: string, file: File) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please upload an image file (PNG, JPG, JPEG, etc.).");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let width = img.width;
+        let height = img.height;
+        const MAX_SIZE = 800;
+
+        if (width > height) {
+          if (width > MAX_SIZE) {
+            height = Math.round((height * MAX_SIZE) / width);
+            width = MAX_SIZE;
+          }
+        } else {
+          if (height > MAX_SIZE) {
+            width = Math.round((width * MAX_SIZE) / height);
+            height = MAX_SIZE;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL("image/jpeg", 0.8);
+          setReceiptFileMap((prev) => ({ ...prev, [orderId]: dataUrl }));
+          toast.success("Receipt screenshot attached!");
+        }
+      };
+      img.src = e.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
 
   if (orders.length === 0) return null;
 
@@ -321,6 +473,7 @@ export function MyPreOrdersModalButton({ buttonClassName }: MyPreOrdersModalButt
               const isPayLater = ord.paymentMethod === "pay_later" || ord.paymentStatus === "Unpaid";
               const isPayingThis = payingOrderId === ord.id;
               const currentRefInput = refInputMap[ord.id] || "";
+              const currentReceiptImage = receiptFileMap[ord.id] || ord.gcashReceiptImage;
 
               return (
                 <div key={ord.id} className="bg-[#131824] border border-[#232A3B] rounded-xl p-4 flex flex-col gap-3">
@@ -362,6 +515,34 @@ export function MyPreOrdersModalButton({ buttonClassName }: MyPreOrdersModalButt
                     </div>
                   </div>
 
+                  {/* DISPLAY ATTACHED RECEIPT SCREENSHOT BUTTON IF ALREADY SUBMITTED */}
+                  {ord.gcashReceiptImage && !isPayingThis && (
+                    <div className="flex items-center justify-between bg-[#1E2333]/80 p-2.5 rounded-lg border border-[#00F2FE]/30 text-xs">
+                      <div className="flex items-center gap-2.5">
+                        <img
+                          src={ord.gcashReceiptImage}
+                          alt="Receipt Screenshot"
+                          onClick={() => setViewReceiptUrl(ord.gcashReceiptImage!)}
+                          className="w-9 h-9 object-cover rounded-lg border border-[#00F2FE]/40 cursor-pointer hover:scale-105 transition-transform"
+                        />
+                        <div className="flex flex-col text-left">
+                          <span className="text-xs font-bold text-[#E2E8F0]">GCash Receipt Screenshot</span>
+                          <span className="text-[10px] text-[#00F2FE]">Proof of payment attached</span>
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setViewReceiptUrl(ord.gcashReceiptImage!)}
+                        className="h-7 text-[11px] text-[#00F2FE] hover:bg-[#00F2FE]/10 font-bold rounded-md flex items-center gap-1 cursor-pointer"
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        View
+                      </Button>
+                    </div>
+                  )}
+
                   {/* PAY NOW SECTION FOR PAY LATER ORDERS */}
                   {isPayLater && (
                     <div className="mt-1 pt-3 border-t border-[#232A3B] flex flex-col gap-2">
@@ -399,6 +580,7 @@ export function MyPreOrdersModalButton({ buttonClassName }: MyPreOrdersModalButt
                             )}
                           </div>
 
+                          {/* GCASH REFERENCE NUMBER */}
                           <div className="flex flex-col gap-1.5">
                             <label className="text-[11px] font-bold text-[#E2E8F0]">
                               Enter GCash Reference Number <span className="text-[#FF3366]">*</span>
@@ -412,7 +594,66 @@ export function MyPreOrdersModalButton({ buttonClassName }: MyPreOrdersModalButt
                             />
                           </div>
 
-                          <div className="flex gap-2">
+                          {/* RECEIPT SCREENSHOT ATTACHMENT */}
+                          <div className="flex flex-col gap-1.5">
+                            <label className="text-[11px] font-bold text-[#E2E8F0] flex items-center justify-between">
+                              <span>Attach GCash Receipt Screenshot <span className="text-[#FF3366]">*</span></span>
+                              {currentReceiptImage && (
+                                <span className="text-[#00F2FE] text-[10px] font-bold">✓ Screenshot Attached</span>
+                              )}
+                            </label>
+
+                            {currentReceiptImage ? (
+                              <div className="relative bg-[#131824] border border-[#00F2FE]/50 rounded-xl p-2.5 flex items-center justify-between gap-3">
+                                <div className="flex items-center gap-2.5 overflow-hidden">
+                                  <img
+                                    src={currentReceiptImage}
+                                    alt="Receipt Screenshot"
+                                    onClick={() => setViewReceiptUrl(currentReceiptImage)}
+                                    className="w-12 h-12 object-cover rounded-lg border border-[#00F2FE]/40 cursor-pointer hover:scale-105 transition-transform"
+                                  />
+                                  <div className="flex flex-col text-left">
+                                    <span className="text-xs font-bold text-[#E2E8F0]">Receipt Screenshot</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => setViewReceiptUrl(currentReceiptImage)}
+                                      className="text-[11px] text-[#00F2FE] font-medium underline text-left cursor-pointer"
+                                    >
+                                      Click to view full image
+                                    </button>
+                                  </div>
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => setReceiptFileMap(prev => { const copy = { ...prev }; delete copy[ord.id]; return copy; })}
+                                  className="h-8 w-8 text-[#FF3366] hover:bg-[#FF3366]/10 rounded-lg shrink-0 cursor-pointer"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <label className="bg-[#131824] border border-dashed border-[#00F2FE]/40 hover:border-[#00F2FE] rounded-xl p-3 flex flex-col items-center justify-center gap-1.5 cursor-pointer transition-all">
+                                <Upload className="h-5 w-5 text-[#00F2FE]" />
+                                <div className="text-center">
+                                  <span className="text-xs font-bold text-[#00F2FE]">Upload GCash Receipt Screenshot <span className="text-[#FF3366]">*</span></span>
+                                  <div className="text-[10px] text-[#64748B]">PNG, JPG, or JPEG up to 10MB</div>
+                                </div>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) handleReceiptFileChange(ord.id, file);
+                                  }}
+                                />
+                              </label>
+                            )}
+                          </div>
+
+                          <div className="flex gap-2 pt-1">
                             <Button
                               type="button"
                               variant="ghost"
@@ -423,12 +664,20 @@ export function MyPreOrdersModalButton({ buttonClassName }: MyPreOrdersModalButt
                             </Button>
                             <Button
                               type="button"
-                              disabled={!currentRefInput.trim()}
+                              disabled={!currentRefInput.trim() || !currentReceiptImage}
                               onClick={() => {
-                                updatePaymentInfo(ord.orderNumber, currentRefInput.trim());
+                                if (!currentRefInput.trim()) {
+                                  toast.error("Please enter your GCash Reference Number.");
+                                  return;
+                                }
+                                if (!currentReceiptImage) {
+                                  toast.error("Please attach a screenshot of your GCash receipt.");
+                                  return;
+                                }
+                                updatePaymentInfo(ord.orderNumber, currentRefInput.trim(), currentReceiptImage);
                                 setPayingOrderId(null);
                               }}
-                              className="flex-1 bg-[#00F2FE] hover:bg-[#00D8E4] text-[#0B0E14] font-black text-xs h-8 rounded-lg cursor-pointer"
+                              className="flex-1 bg-[#00F2FE] hover:bg-[#00D8E4] disabled:opacity-40 text-[#0B0E14] font-black text-xs h-8 rounded-lg cursor-pointer"
                             >
                               Submit Payment
                             </Button>
@@ -443,7 +692,7 @@ export function MyPreOrdersModalButton({ buttonClassName }: MyPreOrdersModalButt
                     <Button
                       type="button"
                       variant="ghost"
-                      onClick={() => cancelMyPreOrder(ord.id, ord.orderNumber)}
+                      onClick={() => setConfirmCancelOrder({ id: ord.id, orderNumber: ord.orderNumber, itemName: ord.itemName })}
                       className="text-[#FF3366] hover:text-[#FF3366] hover:bg-[#FF3366]/10 text-xs font-bold h-8 px-2 flex items-center gap-1.5 cursor-pointer"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -454,6 +703,85 @@ export function MyPreOrdersModalButton({ buttonClassName }: MyPreOrdersModalButt
               );
             })}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ARE YOU SURE CANCEL CONFIRMATION DIALOG */}
+      <Dialog open={Boolean(confirmCancelOrder)} onOpenChange={(open) => { if (!open) setConfirmCancelOrder(null); }}>
+        <DialogContent className="sm:max-w-md bg-[#1E2333] border-[#2D3448] text-[#E2E8F0] p-6 rounded-2xl shadow-2xl">
+          <DialogHeader className="flex flex-col items-center text-center gap-2 pb-2">
+            <div className="p-3 rounded-full bg-[#FF3366]/15 border border-[#FF3366]/30 text-[#FF3366]">
+              <AlertTriangle className="h-7 w-7" />
+            </div>
+            <DialogTitle className="text-lg font-black text-[#E2E8F0]">
+              Cancel Pre-Order?
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="text-center text-sm text-[#94A3B8] space-y-2 py-2">
+            <p>
+              Are you sure you want to cancel pre-order <span className="font-extrabold text-[#00F2FE]">{confirmCancelOrder?.orderNumber}</span> ({confirmCancelOrder?.itemName})?
+            </p>
+            <p className="text-xs text-[#64748B]">
+              This action cannot be undone and will remove this ticket from your saved orders.
+            </p>
+          </div>
+
+          <div className="flex gap-3 pt-4 border-t border-[#2D3448]">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setConfirmCancelOrder(null)}
+              className="flex-1 h-10 text-sm font-semibold text-[#94A3B8] hover:text-white hover:bg-[#282E42] rounded-xl cursor-pointer"
+            >
+              No, Keep Order
+            </Button>
+            <Button
+              type="button"
+              onClick={async () => {
+                if (confirmCancelOrder) {
+                  await cancelMyPreOrder(confirmCancelOrder.id, confirmCancelOrder.orderNumber);
+                  setConfirmCancelOrder(null);
+                }
+              }}
+              className="flex-1 h-10 text-sm font-bold bg-[#FF3366] hover:bg-[#E62E5C] text-white rounded-xl shadow-lg shadow-[#FF3366]/20 cursor-pointer flex items-center justify-center gap-2"
+            >
+              <Trash2 className="h-4 w-4" />
+              Yes, Cancel Order
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* LIGHTBOX RECEIPT SCREENSHOT PREVIEW DIALOG */}
+      <Dialog open={Boolean(viewReceiptUrl)} onOpenChange={(open) => { if (!open) setViewReceiptUrl(null); }}>
+        <DialogContent className="sm:max-w-xl bg-[#131824] border-[#00F2FE]/40 text-[#E2E8F0] p-5 rounded-2xl shadow-2xl flex flex-col items-center gap-4">
+          <DialogHeader className="w-full flex flex-row items-center justify-between border-b border-[#232A3B] pb-3">
+            <DialogTitle className="text-base font-extrabold text-[#E2E8F0] flex items-center gap-2">
+              <CreditCard className="h-5 w-5 text-[#00F2FE]" />
+              GCash Receipt Screenshot
+            </DialogTitle>
+          </DialogHeader>
+
+          {viewReceiptUrl && (
+            <div className="w-full flex flex-col items-center gap-3">
+              <img
+                src={viewReceiptUrl}
+                alt="Submitted GCash Receipt"
+                className="max-h-[65vh] w-auto object-contain rounded-xl border border-[#232A3B] bg-black/40 shadow-lg"
+              />
+              <div className="flex gap-2 w-full justify-end pt-2 border-t border-[#232A3B]">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setViewReceiptUrl(null)}
+                  className="text-xs font-bold border-[#2D3448] text-[#E2E8F0] hover:bg-[#1E2333] h-9 px-4 rounded-xl cursor-pointer"
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </>

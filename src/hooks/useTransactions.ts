@@ -3,6 +3,7 @@ import type { CartItem } from "./useCart";
 import { supabase } from "@/lib/supabase";
 import { AuthContext } from "./use-auth";
 import { InventoryContext } from "@/context/InventoryContext";
+import { useConnectionStatus } from "@/context/ConnectionContext";
 import { toast } from "sonner";
 
 export interface Transaction {
@@ -18,6 +19,8 @@ export interface Transaction {
   customer_phone?: string;
   fulfillment_status?: string;
   is_pre_order?: boolean;
+  gcash_ref_number?: string;
+  gcash_receipt_url?: string;
 }
 
 export interface TransactionItem {
@@ -57,6 +60,8 @@ export function useTransactions() {
   const user = authContext?.user;
   const invContext = useContext(InventoryContext);
   const refreshData = invContext?.refreshData;
+  const deductOfflineStock = invContext?.deductOfflineStock;
+  const { isAdminOfflineMode, saveAdminOfflineOrder } = useConnectionStatus();
 
   const removeLocalOrders = (targetIds: string[], targetOrderNumbers: string[] = []) => {
     try {
@@ -80,6 +85,16 @@ export function useTransactions() {
         localStorage.setItem("timpla_my_saved_preorders", JSON.stringify(updated));
       }
       
+      const savedAdminOff = localStorage.getItem("timpla_admin_offline_orders");
+      if (savedAdminOff) {
+        const parsed: any[] = JSON.parse(savedAdminOff);
+        const updated = parsed.filter(o => 
+          !targetIds.includes(o.id) && 
+          !(o.orderNumber && targetOrderNumbers.includes(o.orderNumber))
+        );
+        localStorage.setItem("timpla_admin_offline_orders", JSON.stringify(updated));
+      }
+
       const bc = new BroadcastChannel("timpla_kiosk_channel");
       bc.postMessage({ type: "SYNC_PENDING_ORDERS" });
       bc.close();
@@ -89,14 +104,27 @@ export function useTransactions() {
 
   const fetchTransactions = useCallback(async (showLoading = false) => {
     if (showLoading) setIsLoading(true);
+    let orders: any[] = [];
     try {
-      const { data: orders, error: ordersError } = await supabase
+      const { data: dbOrders, error: ordersError } = await supabase
         .from('orders')
         .select('*, order_items(*)')
         .order('created_at', { ascending: false });
 
       if (ordersError) throw ordersError;
+      orders = dbOrders || [];
+      try {
+        localStorage.setItem("timpla_cache_transactions", JSON.stringify(orders));
+      } catch (e) {}
+    } catch (error) {
+      console.warn("Using cached transactions due to network status:", error);
+      try {
+        const cached = localStorage.getItem("timpla_cache_transactions");
+        if (cached) orders = JSON.parse(cached);
+      } catch (e) {}
+    }
 
+    try {
       // Load local pending & saved pre-orders from localStorage to ensure contact details are preserved
       let localOrders: any[] = [];
       try {
@@ -212,7 +240,9 @@ export function useTransactions() {
           customer_email: custEmail,
           customer_phone: custPhone,
           fulfillment_status: o.fulfillment_status || localMatch?.fulfillmentStatus || (isPreOrder ? "pre_ordered" : undefined),
-          is_pre_order: isPreOrder
+          is_pre_order: isPreOrder,
+          gcash_ref_number: o.gcash_ref_number || localMatch?.gcashRefNumber,
+          gcash_receipt_url: o.gcash_receipt_url || localMatch?.gcashReceiptImage
         });
 
         orderItems.forEach((item: any) => {
@@ -226,6 +256,43 @@ export function useTransactions() {
           });
         });
       });
+
+      // Merge admin offline orders
+      try {
+        const storedAdminOff = localStorage.getItem("timpla_admin_offline_orders");
+        if (storedAdminOff) {
+          const offlineList: any[] = JSON.parse(storedAdminOff);
+          offlineList.forEach(o => {
+            const existsInTxMap = txMap.has(o.id) || Array.from(txMap.values()).some(tx => tx.order_id === o.orderNumber);
+            if (!existsInTxMap) {
+              txMap.set(o.id, {
+                id: o.id,
+                order_id: o.orderNumber || `#OFFLINE-ORD`,
+                total_amount: Number(o.total),
+                payment_method: o.paymentMethod || "cash",
+                status: "completed",
+                payment_status: "Paid",
+                timestamp: o.createdAt || new Date().toISOString(),
+                fulfillment_status: "completed",
+                is_pre_order: false
+              });
+
+              if (o.cart) {
+                o.cart.forEach((ci: any) => {
+                  items.push({
+                    id: `offline-item-${o.id}-${ci.id}`,
+                    transaction_id: o.id,
+                    product_id: ci.id,
+                    product_name: ci.name,
+                    quantity: ci.qty,
+                    price: Number(ci.price)
+                  });
+                });
+              }
+            }
+          });
+        }
+      } catch (e) {}
 
       // Merge local pre-orders if not already present in DB (exclude un-finalized kiosk counter orders)
       localOrders.forEach(l => {
@@ -256,7 +323,9 @@ export function useTransactions() {
             customer_email: l.customerEmail,
             customer_phone: l.customerPhone,
             fulfillment_status: l.fulfillmentStatus || (isPO ? "pre_ordered" : "completed"),
-            is_pre_order: isPO
+            is_pre_order: isPO,
+            gcash_ref_number: l.gcashRefNumber,
+            gcash_receipt_url: l.gcashReceiptImage
           });
 
           if (l.cart) {
@@ -289,12 +358,17 @@ export function useTransactions() {
           if (existing.id === tx.id) return true;
 
           // 2. Determine if records are local storage fallbacks vs database records
-          const existingIsLocal = existing.id.startsWith("kiosk-") || existing.id.startsWith("preorder-");
-          const txIsLocal = tx.id.startsWith("kiosk-") || tx.id.startsWith("preorder-");
+          const existingIsLocal = existing.id.startsWith("kiosk-") || existing.id.startsWith("preorder-") || existing.id.startsWith("admin-offline-");
+          const txIsLocal = tx.id.startsWith("kiosk-") || tx.id.startsWith("preorder-") || tx.id.startsWith("admin-offline-");
           const bothAreDB = !existingIsLocal && !txIsLocal;
 
-          // Two separate database records with unique primary key IDs are NEVER duplicates of each other
-          if (bothAreDB) return false;
+          // Two separate database records with unique primary key IDs are NEVER duplicates of each other (unless order_id is identical)
+          if (bothAreDB) {
+            if (existing.order_id && tx.order_id && existing.order_id === tx.order_id) {
+              return true;
+            }
+            return false;
+          }
 
           // If one is local and one is DB, merge if order_id matches or amount & time match closely
           if (existingIsLocal || txIsLocal) {
@@ -371,15 +445,20 @@ export function useTransactions() {
     window.addEventListener("storage", handleStorageChange);
     window.addEventListener("timpla_my_preorders_updated", handleStorageChange);
     window.addEventListener("timpla_kiosk_orders_updated", handleStorageChange);
+    window.addEventListener("timpla_admin_offline_orders_updated", handleStorageChange);
 
     let bc1: BroadcastChannel | null = null;
     let bc2: BroadcastChannel | null = null;
+    let bc3: BroadcastChannel | null = null;
     try {
       bc1 = new BroadcastChannel("timpla_kiosk_channel");
       bc1.onmessage = () => fetchTransactions(false);
 
       bc2 = new BroadcastChannel("timpla_my_preorders_channel");
       bc2.onmessage = () => fetchTransactions(false);
+
+      bc3 = new BroadcastChannel("timpla_admin_offline_channel");
+      bc3.onmessage = () => fetchTransactions(false);
     } catch (e) {}
 
     // Supabase Realtime WebSocket subscription so Data Table auto-refreshes on DB changes
@@ -399,13 +478,26 @@ export function useTransactions() {
       window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("timpla_my_preorders_updated", handleStorageChange);
       window.removeEventListener("timpla_kiosk_orders_updated", handleStorageChange);
+      window.removeEventListener("timpla_admin_offline_orders_updated", handleStorageChange);
       if (bc1) bc1.close();
       if (bc2) bc2.close();
+      if (bc3) bc3.close();
       supabase.removeChannel(realtimeChannel);
     };
   }, []);
 
   const saveTransaction = async (cart: CartItem[], total: number, _paymentMethod: "cash" | "gcash") => {
+    // If Admin Offline Mode is active, save locally without making network calls
+    if (isAdminOfflineMode) {
+      saveAdminOfflineOrder(cart, total, _paymentMethod);
+      if (deductOfflineStock) {
+        deductOfflineStock(cart);
+      }
+      await fetchTransactions(false);
+      window.dispatchEvent(new Event("storage"));
+      return;
+    }
+
     try {
       // Prepare items for RPC
       const rpcItems = cart.map(item => ({
@@ -446,8 +538,14 @@ export function useTransactions() {
       window.dispatchEvent(new Event("storage"));
       toast.success("Transaction saved successfully");
     } catch (error: any) {
-      console.error("Transaction error:", error);
-      toast.error("Failed to save transaction: " + (error.message || "Unknown error"));
+      console.warn("Server upload error during saveTransaction, storing offline:", error);
+      // Fallback to Admin Offline order saving if server connection drops
+      saveAdminOfflineOrder(cart, total, _paymentMethod);
+      if (deductOfflineStock) {
+        deductOfflineStock(cart);
+      }
+      await fetchTransactions(false);
+      window.dispatchEvent(new Event("storage"));
     }
   };
 

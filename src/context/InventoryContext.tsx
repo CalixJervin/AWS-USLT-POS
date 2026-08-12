@@ -27,6 +27,7 @@ interface InventoryContextType {
   deleteProduct: (id: string) => Promise<void>;
   toggleProductStock: (id: string) => Promise<void>;
   processSale: (productId: string, variantIndex: number, quantity: number, orderItems?: any[]) => Promise<void>;
+  deductOfflineStock: (cartItems: { id: string; qty: number }[]) => void;
   addCategory: (name: string) => Promise<void>;
   deleteCategory: (name: string) => Promise<void>;
   renameCategory: (oldName: string, newName: string) => Promise<void>;
@@ -426,6 +427,27 @@ export const InventoryProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [products, fetchAll]);
 
+  const deductOfflineStock = useCallback((cartItems: { id: string; qty: number }[]) => {
+    setProducts((prevProds) => {
+      const updated = prevProds.map((p) => {
+        const item = cartItems.find((ci) => ci.id === p.id);
+        if (item && p.type === 'ready-made' && typeof p.quantity === 'number') {
+          const newQty = Math.max(0, p.quantity - item.qty);
+          return {
+            ...p,
+            quantity: newQty,
+            inStock: newQty > 0
+          };
+        }
+        return p;
+      });
+      try {
+        localStorage.setItem('timpla_cache_products', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+  }, []);
+
   const addCategory = useCallback(async (name: string) => {
     await storage.addCategory(name);
     await fetchAll();
@@ -446,13 +468,13 @@ export const InventoryProvider = ({ children }: { children: ReactNode }) => {
     addIngredient, updateIngredient, restockIngredient, deleteIngredient,
     addRecipe, updateRecipe, deleteRecipe,
     addProduct, updateProduct, restockProduct, deleteProduct, toggleProductStock,
-    processSale, addCategory, deleteCategory, renameCategory, refreshData: fetchAll
+    processSale, deductOfflineStock, addCategory, deleteCategory, renameCategory, refreshData: fetchAll
   }), [
     ingredients, recipes, products, categories, sales, isLoading,
     addIngredient, updateIngredient, restockIngredient, deleteIngredient,
     addRecipe, updateRecipe, deleteRecipe,
     addProduct, updateProduct, restockProduct, deleteProduct, toggleProductStock,
-    processSale, addCategory, deleteCategory, renameCategory, fetchAll
+    processSale, deductOfflineStock, addCategory, deleteCategory, renameCategory, fetchAll
   ]);
 
   return (
@@ -462,10 +484,34 @@ export const InventoryProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
+const defaultInventoryContext: InventoryContextType = {
+  ingredients: [],
+  recipes: [],
+  products: [],
+  categories: [],
+  sales: [],
+  isLoading: false,
+  addIngredient: async () => {},
+  updateIngredient: async () => {},
+  deleteIngredient: async () => {},
+  restockIngredient: async () => {},
+  addRecipe: async () => undefined,
+  updateRecipe: async () => {},
+  deleteRecipe: async () => {},
+  addProduct: async () => {},
+  updateProduct: async () => {},
+  restockProduct: async () => {},
+  deleteProduct: async () => {},
+  toggleProductStock: async () => {},
+  processSale: async () => {},
+  deductOfflineStock: () => {},
+  addCategory: async () => {},
+  deleteCategory: async () => {},
+  renameCategory: async () => {},
+  refreshData: async () => {},
+};
+
 export const useInventory = () => {
   const context = useContext(InventoryContext);
-  if (context === undefined) {
-    throw new Error('useInventory must be used within an InventoryProvider');
-  }
-  return context;
+  return context || defaultInventoryContext;
 };

@@ -3,16 +3,18 @@ import { TicketSidebar } from "@/POS/Ticket"
 import { useCart } from "@/hooks/useCart"
 import { ProductGrid } from "@/POS/items"
 import { Input } from "@/components/ui/input"
-import { Search, ShoppingBag, Store } from "lucide-react"
+import { Search, ShoppingBag, Store, WifiOff } from "lucide-react"
 import { Button } from "@/components/ui/button" 
 import type { Product } from "@/hooks/useCart"
 import { SiteHeader } from "@/components/site-header"
 
 import { useKiosk } from "@/context/KioskContext"
 import { useKioskOrders, type PendingKioskOrder } from "@/hooks/useKioskOrders"
+import { useConnectionStatus } from "@/context/ConnectionContext"
 import { KioskOrderConfirmationModal } from "@/POS/KioskOrderConfirmationModal"
 import { PreOrderModal } from "@/components/PreOrderModal"
 import { motion, AnimatePresence } from "framer-motion"
+import { toast } from "sonner"
 
 import { MyPreOrdersModalButton } from "@/components/MyPreOrdersModal"
 import { TakopiMascotHint } from "@/components/TakopiMascotHint"
@@ -24,6 +26,7 @@ export default function KioskView() {
   } = useCart()
 
   const { products: inventoryProducts, categories, isLoading } = useKiosk()
+  const { isConnected } = useConnectionStatus()
 
   const {
     pendingOrders,
@@ -71,9 +74,17 @@ export default function KioskView() {
     paymentMethod: "counter" | "cash" | "gcash" = "counter",
     customerDetails?: { customerName?: string; customerEmail?: string; customerPhone?: string }
   ) => {
+    if (!isConnected) {
+      toast.error("Kiosk System Offline", {
+        description: "Self-service checkout is unavailable while offline. Please place your order at the counter.",
+        duration: 5000,
+        icon: <WifiOff className="h-4 w-4 text-[#FF3366]" />
+      });
+      return;
+    }
     const created = await createPendingOrder(cartItems, subTot, tot, paymentMethod, customerDetails)
     setSubmittedKioskOrder(created)
-  }, [createPendingOrder])
+  }, [createPendingOrder, isConnected])
 
   // Pre-Order Modal State for Merch Banners
   const [selectedMerchProduct, setSelectedMerchProduct] = useState<Product | null>(null)

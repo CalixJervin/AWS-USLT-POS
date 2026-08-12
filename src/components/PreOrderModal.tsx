@@ -8,13 +8,22 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Package, Calendar, Sparkles, CheckCircle2, AlertTriangle, Store, QrCode, Download, Upload, Trash2, CreditCard } from "lucide-react";
+import { Package, Calendar, Sparkles, CheckCircle2, AlertTriangle, Store, QrCode, Download, Upload, Trash2, CreditCard, Ruler } from "lucide-react";
 import type { Product } from "@/hooks/useCart";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import { useGCashSettings, downloadGCashQrCode } from "@/hooks/useGCashSettings";
 import { useMyPreOrders } from "@/components/MyPreOrdersModal";
 import { checkDeviceLockout, recordOrderAttempt } from "@/lib/rateLimiter";
+
+const SIZE_CHART_DATA = [
+  { size: "XS",  label: "Extra Small", chestIn: '38"', lengthIn: '25"', chestCm: "96.5 cm", lengthCm: "63.5 cm" },
+  { size: "S",   label: "Small",       chestIn: '40"', lengthIn: '26"', chestCm: "101.5 cm", lengthCm: "66 cm" },
+  { size: "M",   label: "Medium",      chestIn: '42"', lengthIn: '27"', chestCm: "106.5 cm", lengthCm: "68.5 cm" },
+  { size: "L",   label: "Large",       chestIn: '44"', lengthIn: '28"', chestCm: "112 cm", lengthCm: "71 cm" },
+  { size: "XL",  label: "Extra Large", chestIn: '46"', lengthIn: '29"', chestCm: "117 cm", lengthCm: "73.5 cm" },
+  { size: "2XL", label: "XXL",         chestIn: '48"', lengthIn: '30"', chestCm: "122 cm", lengthCm: "76 cm" },
+];
 
 interface PreOrderModalProps {
   item: Product | null;
@@ -30,6 +39,8 @@ export function PreOrderModal({
   onConfirmPreOrder,
 }: PreOrderModalProps) {
   const [selectedSize, setSelectedSize] = useState<string>("L");
+  const [isSizeChartOpen, setIsSizeChartOpen] = useState(false);
+  const [sizeChartUnit, setSizeChartUnit] = useState<"in" | "cm">("in");
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
@@ -56,7 +67,7 @@ export function PreOrderModal({
     )
   );
 
-  const shirtSizes = ["XS", "S", "M", "L", "XL", "2XL", "3XL"];
+  const shirtSizes = ["XS", "S", "M", "L", "XL", "2XL"];
 
   useEffect(() => {
     if (isOpen) {
@@ -369,9 +380,21 @@ export function PreOrderModal({
               {isShirtProduct && (
                 <div className="flex flex-col gap-2 bg-[#131824] p-4 rounded-xl border border-[#232A3B]">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold uppercase text-[#00F2FE] tracking-wider">
-                      Shirt Size
-                    </label>
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs font-bold uppercase text-[#00F2FE] tracking-wider">
+                        Shirt Size
+                      </label>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setIsSizeChartOpen(true)}
+                        className="h-6 px-2 text-[11px] font-bold text-[#00F2FE] bg-[#00F2FE]/10 hover:bg-[#00F2FE]/20 border border-[#00F2FE]/30 rounded-md flex items-center gap-1 cursor-pointer transition-all"
+                      >
+                        <Ruler className="h-3 w-3" />
+                        <span>View Size Chart</span>
+                      </Button>
+                    </div>
                     <span className="text-xs text-[#E6007E] font-black uppercase">
                       Size: {selectedSize}
                     </span>
@@ -499,15 +522,15 @@ export function PreOrderModal({
                       </span>
 
                       {/* QR CODE CONTAINER */}
-                      <div className="w-full max-w-[180px] aspect-square bg-[#131824] border-2 border-dashed border-[#00F2FE]/50 rounded-2xl p-2 flex flex-col items-center justify-center gap-2 shadow-[0_0_20px_rgba(0,242,254,0.15)] my-1 relative overflow-hidden">
+                      <div className="w-full max-w-[280px] bg-[#131824] border-2 border-dashed border-[#00F2FE]/50 rounded-2xl p-2 flex flex-col items-center justify-center gap-2 shadow-[0_0_20px_rgba(0,242,254,0.15)] my-1 relative overflow-hidden">
                         {gcashSettings.gcashQrImage ? (
                           <img
                             src={gcashSettings.gcashQrImage}
                             alt="GCash QR Code"
-                            className="w-full h-full object-contain rounded-lg bg-white p-1"
+                            className="w-full h-auto max-h-[380px] object-contain rounded-xl bg-white p-1.5 border border-slate-200"
                           />
                         ) : (
-                          <div className="flex flex-col items-center justify-center gap-2 text-center p-2">
+                          <div className="flex flex-col items-center justify-center gap-2 text-center p-4">
                             <div className="p-3 bg-[#131824] rounded-full border border-[#00F2FE]/40 text-[#00F2FE]">
                               <QrCode className="h-8 w-8 animate-pulse" />
                             </div>
@@ -685,6 +708,108 @@ export function PreOrderModal({
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* SHIRT SIZE CHART / MEASUREMENT GUIDE DIALOG */}
+      <Dialog open={isSizeChartOpen} onOpenChange={setIsSizeChartOpen}>
+        <DialogContent className="sm:max-w-xl bg-[#131824] border-2 border-[#00F2FE]/40 text-[#E2E8F0] p-5 sm:p-6 rounded-2xl shadow-[0_0_50px_rgba(0,242,254,0.2)] flex flex-col gap-4 max-h-[90vh] overflow-y-auto custom-scrollbar">
+          <DialogHeader className="w-full flex flex-row items-center justify-between border-b border-[#232A3B] pb-3 space-y-0 shrink-0">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 bg-[#00F2FE]/15 rounded-xl border border-[#00F2FE]/40 text-[#00F2FE]">
+                <Ruler className="h-5 w-5" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-extrabold text-[#E2E8F0]">
+                  Shirt Size Guide & Measurements
+                </DialogTitle>
+              </div>
+            </div>
+          </DialogHeader>
+
+          {/* UNIT SWITCHER */}
+          <div className="flex justify-between items-center bg-[#1E2333] p-2.5 rounded-xl border border-[#232A3B] shrink-0">
+            <span className="text-xs font-bold text-[#94A3B8]">Measurement Unit</span>
+            <div className="flex gap-1 bg-[#131824] p-1 rounded-lg border border-[#232A3B]">
+              <button
+                type="button"
+                onClick={() => setSizeChartUnit("in")}
+                className={`px-3 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${
+                  sizeChartUnit === "in"
+                    ? "bg-[#00F2FE] text-[#0B0E14] font-black shadow-sm"
+                    : "text-[#94A3B8] hover:text-[#E2E8F0]"
+                }`}
+              >
+                Inches (in)
+              </button>
+              <button
+                type="button"
+                onClick={() => setSizeChartUnit("cm")}
+                className={`px-3 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${
+                  sizeChartUnit === "cm"
+                    ? "bg-[#00F2FE] text-[#0B0E14] font-black shadow-sm"
+                    : "text-[#94A3B8] hover:text-[#E2E8F0]"
+                }`}
+              >
+                Centimeters (cm)
+              </button>
+            </div>
+          </div>
+
+          {/* MEASUREMENT TABLE MATCHING SHIRT SIZE.PNG */}
+          <div className="overflow-x-auto rounded-xl border border-[#232A3B] bg-[#1A1F2C] shrink-0 custom-scrollbar">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-[#131824] text-[#94A3B8] uppercase text-[10px] font-black tracking-wider border-b border-[#232A3B]">
+                <tr>
+                  <th className="py-3 px-4">Size</th>
+                  <th className="py-3 px-4">Length</th>
+                  <th className="py-3 px-4">Chest</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#232A3B] font-medium text-[#E2E8F0]">
+                {SIZE_CHART_DATA.map((item) => {
+                  const isSelected = selectedSize === item.size;
+                  return (
+                    <tr
+                      key={item.size}
+                      onClick={() => {
+                        setSelectedSize(item.size);
+                        toast.success(`Selected shirt size: ${item.size}`);
+                      }}
+                      className={`transition-all cursor-pointer ${
+                        isSelected
+                          ? "bg-[#E6007E]/20 text-white font-bold border-l-4 border-l-[#E6007E]"
+                          : "hover:bg-[#232A3B]/60"
+                      }`}
+                    >
+                      <td className="py-3 px-4 font-black text-sm flex items-center gap-2">
+                        <span className={`px-2.5 py-1 rounded font-mono ${isSelected ? "bg-[#E6007E] text-white shadow-md" : "bg-[#131824] text-[#00F2FE] border border-[#232A3B]"}`}>
+                          {item.size}
+                        </span>
+                        <span className="text-[11px] text-[#94A3B8] font-normal hidden sm:inline">({item.label})</span>
+                      </td>
+                      <td className="py-3 px-4 font-bold text-[#E2E8F0]">
+                        {sizeChartUnit === "in" ? item.lengthIn : item.lengthCm}
+                      </td>
+                      <td className="py-3 px-4 font-bold text-[#E2E8F0]">
+                        {sizeChartUnit === "in" ? item.chestIn : item.chestCm}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-2 border-t border-[#232A3B] shrink-0">
+            <Button
+              type="button"
+              onClick={() => setIsSizeChartOpen(false)}
+              className="ml-auto shrink-0 bg-[#00F2FE] text-[#0B0E14] hover:bg-[#00F2FE]/90 font-black h-9 px-6 rounded-xl cursor-pointer"
+            >
+              Done
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </Dialog>

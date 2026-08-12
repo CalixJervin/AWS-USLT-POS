@@ -315,7 +315,7 @@ export function AccountModal({ isOpen, onOpenChange }: { isOpen: boolean, onOpen
                       <img
                         src={inputGCashQrImage}
                         alt="GCash QR Code Preview"
-                        className="max-h-48 max-w-full object-contain rounded-lg border border-[#00F2FE]/30 bg-white p-2 shadow-md"
+                        className="w-full max-w-[280px] h-auto max-h-[380px] object-contain rounded-xl border border-[#00F2FE]/30 bg-white p-2 shadow-md"
                       />
                       <div className="flex items-center gap-2 mt-1">
                         <Button

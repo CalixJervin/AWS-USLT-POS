@@ -31,6 +31,7 @@ import {
   type Row,
 } from "@tanstack/react-table"
 import { useTransactions } from "@/hooks/useTransactions"
+import { InventoryContext } from "@/context/InventoryContext"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -449,8 +450,12 @@ export function DataTable() {
     },
   ], [])
 
+  const inventoryCtx = React.useContext(InventoryContext);
+  const products = inventoryCtx?.products || [];
+
   // Category Filter State: "foods" | "merch" | "all"
   const [transactionCategory, setTransactionCategory] = React.useState<"foods" | "merch" | "all">("foods");
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = React.useState<string>("all");
   const [selectedProductFilter, setSelectedProductFilter] = React.useState<string>("all");
 
   const [columnVisibility, setColumnVisibility] =
@@ -478,9 +483,10 @@ export function DataTable() {
   })
   const [viewReceiptModalUrl, setViewReceiptModalUrl] = React.useState<string | null>(null)
 
-  // Switch Category & Reset Product Filter
+  // Switch Category & Reset Product / Menu Category Filters
   const handleCategoryChange = (cat: "foods" | "merch" | "all") => {
     setTransactionCategory(cat);
+    setSelectedCategoryFilter("all");
     setSelectedProductFilter("all");
   };
 
@@ -495,24 +501,58 @@ export function DataTable() {
     return data;
   }, [data, transactionCategory]);
 
-  // Extract unique products for current category view
-  const availableProducts = React.useMemo(() => {
+  // Helper to resolve product category
+  const getItemCategory = React.useCallback((item: { product_id?: string; product_name: string }) => {
+    const matchedProduct = products.find(
+      p => (item.product_id && p.id === item.product_id) || p.name.toLowerCase() === item.product_name.toLowerCase()
+    );
+    if (matchedProduct && matchedProduct.category) {
+      return matchedProduct.category;
+    }
+    const nameLower = item.product_name.toLowerCase();
+    if (nameLower.includes("shirt") || nameLower.includes("apparel") || nameLower.includes("t-shirt") || nameLower.includes("merch")) {
+      return "Merch";
+    }
+    return "General";
+  }, [products]);
+
+  // Extract unique categories for current transaction category view
+  const availableMenuCategories = React.useMemo(() => {
     const categoryTxIds = new Set(categoryFilteredData.map(d => d.id));
     const itemsInCat = transactionItems.filter(item => categoryTxIds.has(item.transaction_id));
-    const prodNames = Array.from(new Set(itemsInCat.map(i => i.product_name))).filter(Boolean);
-    return prodNames.sort();
-  }, [categoryFilteredData, transactionItems]);
+    const catNames = Array.from(new Set(itemsInCat.map(i => getItemCategory(i)))).filter(Boolean);
+    return catNames.sort();
+  }, [categoryFilteredData, transactionItems, getItemCategory]);
 
-  // Final Filtered Data applying Product Filter
-  const filteredData = React.useMemo(() => {
-    if (selectedProductFilter === "all") {
+  // Filter Data by Menu Category
+  const menuCategoryFilteredData = React.useMemo(() => {
+    if (selectedCategoryFilter === "all") {
       return categoryFilteredData;
     }
     return categoryFilteredData.filter(d => {
       const items = transactionItems.filter(i => i.transaction_id === d.id);
+      return items.some(i => getItemCategory(i).toLowerCase() === selectedCategoryFilter.toLowerCase());
+    });
+  }, [categoryFilteredData, selectedCategoryFilter, transactionItems, getItemCategory]);
+
+  // Extract unique products for current menu category view
+  const availableProducts = React.useMemo(() => {
+    const activeTxIds = new Set(menuCategoryFilteredData.map(d => d.id));
+    const itemsInCat = transactionItems.filter(item => activeTxIds.has(item.transaction_id));
+    const prodNames = Array.from(new Set(itemsInCat.map(i => i.product_name))).filter(Boolean);
+    return prodNames.sort();
+  }, [menuCategoryFilteredData, transactionItems]);
+
+  // Final Filtered Data applying Product Filter
+  const filteredData = React.useMemo(() => {
+    if (selectedProductFilter === "all") {
+      return menuCategoryFilteredData;
+    }
+    return menuCategoryFilteredData.filter(d => {
+      const items = transactionItems.filter(i => i.transaction_id === d.id);
       return items.some(i => i.product_name.toLowerCase().includes(selectedProductFilter.toLowerCase()));
     });
-  }, [categoryFilteredData, selectedProductFilter, transactionItems]);
+  }, [menuCategoryFilteredData, selectedProductFilter, transactionItems]);
 
   // Table Total Amount per active table view
   const tableTotalAmount = React.useMemo(() => {
@@ -598,16 +638,42 @@ export function DataTable() {
         </div>
         
         <div className="flex items-center flex-wrap gap-2">
+          {/* CATEGORY FILTER DROPDOWN */}
+          {availableMenuCategories.length > 0 && (
+            <Select 
+              value={selectedCategoryFilter} 
+              onValueChange={(cat) => {
+                setSelectedCategoryFilter(cat);
+                setSelectedProductFilter("all");
+              }}
+            >
+              <SelectTrigger className="w-[180px] h-8 bg-[#131824] border-[#00F2FE]/50 text-[#00F2FE] hover:bg-[#1E2333] hover:text-white text-xs font-bold rounded-full px-3 transition-colors cursor-pointer">
+                <Filter className="size-3.5 mr-1 text-[#00F2FE]" />
+                <SelectValue placeholder="All Categories" />
+              </SelectTrigger>
+              <SelectContent className="bg-[#1E2333] border-[#2D3448] text-[#E2E8F0]">
+                <SelectItem value="all" className="text-xs font-bold cursor-pointer">
+                  All Categories ({categoryFilteredData.length})
+                </SelectItem>
+                {availableMenuCategories.map((catName) => (
+                  <SelectItem key={catName} value={catName} className="text-xs font-medium cursor-pointer">
+                    {catName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+
           {/* PRODUCT FILTER DROPDOWN */}
           {availableProducts.length > 0 && (
             <Select value={selectedProductFilter} onValueChange={setSelectedProductFilter}>
-              <SelectTrigger className="w-[180px] h-8 bg-[#131824] border-[#00F2FE]/50 text-[#00F2FE] hover:bg-[#1E2333] hover:text-white text-xs font-bold rounded-full px-3 transition-colors">
+              <SelectTrigger className="w-[180px] h-8 bg-[#131824] border-[#00F2FE]/50 text-[#00F2FE] hover:bg-[#1E2333] hover:text-white text-xs font-bold rounded-full px-3 transition-colors cursor-pointer">
                 <Filter className="size-3.5 mr-1 text-[#00F2FE]" />
                 <SelectValue placeholder="All Products" />
               </SelectTrigger>
               <SelectContent className="bg-[#1E2333] border-[#2D3448] text-[#E2E8F0]">
                 <SelectItem value="all" className="text-xs font-bold cursor-pointer">
-                  All Products ({categoryFilteredData.length})
+                  All Products ({menuCategoryFilteredData.length})
                 </SelectItem>
                 {availableProducts.map((prodName) => (
                   <SelectItem key={prodName} value={prodName} className="text-xs font-medium cursor-pointer">
